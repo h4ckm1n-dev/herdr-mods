@@ -156,6 +156,6 @@ export default class ClaudeManager extends View {
           .child(kbdHint(c, "↵", "on / off"))
           .child(kbdHint(c, "Tab", "kind"))
           .child(div().flex_1())
-          .child(div().child("New Claude Code sessions pick changes up"))));
+          .child(div().child("Saved to ~/.claude/settings.json · new sessions load it"))));
   }
 }
