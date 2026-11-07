@@ -56,7 +56,7 @@ export default class ClaudeManager extends View {
   rows() {
     const f = this.filter.toLowerCase();
     return (this.data?.[this.kind] ?? []).filter((x) => (!this.offOnly || !x.on)
-      && (!f || x.name.toLowerCase().includes(f) || x.desc.toLowerCase().includes(f)));
+      && (!f || x.name.toLowerCase().includes(f) || (x.event ?? "").toLowerCase().includes(f) || x.desc.toLowerCase().includes(f)));
   }
 
   flip(item, cx) {
@@ -144,14 +144,18 @@ export default class ClaudeManager extends View {
       .child(div().text_size(SIZE.meta).text_color(live < n ? c.working : c.muted).child(`${live}/${n}`));
   }
 
-  row(x, sel) {
+  // Hooks: the event names a group, so it shows on the group's first row only.
+  row(x, sel, prev) {
     const c = theme();
     const kind = KINDS.find(([k]) => k === this.kind)[2];
     // No handlers in here: a virtual list's rows can't hold any (the list's on_item_click does clicks).
     return h_flex().h(ROW).w(LIST_W - 8).mx(4).px(8).gap(12).items_center().rounded(8).cursor_pointer().text_size(SIZE.body)
       .when(sel, (el) => el.bg(c.selected ?? c.hover))
       .child(this.toggle(c, x.on, this.busy.has(`${kind}:${x.id}`)))
-      .child(div().w(300).flex_none().truncate().text_color(x.on ? c.foreground : c.dim).when(sel, (d) => d.font_medium()).child(x.name))
+      .when(this.kind === "hooks", (el) => el.child(div().w(136).flex_none().truncate().text_size(SIZE.meta).text_color(c.muted)
+        .child(x.event && x.event !== prev?.event ? x.event : "")))
+      .child(div().w(this.kind === "hooks" ? 220 : 300).flex_none().truncate().text_color(x.on ? c.foreground : c.dim)
+        .when(sel || x.id === "*", (d) => d.font_medium()).child(x.name))
       .child(div().flex_1().min_w(0).truncate().text_size(SIZE.meta).text_color(c.dim).child(x.desc || " "))
       .child(div().w(80).flex_none().text_right().text_size(SIZE.micro)
         .text_color(x.on ? c.dim : c.working).child(!x.on ? "off" : x.mode && x.mode !== "on" ? x.mode : ""));
@@ -192,7 +196,7 @@ export default class ClaudeManager extends View {
         .child(v_flex().relative().w(LIST_W).flex_1().min_h(0)
           .when(rows.length > 0, (el) => el
             .child(v_virtual_list("cm-list", rows.length, ROW, (i) => rows[i].id,
-              (range) => rows.slice(range.start, range.end).map((x, j) => this.row(x, range.start + j === this.at)))
+              (range) => rows.slice(range.start, range.end).map((x, j) => this.row(x, range.start + j === this.at, rows[range.start + j - 1])))
               .track_scroll(this.scroll).size_full()
               .on_item_click((name, cx) => {
                 const i = this.rows().findIndex((x) => x.id === name);
@@ -209,7 +213,7 @@ export default class ClaudeManager extends View {
           .child(kbdHint(c, "↵", "on / off"))
           .child(kbdHint(c, "Tab", "kind"))
           .when(this.kind === "skills" || this.kind === "agents", (el) => el.child(kbdHint(c, "⌘⌫", "Trash")))
-          .child(div().flex_1().min_w(0).truncate().text_size(SIZE.micro).text_color(c.dim).child("New sessions load changes"))
+          .child(div().flex_1())
           .when(Boolean(d), (el) => el.children(KINDS.flatMap(([k, label], i) => [...(i ? [sep()] : []), this.gauge(c, k, label, d[k])])))));
   }
 }

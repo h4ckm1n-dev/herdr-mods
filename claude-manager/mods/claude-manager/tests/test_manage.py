@@ -29,9 +29,9 @@ assert d["skills"][0]["desc"] == "A demo skill.", d["skills"][0]
 assert d["commands"] == [{"id": "deep", "name": "/deep", "desc": "Go deep on one thing", "on": True}], d["commands"]
 assert "secret" not in json.dumps(d) and d["mcp"][0]["desc"] == "stdio · srv"
 assert [p["on"] for p in d["plugins"]] == [True, False]
-names = [h["name"] for h in d["hooks"]]
+names = [f'{h["event"]} · {h["name"]}' if "event" in h else h["name"] for h in d["hooks"]]
 assert names == ["All hooks", "PreToolUse · block", "PreToolUse · rtk hook", "PreToolUse · warn", "Stop · graft-hooks stop"], names
-hid = {h["name"]: h["id"] for h in d["hooks"]}
+hid = dict(zip(names, (h["id"] for h in d["hooks"])))
 
 for kind, name in [("skill", "demo"), ("command", "deep"), ("agent", "helper"), ("mcp", "srv"), ("plugin", "p@m"), ("hook", "*")]:
     run("set", kind, name, "off")

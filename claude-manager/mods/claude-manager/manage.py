@@ -109,9 +109,11 @@ def hook_rows(s):
 
 
 def hook_item(ev, g, h, on):
-    cmd = " ".join((h.get("command") or h.get("prompt") or h.get("url") or "").split())
+    cmd = " ".join((h.get("command") or h.get("prompt") or h.get("url") or "").split()).replace(HOME, "~")
+    if re.match(r"(if|case|for|while|\{)\b", cmd) or cmd.count(";") > 2:
+        cmd = "inline shell script"  # a wall of shell says nothing at a glance
     m = g.get("matcher")
-    return {"id": hook_id(ev, g, h), "name": f"{ev} · {hook_label(h)}", "on": on,
+    return {"id": hook_id(ev, g, h), "name": hook_label(h), "event": ev, "on": on,
             "desc": f"{m} · {cmd[:160]}" if m and m != "*" else cmd[:160]}
 
 
@@ -195,8 +197,8 @@ def listing():
     ids = {x["id"] for x in live}
     off = [hook_item(r["event"], {**r["group"]}, r["hook"], False) for r in load(STASH, []) if r["id"] not in ids]
     key = lambda x: x["name"].lower()
-    hooks = [item("*", "disableAllHooks: every hook below and the status line", not s.get("disableAllHooks"),
-                  name="All hooks")] + sorted(live + off, key=key)
+    hooks = [item("*", "Every hook below, and the status line", not s.get("disableAllHooks"), name="All hooks")] \
+        + sorted(live + off, key=lambda x: (x["event"].lower(), x["name"].lower()))
     return {"skills": sorted(skills, key=key), "commands": sorted(commands, key=key), "agents": sorted(agents, key=key),
             "mcp": sorted(mcp, key=key), "hooks": hooks, "plugins": sorted(plugins, key=key), "settings": SETTINGS}
 
