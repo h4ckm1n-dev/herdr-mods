@@ -15,7 +15,7 @@ import { HUNK_DIFF, patchFor } from "./hunks.js";
 import { icon } from "./menu.js";
 import * as K from "./kit.js";
 import { changeItems, follow, windowTop, changeKeys, hintsFor } from "./cursor.js";
-import { depthOf, unsearched, findArgs, parseFound, REPO_STATUS, LATEST_TAG, FETCH, REMOTES, fetchable, parseRepoStatus, parseRemotes, webUrl, syncOf } from "./repos.js";
+import { depthOf, unsearched, findArgs, parseFound, RISKY, riskyKeys, REPO_STATUS, LATEST_TAG, FETCH, REMOTES, fetchable, parseRepoStatus, parseRemotes, webUrl, syncOf } from "./repos.js";
 
 // While a mod holds the keyboard (this panel, "focusable"), no pane or terminal is focused:
 // the panel keeps showing the place it showed, in the same space.
@@ -141,7 +141,12 @@ function changesOf(status) {
 
 // A row's status: one git call (with the newest tag beside it when tags show),
 // and `git remote` only when the branch has no upstream.
-async function readRepo(path, on, tags) {
+async function readRepo(path, on, tags, trusted) {
+  if (!trusted) {
+    const c = await exec("git", RISKY, { cwd: path, on }).catch(() => null);
+    const keys = c?.code === 0 ? riskyKeys(c.stdout) : [];
+    if (keys.length) return { untrusted: keys };
+  }
   const [r, tag] = await Promise.all([exec("git", REPO_STATUS, { cwd: path, on }), tags ? exec("git", LATEST_TAG, { cwd: path, on }) : null]);
   if (r.code !== 0) return { error: (r.stderr || "git status failed").trim().split("\n").pop() };
   const st = parseRepoStatus(r.stdout);
@@ -173,6 +178,8 @@ export class Graph {
     this.fetchAll = null; this.fetchErrors = new Map();
     // Manygit's .git watchers, one per repository, kept while it's listed (see watchRepos).
     this.watched = new Set();
+    // Found repositories whose config runs programs, read anyway because the person opened them.
+    this.trusted = new Set();
     // Herdr's agents per machine, for a row's "New … tab" (as its + menu lists them).
     this.agents = new Map();
     this.handle = cx.focus_handle();
@@ -328,7 +335,7 @@ export class Graph {
   // on: the machine the list was read on, never whatever the panel shows by the time it runs.
   async readStatus(path, on, stale, cx) {
     if (stale()) return;
-    const st = await readRepo(path, on, tagsShown()).catch((e) => ({ error: String(e?.message ?? e) }));
+    const st = await readRepo(path, on, tagsShown(), this.trusted.has(path)).catch((e) => ({ error: String(e?.message ?? e) }));
     if (stale() || !this.workspace) return;
     if (JSON.stringify(st) !== JSON.stringify(this.statuses.get(path))) { this.statuses.set(path, st); cx.notify(); }
   }
@@ -402,6 +409,7 @@ export class Graph {
   }
 
   open(path, cx) {
+    this.trusted.add(path); // opening it is the person's go-ahead (see RISKY)
     const { workspace, statuses, cwd, on } = this;
     this.reset(); Object.assign(this, { workspace, statuses, cwd, on, opened: path, state: "loading" });
     this.refresh(cx); cx.notify();
@@ -967,7 +975,7 @@ export class Graph {
     const st = this.statuses.get(r.path), fetchError = this.fetchErrors.get(r.path), sync = syncOf(st, fetchError), here = r.path === this.opened;
     // ↑ and ↓ as Herdr's Spaces list draws them (ansi2, ansi1); in sync shows nothing.
     const counts = ["ahead", "behind", "diverged"].includes(sync.kind) && !fetchError;
-    const color = { loading: t.dim, error: t.blocked, unpushed: t.ansi1, gone: t.ansi1, local: t.dim }[sync.kind];
+    const color = { loading: t.dim, untrusted: t.working, error: t.blocked, unpushed: t.ansi1, gone: t.ansi1, local: t.dim }[sync.kind];
     const label = counts || sync.kind === "ok" ? null : fetchError ? sync.text : { unpushed: "not pushed", error: "error" }[sync.kind] ?? sync.text;
     // A failure (reading it, or its last fetch) shows git's words where the branch goes.
     const problem = st?.error ?? fetchError;
@@ -976,8 +984,9 @@ export class Graph {
     return h_flex().id(`graph-repo-${i}`).h(32).flex_none().pl(indent ? 16 : 8).pr(8).gap(8).items_center().rounded(8).cursor_pointer()
       .when(here, (e) => e.bg(t.selected)).hover((s) => s.bg(here ? t.selected : t.hover))
       .accessibility_label(here ? `${r.name}, open` : `Open ${r.name}`)
+      .when(Boolean(st?.untrusted), (e) => e.tooltip(`Not read: its .git/config runs programs (${st.untrusted.join(", ")}). Click to open and read it.`))
       .on_click((_e, cx) => { if (here) { this.picking = false; cx.notify(); } else this.open(r.path, cx); })
-      .on_mouse_down("right", (_e, cx) => { cx.stop_propagation(); if (st && !st.error) this.repoMenu(r, cx); })
+      .on_mouse_down("right", (_e, cx) => { cx.stop_propagation(); if (st && !st.error && !st.untrusted) this.repoMenu(r, cx); })
       .child(K.gutter(t, sync.kind === "loading" ? "working" : svg(icon("folder")).size(12).text_color(here ? t.accent : t.dim), t.dim))
       .child(div().min_w(0).truncate().text_size(K.SIZE.body).font_medium().text_color(here ? t.accent : t.foreground).child(r.name))
       .child(h_flex().flex_none().gap(4).items_center().text_size(K.SIZE.meta)
