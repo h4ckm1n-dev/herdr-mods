@@ -1,11 +1,13 @@
-// Claude usage: 5h / 7d quota meters in the bottom bar. Source: the statusline's cache file (no fetch here).
-import { View, div } from "gpui-kit";
+// Agent usage: 5h / 7d quota meters for Claude Code and Codex in the bottom bar.
+// Source: limits.py (the Claude statusline cache, Codex's own session reports). Nothing fetched.
+// One tool: its meters with time to reset. Both: each behind its icon, resets in the tooltip.
+import { View, div, svg, image } from "gpui-kit";
 import { h_flex } from "gpui-base";
-import { SIZE } from "./kit.js";
-import { theme, exec } from "herdr";
+import { SIZE, agentColor } from "./kit.js";
+import { theme, exec, appHome, knownAgents } from "herdr";
 
-const RATE_FILE = "/tmp/claude/statusline-usage-cache.json"; // written by ~/.claude/statusline-command.sh
 const POLL_MS = 30_000;
+const TOOLS = [["claude", "Claude"], ["codex", "Codex"]];
 // resets_at is UTC; "2h05m" / "3d4h" left
 const resetIn = (iso) => {
   const m = Math.floor((Date.parse(iso ?? "") - Date.now()) / 60000);
@@ -14,9 +16,15 @@ const resetIn = (iso) => {
   return d ? `${d}d${h}h` : h ? `${h}h${String(m % 60).padStart(2, "0")}m` : `${Math.max(1, m)}m`;
 };
 
-export default class ClaudeUsage extends View {
+export default class AgentUsage extends View {
   init(_props, cx) {
-    this.rate = null;
+    this.limits = {};
+    this.icons = {}; // the program table's icon per agent key (as the New menu draws them)
+    cx.spawn(async (cx) => {
+      try { for (const a of await knownAgents({})) if (a?.icon) this.icons[a.key] = a; } catch {}
+      cx.notify();
+    });
+    this.script = `${appHome()}/mods/claude-usage/limits.py`;
     cx.timer.every(POLL_MS, (cx) => this.refresh(cx));
     this.refresh(cx);
   }
@@ -24,34 +32,50 @@ export default class ClaudeUsage extends View {
   refresh(cx) {
     cx.spawn(async (cx) => {
       try {
-        const r = await exec("cat", [RATE_FILE]);
-        this.rate = r.code === 0 ? JSON.parse(r.stdout) : null;
-      } catch { this.rate = null; } // ponytail: no cache yet = empty band, not an error
+        const r = await exec("python3", ["-I", this.script]);
+        this.limits = r.code === 0 ? JSON.parse(r.stdout) : {};
+      } catch { this.limits = {}; } // ponytail: no data yet = empty band, not an error
       cx.notify();
     });
   }
 
-  meter(t, key, w, label, pct, reset) {
-    const p = Math.max(0, Math.min(100, Math.round(pct ?? 0)));
+  meter(t, key, label, w, showReset) {
+    const p = Math.max(0, Math.min(100, Math.round(w?.utilization ?? 0)));
     const color = p >= 90 ? t.blocked : p >= 50 ? t.working : t.done;
+    const reset = resetIn(w?.resets_at);
     return h_flex().id(`u-${key}`).flex_none().gap(4).items_center()
+      .when(!showReset && Boolean(reset), (el) => el.tooltip(`${label} window · ${p}% used · resets in ${reset}`))
       .child(div().text_size(SIZE.micro).text_color(t.dim).child(label))
-      .child(h_flex().w(w).h(4).rounded(2).overflow_hidden().bg(t.border)
+      .child(h_flex().w(28).h(4).rounded(2).overflow_hidden().bg(t.border)
         .child(div().h_full().rounded(2).flex_basis(0).flex_grow(p / 100).bg(color))
         .child(div().h_full().flex_basis(0).flex_grow(1 - p / 100)))
       .child(div().text_size(SIZE.meta).text_color(p >= 50 ? color : t.muted).child(`${p}%`))
-      .child(div().text_size(SIZE.micro).text_color(t.dim).child(reset));
+      .when(showReset && Boolean(reset), (el) => el.child(div().text_size(SIZE.micro).text_color(t.dim).child(reset)));
+  }
+
+  // The tool's icon in its color (name in the tooltip); its name only if the icon isn't known.
+  mark(t, k, name) {
+    const a = this.icons[k], color = agentColor(t, k);
+    if (!a) return div().text_size(SIZE.micro).font_medium().text_color(color).child(name);
+    return div().id(`mark-${k}`).flex_none().tooltip(name).accessibility_label(name)
+      .child(a.tint ? svg(a.icon).size(13).text_color(color) : image(a.icon).w(13).h(13));
   }
 
   render() {
-    const t = theme(), r = this.rate;
-    const bar = h_flex().id("claude-usage").size_full().min_h(0).px(12).gap(12).items_center().bg(t.chrome);
-    if (!r) return bar;
+    const t = theme();
+    const shown = TOOLS.filter(([k]) => this.limits?.[k]);
+    const both = shown.length > 1;
     const sep = () => div().w(1).h(14).flex_none().bg(t.border);
-    return bar
-      .child(this.meter(t, "5h", 28, "5h", r.five_hour?.utilization, resetIn(r.five_hour?.resets_at)))
-      .child(sep())
-      .child(this.meter(t, "7d", 28, "7d", r.seven_day?.utilization, resetIn(r.seven_day?.resets_at)))
-      .child(div().flex_1());
+    const bar = h_flex().id("agent-usage").size_full().min_h(0).px(12).gap(12).items_center().justify_end().bg(t.chrome);
+    return bar.children(shown.flatMap(([k, name], i) => {
+      const l = this.limits[k];
+      return [
+        ...(i ? [sep()] : []),
+        h_flex().id(`tool-${k}`).flex_none().gap(8).items_center()
+          .when(both, (el) => el.child(this.mark(t, k, name)))
+          .child(this.meter(t, `${k}-5h`, "5h", l.five_hour, !both))
+          .child(this.meter(t, `${k}-7d`, "7d", l.seven_day, !both)),
+      ];
+    }));
   }
 }

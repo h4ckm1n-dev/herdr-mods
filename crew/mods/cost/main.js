@@ -1,10 +1,11 @@
-// Cost: Claude Code spend, from the transcripts (~/.claude/projects), summarised by cost.py.
+// Cost: Claude Code spend, from the transcripts (~/.claude/projects), summarised by cost.py,
+// plus Codex usage in tokens (~/.codex/sessions; no per-token price on a ChatGPT plan).
 // Today / last 7 days, by model, main session vs subagents, top projects, against a daily budget.
 
 import { View, div, svg } from "gpui-kit";
 import { v_flex, h_flex } from "gpui-base";
 import { exec, appHome, theme, nextCommand } from "herdr";
-import { panel, header, list, section, bar, tag, empty, errorBand, liveStatus, trackTerminal, navKey, keyHints, CORAL, SIZE, panelFocusAsked } from "./kit.js";
+import { panel, header, list, section, bar, tag, empty, errorBand, liveStatus, trackTerminal, navKey, keyHints, CORAL, SIZE, panelFocusAsked, agentColor } from "./kit.js";
 
 // ponytail: daily budget in USD, a constant on purpose; raise it when your normal day changes.
 const DAILY_BUDGET = 150;
@@ -14,6 +15,7 @@ const POLL_MS = 60_000;
 const usd = (v) => (v > 0 && v < 1 ? "<$1" : `$${String(Math.round(v)).replace(/\B(?=(\d{3})+$)/g, ",")}`);
 const ago = (ms) => { const m = Math.round((Date.now() - ms) / 60000); return m < 1 ? "just now" : `${m}m ago`; };
 const MODELS = (t) => ({ opus: ["Opus", CORAL], sonnet: ["Sonnet", t.ansi4], haiku: ["Haiku", t.ansi2], fable: ["Fable", t.ansi5], mythos: ["Mythos", t.ansi5], other: ["Other", t.muted] });
+const tok = (n) => (n >= 1e6 ? `${+(n / 1e6).toFixed(1)}M` : n >= 1e3 ? `${Math.round(n / 1e3)}K` : String(n));
 const weekday = (iso) => ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][new Date(iso + "T12:00:00").getDay()];
 
 export default class Cost extends View {
@@ -114,6 +116,12 @@ export default class Cost extends View {
           this.meter(t, "p-sub", "Subagents", splitTot ? d.split.sub[1] / splitTot : 0, t.muted, usd(d.split.sub[0]), usd(d.split.sub[1]), 88),
           d.subagents.length ? div().px(12).pt(4).text_size(SIZE.meta).text_color(t.dim).truncate()
             .child("Runs today: " + d.subagents.map(([a, n]) => `${a.replace(/^.*:/, "")} ${n}`).join(" · ")) : div()),
+        // Codex: tokens, not dollars (it runs on a ChatGPT plan); only when it was used this week
+        ...(d.codex?.week ? [
+          section(t, "s-codex", "Codex", `${tok(d.codex.week)} tokens · 7 days`, { icon: "mods/cost/icons/cpu.svg" }),
+          this.card(t, "c-codex", ...d.codex.days.map(([day, v], i) =>
+            this.meter(t, `x-${day}`, i === d.codex.days.length - 1 ? "Today" : weekday(day), v / Math.max(1, ...d.codex.days.map((x) => x[1])), agentColor(t, "codex"), tok(v)))),
+        ] : []),
         section(t, "s-proj", "Top projects", "today · 7 days", { icon: "folder" }),
         this.card(t, "c-proj", ...(d.projects.length ? d.projects.map(([name, today, week]) =>
           this.meter(t, `j-${name}`, name, week / maxProj, t.muted, usd(today), usd(week), 88)) : [div().px(12).text_color(t.dim).child("No usage yet")])),

@@ -43,4 +43,16 @@ class Cost(unittest.TestCase):
             self.assertEqual(set(r["models"]), {"opus", "haiku"})
             self.assertAlmostEqual(r["week"], r["today"], places=4)  # the October message is outside the window
 
+    def test_codex_tokens_by_day(self):
+        with tempfile.TemporaryDirectory() as d:
+            p = os.path.join(d, "2026", "11", "06"); os.makedirs(p)
+            ev = lambda ts, tot: json.dumps({"timestamp": ts, "type": "event_msg", "payload": {"type": "token_count",
+                "info": {"total_token_usage": {"total_tokens": tot}} if tot else None}}) + "\n"
+            open(os.path.join(p, "rollout-x.jsonl"), "w").write(
+                ev("2026-11-05T12:00:00Z", 100) + ev("2026-11-06T12:00:00Z", 100) + ev("2026-11-06T12:01:00Z", 0) + ev("2026-11-06T12:02:00Z", 250))
+            r = cost.codex(cost.local_day("2026-11-06T12:00:00Z"), 0, root=d)
+            self.assertEqual(r["today"], 150)   # the repeat and the rate-limit-only report add nothing
+            self.assertEqual(r["week"], 250)
+            self.assertEqual(len(r["days"]), 7)
+
 if __name__ == "__main__": unittest.main()

@@ -5,7 +5,7 @@
 **See every coding agent you run, in one calm window.**
 
 A layout and mods for [Herdr](https://herdr.dev) that put your Claude Code and Codex agents first.
-You see who is working, who needs you, what each one just did and how much of your Claude quota is
+You see who is working, who needs you, what each one just did and how much of your Claude and Codex quota is
 left, without switching tabs.
 
 ![Crew: agents sidebar, spaces, terminals, side panels and the quota bar](crew/preview.png)
@@ -33,8 +33,8 @@ The whole window, redrawn around agents:
 - **Agents first.** Working, Needs you, Done and Idle groups. A spinner shows while an agent works. Each agent shows its last action, its context fill, and running sub-agents with progress.
 - **⌘J** jumps to the next agent waiting on you, in any space.
 - **Spaces** with stable colored avatars and worktrees nested under their repo.
-- **A panel tab bar:** Files (⌘E), Git (⌘G) and Claude Code spend (⌘⇧U).
-- **A bottom bar** with the machine, the branch, `2 working · 1 needs you`, and your **Claude 5h / 7d quota** with time to reset.
+- **A panel tab bar:** Files (⌘E), Git (⌘G) and Cost (⌘⇧U): Claude Code spend plus Codex tokens.
+- **A bottom bar** with the machine, the branch, `2 working · 1 needs you`, and your **Claude Code and Codex 5h / 7d quotas** side by side.
 - Menus, dialogs and the ⌘P tab picker in one consistent style.
 
 </td>
@@ -116,14 +116,14 @@ paths outside it. A symlinked mod loads, then never updates while you edit it.
 
 ## Safe by design
 
-- **Local only.** Nothing here calls a server. Agent rows and spend come from your own Claude Code and Codex transcripts on disk (`~/.claude/projects`). The quota bar reads the cache your Claude Code statusline already writes.
+- **Local only.** Nothing here calls a server. Agent rows and spend come from your own Claude Code and Codex transcripts on disk (`~/.claude/projects`). The quota bar reads the cache your Claude Code statusline already writes and the rate limits Codex logs in `~/.codex/sessions`.
 - **No surprise git.** The Git panel won't automatically read a repo whose own config can launch a program: filter drivers, ssh, credential or askpass helpers, upload-pack and similar settings. Such a repo shows as *not read* until you open it. Fetch never prompts for credentials and never runs auto-gc.
 - **Asks first.** Discard, drop, abort and reset each ask for confirmation, and the installer asks before changing your keys.
 
 ## Needs
 
 - The Herdr desktop app and `python3`. The Git mod also needs `git`.
-- For the agent rows and the quota bar: Claude Code and/or Codex. The quota meters need a Claude Code statusline that caches usage to `/tmp/claude/statusline-usage-cache.json`.
+- For the agent rows and the quota bar: Claude Code and/or Codex. Claude's quota meters need a Claude Code statusline that caches usage to `/tmp/claude/statusline-usage-cache.json`; Codex's come from its own session logs.
 
 ## Rebuild it, remix it
 

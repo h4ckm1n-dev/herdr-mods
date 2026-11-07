@@ -2,7 +2,7 @@
 
 A Herdr window built around your coding agents. A left sidebar shows every agent first, then your
 spaces. A tab bar carries buttons for the side panels: files, a git graph and Claude Code spend. A
-28px bottom bar shows where you are, who is working, and your Claude 5h / 7d quota. Every piece is
+28px bottom bar shows where you are, who is working, and your Claude Code and Codex 5h / 7d quotas. Every piece is
 drawn with one small kit: theme colors only, a 36px text indent, spinners for live work, and
 keycaps for shortcuts.
 
@@ -36,9 +36,11 @@ A row filling the window, with no system title bar (traffic lights at 12,16) on 
      - On the left: a monitor or server icon with the machine, the branch as a tag, then
        `n working` with a spinner and `n needs you` with a `blocked` dot, or just `n agents`.
        After that, a `Commands ⌘⇧P` button.
-     - On the right, a 290px block with the Claude quotas: `5h` and a 28px bar, the percent and
-       time to reset, a 1px separator, then the same for `7d`. The bars are `done` green, turn
-       `working` amber at 50% and `blocked` red at 90%.
+     - On the right, a 380px block of quotas, right-aligned: for each tool with data, `5h` and a
+       28px bar with the percent, then `7d` the same. With one tool, the time to reset follows each
+       percent. With Claude and Codex both, each group starts with the tool's 13px program icon (Claude
+       coral, Codex cyan), a 1px separator between them, resets in the tooltips. The bars are `done`
+       green, turn `working` amber at 50% and `blocked` red at 90%.
    - **Dialogs and menus** share one look: `popover` background, a 42px header with an `Esc`
      keycap, 30px menu items with shortcuts drawn as keycaps. This covers the tab and terminal
      context menus, the new tab menu, the worktree dialogs, and the ⌘P go-to-tab picker (16:9,
@@ -54,7 +56,10 @@ A row filling the window, with no system title bar (traffic lights at 12,16) on 
 - ⌘E opens Files, ⌘G the git graph and ⌘⇧U Cost. The same key again closes the panel.
 - ⌘P opens the tab picker: spaces with something that needs you first, typing filters.
 - Right-clicking a tab, space or terminal opens the crew context menu.
-- The bottom bar's quota block reads the statusline cache every 30s. With no cache, it is empty.
+- The quota block runs `limits.py` every 30s: Claude from the statusline cache, Codex from the newest
+  `rate_limits` in `~/.codex/sessions` (a window past its reset reads 0). With neither, it is empty.
+- The Cost panel adds a Codex section (tokens per day, no dollars: Codex runs on a ChatGPT plan) when
+  Codex was used this week.
 
 ## Built from
 
@@ -62,14 +67,14 @@ A row filling the window, with no system title bar (traffic lights at 12,16) on 
   `sidebar-lists` (agents-crew, spaces-crew) and `sidebar-footer` (workspace-chrome-crew with
   `{footer: true}`). Next to it, the `work` column with `tabs` (tabs-crew) and `work-body`. The
   `work-body` row holds the terminal and a hidden `panel` stack: files-crew, git, cost. Below it,
-  the `status-row` holds workspace-status-crew and claude-usage at 290px. Pane headers use
+  the `status-row` holds workspace-status-crew and claude-usage at 380px. Pane headers use
   pane-crew, and `terminal_menu` is menu-crew.
 - Mods in `mods/`: agents-crew, spaces-crew, workspace-chrome-crew, tabs-crew,
   workspace-status-crew, claude-usage, pane-crew, files-crew, git, cost, menu-crew,
   new-menu-crew, worktree-crew, picker-crew. Each mod has its own copy of the Crew `kit.js`.
 - Programs: `python3` scripts read Claude Code and Codex transcripts (agents-crew `scan.py`,
-  `codex_scan.py`, cost `cost.py`). git runs `git`. claude-usage `cat`s
-  `/tmp/claude/statusline-usage-cache.json`.
+  `codex_scan.py`, cost `cost.py`). git runs `git`. claude-usage runs `limits.py`
+  (reads `/tmp/claude/statusline-usage-cache.json` and `~/.codex/sessions`).
 - Icons come from the shipped `mods/workspace-chrome/*.svg`.
 
 ## Watch out

@@ -123,6 +123,29 @@ def report(files, cache, today):
     out["subagents"] = ledger(today)
     return out
 
+CODEX = os.path.join(HOME, ".codex", "sessions")
+
+def codex(today, since, root=CODEX):
+    """Codex tokens per local day (no $: Codex runs on a ChatGPT plan, no per-token price to apply).
+    Each session's token_count reports a running total; a day gets the growth seen that day."""
+    names = [(date.fromisoformat(today) - timedelta(days=WINDOW - 1 - i)).isoformat() for i in range(WINDOW)]
+    per = dict.fromkeys(names, 0)
+    for path in glob.glob(os.path.join(root, "*", "*", "*", "rollout-*.jsonl")):
+        if os.path.getmtime(path) < since: continue
+        prev = 0
+        try:
+            with open(path, encoding="utf-8", errors="replace") as f:
+                for line in f:
+                    if '"token_count"' not in line: continue
+                    try: d = json.loads(line)
+                    except ValueError: continue
+                    tot = (((d.get("payload") or {}).get("info") or {}).get("total_token_usage") or {}).get("total_tokens")
+                    if not tot or tot <= prev: continue  # a repeated report, or a rate-limit-only one
+                    day, prev, delta = local_day(d.get("timestamp") or ""), tot, tot - prev
+                    if day in per: per[day] += delta
+        except (OSError, ValueError): continue
+    return {"today": per[today], "week": sum(per.values()), "days": [[n, per[n]] for n in names]}
+
 def find(since):
     """Transcripts touched since `since` (epoch): older files can't hold a message from the window."""
     out = []
@@ -148,5 +171,6 @@ if __name__ == "__main__":
     start = datetime.combine(date.fromisoformat(today) - timedelta(days=WINDOW), datetime.min.time()).timestamp()
     files, cache = find(start), load()
     res = report(files, cache, today)
+    res["codex"] = codex(today, start)
     save(cache, {f[0] for f in files})
     print(json.dumps(res, separators=(",", ":")))
