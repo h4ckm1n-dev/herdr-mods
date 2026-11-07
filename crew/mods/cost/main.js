@@ -111,7 +111,13 @@ export default class Cost extends View {
             .child(div().flex_1())
             .child(tag(t, over ? `+${usd(d.today - DAILY_BUDGET)} over` : `${Math.round((d.today / DAILY_BUDGET) * 100)}%`, over ? t.blocked : undefined)),
           h_flex().px(12).pt(8).pb(4).child(bar(t, "c-budget", d.today / DAILY_BUDGET, accent)),
-          div().px(12).text_size(SIZE.meta).text_color(t.dim).child(`Avg ${usd(d.week / 7)} a day over 7 days`)),
+          // pace: what the session burns now, against today's average per active hour
+          h_flex().px(12).gap(8).items_baseline().text_size(SIZE.meta).text_color(t.dim)
+            .when(d.lastHour !== undefined, (el) => el
+              .child(div().text_color(t.muted).child("Last hour"))
+              .child(div().text_color(d.perHour && d.lastHour > 1.5 * d.perHour ? t.working : t.foreground).child(usd(d.lastHour)))
+              .child(div().child(`· ${usd(d.perHour)}/h today`)))
+),  // the 7-day average now reads off the columns below
         // 7 days as columns: Claude $ on top, Codex tokens as a thin row under (when used); hover a column for its value
         section(t, "s-week", "Last 7 days", d.codex?.week ? `${usd(d.week)} · ${tok(d.codex.week)} Codex` : usd(d.week), { icon: "mods/cost/icons/calendar.svg" }),
         this.card(t, "c-week",
@@ -122,7 +128,10 @@ export default class Cost extends View {
         // models, then the subagents' share in one line (was its own section)
         section(t, "s-models", "By model", "today · 7 days", { icon: "mods/cost/icons/cpu.svg" }),
         this.card(t, "c-models", ...(modelsRows.length ? modelsRows.map(([k, v]) =>
-          this.meter(t, `m-${k}`, h_flex().gap(6).items_center().child(div().size(6).flex_none().rounded(3).bg(M[k]?.[1] ?? t.muted)).child(M[k]?.[0] ?? k), v[1] / maxModel, t.muted, usd(v[0]), usd(v[1]), 88)) : [div().px(12).text_color(t.dim).child("No usage yet")]),
+          this.meter(t, `m-${k}`, h_flex().id(`mc-${k}`).gap(6).items_center().child(div().size(6).flex_none().rounded(3).bg(M[k]?.[1] ?? t.muted)).child(M[k]?.[0] ?? k)
+            // share of input read from cache: low means full-price re-reads
+            .when(d.cached?.[k] !== undefined, (el) => el.tooltip(`${d.cached[k]}% of input read from cache`)
+              .child(div().text_size(SIZE.micro).text_color(d.cached[k] < 70 ? t.working : t.dim).child(`${d.cached[k]}%`))), v[1] / maxModel, t.muted, usd(v[0]), usd(v[1]), 88)) : [div().px(12).text_color(t.dim).child("No usage yet")]),
           this.meter(t, "p-sub", h_flex().gap(6).items_center().child(div().size(6).flex_none()).child("Subagents"), splitTot ? d.split.sub[1] / splitTot : 0, t.muted, usd(d.split.sub[0]), usd(d.split.sub[1]), 88),
           d.subagents.length ? div().px(12).text_size(SIZE.micro).text_color(t.dim).truncate()
             .child(d.subagents.map(([a, n]) => `${a.replace(/^.*:/, "")} ${n}`).join(" · ")) : div()),

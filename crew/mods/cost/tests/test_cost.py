@@ -55,4 +55,26 @@ class Cost(unittest.TestCase):
             self.assertEqual(r["week"], 250)
             self.assertEqual(len(r["days"]), 7)
 
+    def test_last_hour_and_rate(self):
+        with tempfile.TemporaryDirectory() as d:
+            f = os.path.join(d, "s.jsonl")
+            now = cost.epoch("2026-11-06T12:30:00Z")
+            # 3h ago (counts in the day, not the last hour), 20 min ago, and a repeat of that message with more output
+            open(f, "w").write(line("a", "2026-11-06T09:30:00Z", 50_000) + line("b", "2026-11-06T12:10:00Z", 10_000)
+                               + line("b", "2026-11-06T12:10:00Z", 100_000))
+            day = cost.local_day("2026-11-06T12:30:00Z")
+            r = cost.report([(f, "p", False)], {}, day, now=now)
+            b = cost.cost("claude-opus-5-5", [10, 100_000, 0, 0, 0])
+            self.assertAlmostEqual(r["lastHour"], b, places=4)   # only b, counted once with its final usage
+            self.assertGreater(r["perHour"], 0)
+            self.assertLessEqual(r["perHour"], r["today"])
+            self.assertEqual(r["cached"], {"opus": 0})  # no cache reads in these lines
+
+    def test_cache_share(self):
+        with tempfile.TemporaryDirectory() as d:
+            f = os.path.join(d, "s.jsonl"); ts = "2026-11-06T12:00:00Z"
+            open(f, "w").write(line("a", ts, 5, cache_read_input_tokens=90))  # 10 fresh in + 90 read
+            r = cost.report([(f, "p", False)], {}, cost.local_day(ts), now=cost.epoch(ts))
+            self.assertEqual(r["cached"], {"opus": 90})
+
 if __name__ == "__main__": unittest.main()

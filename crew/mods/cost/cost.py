@@ -2,15 +2,16 @@
 """Claude Code spend: today / last 7 days, by model, main vs subagents, by project.
 Incremental by file offset (like claude-crew/scan.py): each transcript is read once, then only new bytes.
 Usage: cost.py [YYYY-MM-DD]   (date = "today", for tests)   Prints JSON."""
-import glob, json, os, sys
+import glob, json, os, sys, time
 from datetime import datetime, date, timedelta
 
 HOME = os.path.expanduser("~")
 PROJECTS = os.path.join(HOME, ".claude", "projects")
 LEDGERS = os.path.join(HOME, ".claude", "logs")
 CACHE = os.path.join(HOME, ".cache", "herdr-cost", "usage.json")
-V = 1
+V = 2  # 2: 10-minute slots for the last hour
 WINDOW = 7
+SLOT = 600  # seconds: spend is also kept in 10-minute slots, for the last hour
 
 # $/MTok: (input, output, cache read). Source: claude-api skill "Current Models" table (cached 2026-10-06);
 # matched by longest model-id prefix. Cache write is derived: 5-minute = 1.25x input, 1-hour = 2x input.
@@ -47,6 +48,9 @@ def tokens(u):
     w5 = cc.get("ephemeral_5m_input_tokens", u.get("cache_creation_input_tokens", 0) - w1)
     return [u.get("input_tokens", 0), u.get("output_tokens", 0), u.get("cache_read_input_tokens", 0), w5, w1]
 
+def epoch(ts):
+    return datetime.fromisoformat(ts.replace("Z", "+00:00")).timestamp()
+
 def local_day(ts):
     return datetime.fromisoformat(ts.replace("Z", "+00:00")).astimezone().date().isoformat()
 
@@ -59,7 +63,7 @@ def scan(path, cache):
     size = os.path.getsize(path)
     c = cache.get(path)
     if not c or c.get("v") != V or c["off"] > size:  # new, old format, or rewritten
-        c = {"v": V, "off": 0, "last": None, "cwd": None, "days": {}}
+        c = {"v": V, "off": 0, "last": None, "cwd": None, "days": {}, "slots": {}}
     if size > c["off"]:
         with open(path, "rb") as f:
             f.seek(c["off"]); data = f.read()
@@ -73,12 +77,15 @@ def scan(path, cache):
             if d.get("type") != "assistant" or not u or m.get("model") in (None, "<synthetic>") or not d.get("timestamp"): continue
             # lines of one API message repeat its usage (output_tokens grows): keep only the latest
             if c["last"] and c["last"][0] == m.get("id"):
-                _, day, model, t = c["last"]
-                add(c["days"], day, model, t, -1)
+                _, day, model, t, slot = c["last"]
+                add(c["days"], day, model, t, -1); add(c["slots"], slot, model, t, -1)
             day, model, t = local_day(d["timestamp"]), m["model"], tokens(u)
-            add(c["days"], day, model, t)
-            c["last"] = [m.get("id"), day, model, t]
+            slot = str(int(epoch(d["timestamp"]) // SLOT))
+            add(c["days"], day, model, t); add(c["slots"], slot, model, t)
+            c["last"] = [m.get("id"), day, model, t, slot]
         c["off"] += end
+        keep = str(int(time.time() // SLOT) - 2 * 24 * 3600 // SLOT)  # slots only serve today and the last hour
+        c["slots"] = {k: v for k, v in c["slots"].items() if k >= keep}
     cache[path] = c
     return c
 
@@ -93,15 +100,23 @@ def ledger(today):
     except OSError: pass
     return sorted(runs.items(), key=lambda kv: -kv[1])[:5]
 
-def report(files, cache, today):
+def report(files, cache, today, now=None):
     """files: [(path, project_dir, is_subagent)]. Pure over the cache, so the test can feed temp files."""
     first = (date.fromisoformat(today) - timedelta(days=WINDOW - 1)).isoformat()
     names = [(date.fromisoformat(today) - timedelta(days=k)).isoformat() for k in range(WINDOW - 1, -1, -1)]
     daily = {n: 0.0 for n in names}
+    now = time.time() if now is None else now
+    hour_from, day_start = now // SLOT - 5, datetime.combine(date.fromisoformat(today), datetime.min.time()).timestamp()
+    first_today, last_hour, cache_in = None, 0.0, {}
     out = {"today": 0.0, "week": 0.0, "models": {}, "split": {"main": [0.0, 0.0], "sub": [0.0, 0.0]}, "projects": {}}
     for path, proj, sub in files:
         c = scan(path, cache)
         name = os.path.basename((c["cwd"] or proj).rstrip("/")) or proj
+        for slot, models in c.get("slots", {}).items():
+            s0 = int(slot) * SLOT
+            if s0 < day_start or s0 > now: continue
+            if any(any(t) for t in models.values()): first_today = s0 if first_today is None else min(first_today, s0)
+            if int(slot) >= hour_from: last_hour += sum(cost(model, t) for model, t in models.items())
         for day, models in c["days"].items():
             if day < first or day > today: continue
             for model, t in models.items():
@@ -112,6 +127,9 @@ def report(files, cache, today):
                 s = out["split"]["sub" if sub else "main"]
                 p = out["projects"].setdefault(name, [0.0, 0.0])
                 fam[1] += usd; s[1] += usd; p[1] += usd
+                # cache share: input tokens served from cache (today if any, else the week)
+                cin = cache_in.setdefault((day == today, family(model)), [0, 0])
+                cin[0] += t[2]; cin[1] += t[0] + t[2] + t[3] + t[4]
                 if day == today:
                     out["today"] += usd; fam[0] += usd; s[0] += usd; p[0] += usd
     out["days"] = [[n, round(daily[n], 4)] for n in names]
@@ -121,6 +139,14 @@ def report(files, cache, today):
     out["projects"] = sorted(([k, *r(v)] for k, v in out["projects"].items()), key=lambda p: (-p[1], -p[2]))[:8]
     out["today"], out["week"] = round(out["today"], 4), round(out["week"], 4)
     out["subagents"] = ledger(today)
+    # pace: the last hour (six 10-minute slots, the current one partial) and today's average per active hour
+    out["lastHour"] = round(last_hour, 4)
+    out["cached"] = {}
+    for fam in out["models"]:
+        today_, week_ = cache_in.get((True, fam), [0, 0]), [a + b for a, b in zip(cache_in.get((True, fam), [0, 0]), cache_in.get((False, fam), [0, 0]))]
+        r_, tot = today_ if today_[1] else week_
+        if tot: out["cached"][fam] = round(100 * r_ / tot)
+    out["perHour"] = round(out["today"] / max(1.0, (now - first_today) / 3600), 4) if first_today is not None else 0.0
     return out
 
 CODEX = os.path.join(HOME, ".codex", "sessions")
