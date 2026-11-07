@@ -3,6 +3,7 @@
 
   manage.py list                         -> JSON {skills, commands, agents, mcp, hooks, plugins}: [{id, name, desc, on}]
   manage.py set KIND ID on|off           KIND: skill command agent mcp hook plugin
+  manage.py delete skill|agent ID        moves its files to the Trash (macOS `trash`: Put Back works)
 
 Off is written to ~/.claude/settings.json the native way wherever Claude Code has one
 (checked against Claude Code 2.1.319: a fresh `claude -p` no longer lists the component):
@@ -15,7 +16,7 @@ Claude Code has no switch for one hook, so a hook turned off is taken out of set
 kept, with where it was, in ~/.claude/claude-manager/hooks-off.json; on puts it back in place.
 Nothing is deleted. Each write is atomic (temp file + rename) after a copy to *.bak-claude-manager.
 """
-import glob, hashlib, json, os, re, shutil, sys, tempfile
+import glob, hashlib, json, os, re, shutil, subprocess, sys, tempfile
 
 HOME = os.path.expanduser("~")
 CLAUDE = os.environ.get("CLAUDE_CONFIG_DIR") or os.path.join(HOME, ".claude")
@@ -269,6 +270,34 @@ def write_atomic(path, data):
 KINDS = ("skill", "command", "agent", "mcp", "hook", "plugin")
 
 
+def files_of(kind, name):
+    """What deleting removes: a skill's whole folder (and the folder its link points to), an agent's file."""
+    if kind == "skill":
+        link = os.path.join(CLAUDE, "skills", name)
+        if not os.path.isfile(os.path.join(link, "SKILL.md")):
+            raise SystemExit(f"no skill {name}")
+        real = os.path.realpath(link)
+        home = os.path.realpath(HOME)
+        if real == home or os.path.basename(real) != name or not real.startswith(home + os.sep):
+            raise SystemExit(f"refusing to trash {real}")  # a link to somewhere unexpected
+        return [link, real] if os.path.islink(link) else [link]
+    for p in glob.glob(os.path.join(CLAUDE, "agents", "**", "*.md"), recursive=True):
+        if (front(p).get("name") or os.path.basename(p)[:-3]) == name:
+            return [p]
+    raise SystemExit(f"no agent {name}")
+
+
+def delete(kind, name):
+    paths = files_of(kind, name)
+    r = subprocess.run(["/usr/bin/trash", *paths], capture_output=True, text=True)
+    if r.returncode != 0 or any(os.path.lexists(p) for p in paths):
+        raise SystemExit(f"trash failed: {(r.stderr or r.stdout).strip() or 'still there'}")
+    s = load(SETTINGS, {})  # its switch goes too, or a later file of that name would start off
+    if (kind == "skill" and name in s.get("skillOverrides", {})) or (kind == "agent" and name in deny_names(s)):
+        write_atomic(SETTINGS, apply(s, [], kind, name, True))
+    print(json.dumps(paths))
+
+
 def main(argv):
     if argv[:1] == ["list"]:
         print(json.dumps(listing()))
@@ -285,6 +314,10 @@ def main(argv):
         write_atomic(SETTINGS, s)
         if kind == "hook" and state == "on" and json.dumps(stash) != before:
             write_atomic(STASH, stash)
+    elif len(argv) == 3 and argv[0] == "delete" and argv[1] in ("skill", "agent"):
+        if not argv[2] or "/" in argv[2] or argv[2] in (".", ".."):
+            sys.exit(f"bad name {argv[2]!r}")
+        delete(argv[1], argv[2])
     else:
         sys.exit(__doc__)
 

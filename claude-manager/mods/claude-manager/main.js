@@ -80,6 +80,35 @@ export default class ClaudeManager extends View {
     });
   }
 
+  // ⌘⌫ once names what goes, ⌘⌫ again moves it to the Trash (Finder's Put Back undoes it).
+  trash(cx) {
+    const x = this.rows()[this.at];
+    const kind = KINDS.find(([k]) => k === this.kind)[2];
+    if (!x || !["skill", "agent"].includes(kind)) return;
+    if (this.confirm !== `${kind}:${x.id}`) {
+      this.confirm = `${kind}:${x.id}`;
+      this.status = `⌘⌫ again moves ${x.name} to the Trash${kind === "skill" ? ", its whole folder" : ""}`;
+      return cx.notify();
+    }
+    this.confirm = null;
+    this.busy.add(`${kind}:${x.id}`);
+    this.status = `Moving ${x.name} to the Trash…`;
+    cx.notify();
+    this.queue = this.queue.then(async () => {
+      let msg;
+      try {
+        const r = await exec("python3", ["-I", this.script, "delete", kind, x.id]);
+        msg = r.code === 0 ? `${x.name} is in the Trash` : `Couldn't trash ${x.name}: ${r.stderr.trim().split("\n").at(-1)}`;
+      } catch (e) {
+        msg = `Couldn't trash ${x.name}: ${e.message ?? e}`;
+      }
+      this.busy.delete(`${kind}:${x.id}`);
+      await this.load(cx); // clears the status line
+      this.status = msg;
+      cx.notify();
+    });
+  }
+
   setKind(k, cx) {
     this.kind = k;
     this.at = 0;
@@ -142,6 +171,8 @@ export default class ClaudeManager extends View {
       .on_key_down((e, cx) => {
         const k = e.key;
         if (k === "escape") return closeOverlay(props().overlay);
+        if (k === "backspace" && e.modifiers.platform) { this.trash(cx); return cx.stop_propagation(); }
+        if (this.confirm) { this.confirm = null; this.status = null; }
         if (k === "down") this.step(1, cx);
         else if (k === "up") this.step(-1, cx);
         else if (k === "pagedown") this.step(10, cx);
@@ -157,7 +188,7 @@ export default class ClaudeManager extends View {
           .child(field(c, Input.new(this.input).flex_1().min_w(0), true))
           .child(h_flex().flex_none().gap(2).children(KINDS.map(kindChip)))
           .child(chip(c, "cm-off", "Off only", { on: this.offOnly, onClick: (_e, cx) => { this.offOnly = !this.offOnly; this.at = 0; cx.notify(); } })))
-        .when(Boolean(this.status), (el) => el.child(div().text_size(SIZE.meta).text_color(d ? c.blocked : c.dim).child(this.status)))
+        .when(Boolean(this.status), (el) => el.child(div().text_size(SIZE.meta).text_color(/^Couldn't/.test(this.status) ? c.blocked : this.confirm ? c.working : c.dim).child(this.status)))
         .child(v_flex().relative().w(LIST_W).flex_1().min_h(0)
           .when(rows.length > 0, (el) => el
             .child(v_virtual_list("cm-list", rows.length, ROW, (i) => rows[i].id,
@@ -167,6 +198,7 @@ export default class ClaudeManager extends View {
                 const i = this.rows().findIndex((x) => x.id === name);
                 if (i < 0) return;
                 this.at = i;
+                this.confirm = null;
                 this.flip(this.rows()[i], cx);
               }))
             .child(Scrollbar.vertical("cm-list").absolute().inset_0()))
@@ -176,6 +208,7 @@ export default class ClaudeManager extends View {
         .child(h_flex().flex_none().gap(12).items_center()
           .child(kbdHint(c, "↵", "on / off"))
           .child(kbdHint(c, "Tab", "kind"))
+          .when(this.kind === "skills" || this.kind === "agents", (el) => el.child(kbdHint(c, "⌘⌫", "Trash")))
           .child(div().flex_1().min_w(0).truncate().text_size(SIZE.micro).text_color(c.dim).child("New sessions load changes"))
           .when(Boolean(d), (el) => el.children(KINDS.flatMap(([k, label], i) => [...(i ? [sep()] : []), this.gauge(c, k, label, d[k])])))));
   }

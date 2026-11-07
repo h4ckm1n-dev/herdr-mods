@@ -65,3 +65,32 @@ assert subprocess.run([sys.executable, "-I", os.path.join(HERE, "manage.py"), "s
 s = json.load(open(S)); s.pop("hooks"); o = json.loads(orig); o.pop("hooks")
 assert s == o and json.load(open(S))["hooks"] == HOOKS
 print("ok")
+
+# delete: trash a skill (link + the folder it points to, all files) and an agent; switch cleaned
+TRASH = os.path.join(home, "trashlog")
+fake = os.path.join(home, "bin"); os.makedirs(fake)
+# a fake /usr/bin/trash would need root; run delete() in-process with subprocess.run patched instead
+sys.path.insert(0, HERE)
+os.environ.update(env)
+import importlib, manage
+importlib.reload(manage)
+real = os.path.join(home, ".agents", "skills", "linked"); os.makedirs(os.path.join(real, "refs"))
+open(os.path.join(real, "SKILL.md"), "w").write("---\nname: linked\n---\n"); open(os.path.join(real, "refs", "a.md"), "w").write("x")
+os.symlink(real, os.path.join(cfg, "skills", "linked"))
+moved = []
+def fake_run(cmd, **kw):
+    for p in cmd[1:]:
+        moved.append(p); (os.unlink if os.path.islink(p) or os.path.isfile(p) else shutil.rmtree)(p)
+    return subprocess.CompletedProcess(cmd, 0, "", "")
+import shutil
+manage.subprocess.run = fake_run
+manage.write_atomic(S, {**json.load(open(S)), "skillOverrides": {"linked": "off"}})
+manage.delete("skill", "linked")
+assert moved == [os.path.join(cfg, "skills", "linked"), os.path.realpath(real)] and not os.path.exists(real), moved
+assert "skillOverrides" not in json.load(open(S))
+manage.delete("agent", "helper")
+assert not os.path.exists(os.path.join(cfg, "agents", "helper.md"))
+for bad in [("skill", "nope"), ("agent", "nope")]:
+    try: manage.delete(*bad); raise AssertionError(bad)
+    except SystemExit: pass
+print("delete ok")
