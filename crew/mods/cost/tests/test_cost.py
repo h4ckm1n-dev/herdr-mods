@@ -70,6 +70,18 @@ class Cost(unittest.TestCase):
             self.assertLessEqual(r["perHour"], r["today"])
             self.assertEqual(r["cached"], {"opus": 0})  # no cache reads in these lines
 
+    def test_top_session_includes_its_subagents(self):
+        with tempfile.TemporaryDirectory() as d:
+            ts = "2026-11-06T12:00:00Z"
+            a, b = os.path.join(d, "A.jsonl"), os.path.join(d, "B.jsonl")
+            os.makedirs(os.path.join(d, "A", "subagents")); sa = os.path.join(d, "A", "subagents", "x.jsonl")
+            open(a, "w").write(json.dumps({"type": "ai-title", "aiTitle": "Fix login"}) + "\n" + line("a1", ts, 1000))
+            open(sa, "w").write(line("s1", ts, 3000))
+            open(b, "w").write(json.dumps({"type": "custom-title", "customTitle": "Big one"}) + "\n" + line("b1", ts, 3500))
+            r = cost.report([(a, "p", False), (sa, "p", True), (b, "p", False)], {}, cost.local_day(ts), now=cost.epoch(ts))
+            self.assertEqual(r["topSession"]["title"], "Fix login")   # 1000 + 3000 from its subagent beats 3500
+            self.assertAlmostEqual(r["topSession"]["usd"], cost.cost("claude-opus-5-5", [20, 4000, 0, 0, 0]), places=4)
+
     def test_cache_share(self):
         with tempfile.TemporaryDirectory() as d:
             f = os.path.join(d, "s.jsonl"); ts = "2026-11-06T12:00:00Z"

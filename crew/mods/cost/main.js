@@ -13,7 +13,7 @@ const POLL_MS = 60_000;
 
 // one format everywhere: whole dollars, thousands grouped; spend under a dollar is "<$1"
 const usd = (v) => (v > 0 && v < 1 ? "<$1" : `$${String(Math.round(v)).replace(/\B(?=(\d{3})+$)/g, ",")}`);
-const ago = (ms) => { const m = Math.round((Date.now() - ms) / 60000); return m < 1 ? "just now" : `${m}m ago`; };
+const ago = (ms) => { const m = Math.round((Date.now() - ms) / 60000); return m < 1 ? "just now" : m < 60 ? `${m}m ago` : `${Math.round(m / 60)}h ago`; };
 const MODELS = (t) => ({ opus: ["Opus", CORAL], sonnet: ["Sonnet", t.ansi4], haiku: ["Haiku", t.ansi2], fable: ["Fable", t.ansi5], mythos: ["Mythos", t.ansi5], other: ["Other", t.muted] });
 const tok = (n) => (n >= 1e6 ? `${+(n / 1e6).toFixed(1)}M` : n >= 1e3 ? `${Math.round(n / 1e3)}K` : String(n));
 const weekday = (iso) => ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][new Date(iso + "T12:00:00").getDay()];
@@ -118,6 +118,14 @@ export default class Cost extends View {
               .child(div().text_color(d.perHour && d.lastHour > 1.5 * d.perHour ? t.working : t.foreground).child(usd(d.lastHour)))
               .child(div().child(`· ${usd(d.perHour)}/h today`)))
 ),  // the 7-day average now reads off the columns below
+        // where today's money went: the one session (with its subagents) that cost the most
+        ...(d.topSession ? [this.card(t, "c-top",
+          h_flex().px(12).gap(8).items_baseline()
+            .child(div().flex_1().min_w(0).truncate().text_size(SIZE.body).font_medium().child(d.topSession.title ?? "Untitled session"))
+            .child(div().flex_none().text_size(SIZE.body).font_medium().child(usd(d.topSession.usd))),
+          h_flex().px(12).pt(2).gap(4).text_size(SIZE.meta).text_color(t.dim)
+            .child(div().flex_none().child("Priciest today"))
+            .child(div().flex_1().min_w(0).truncate().child(`· ${d.topSession.project} · ${ago(d.topSession.at * 1000)}`)))] : []),
         // 7 days as columns: Claude $ on top, Codex tokens as a thin row under (when used); hover a column for its value
         section(t, "s-week", "Last 7 days", d.codex?.week ? `${usd(d.week)} · ${tok(d.codex.week)} Codex` : usd(d.week), { icon: "mods/cost/icons/calendar.svg" }),
         this.card(t, "c-week",

@@ -9,7 +9,7 @@ HOME = os.path.expanduser("~")
 PROJECTS = os.path.join(HOME, ".claude", "projects")
 LEDGERS = os.path.join(HOME, ".claude", "logs")
 CACHE = os.path.join(HOME, ".cache", "herdr-cost", "usage.json")
-V = 2  # 2: 10-minute slots for the last hour
+V = 3  # 2: 10-minute slots for the last hour; 3: the session title
 WINDOW = 7
 SLOT = 600  # seconds: spend is also kept in 10-minute slots, for the last hour
 
@@ -63,7 +63,7 @@ def scan(path, cache):
     size = os.path.getsize(path)
     c = cache.get(path)
     if not c or c.get("v") != V or c["off"] > size:  # new, old format, or rewritten
-        c = {"v": V, "off": 0, "last": None, "cwd": None, "days": {}, "slots": {}}
+        c = {"v": V, "off": 0, "last": None, "cwd": None, "title": None, "days": {}, "slots": {}}
     if size > c["off"]:
         with open(path, "rb") as f:
             f.seek(c["off"]); data = f.read()
@@ -72,6 +72,9 @@ def scan(path, cache):
             try: d = json.loads(line)
             except ValueError: continue
             if not c["cwd"] and d.get("cwd"): c["cwd"] = d["cwd"]
+            # the session's name as Claude Code shows it: a /rename wins over the generated title
+            if d.get("type") == "custom-title" and d.get("customTitle"): c["title"] = "!" + d["customTitle"]
+            elif d.get("type") == "ai-title" and d.get("aiTitle") and not (c["title"] or "").startswith("!"): c["title"] = d["aiTitle"]
             m = d.get("message") or {}
             u = m.get("usage")
             if d.get("type") != "assistant" or not u or m.get("model") in (None, "<synthetic>") or not d.get("timestamp"): continue
@@ -107,11 +110,16 @@ def report(files, cache, today, now=None):
     daily = {n: 0.0 for n in names}
     now = time.time() if now is None else now
     hour_from, day_start = now // SLOT - 5, datetime.combine(date.fromisoformat(today), datetime.min.time()).timestamp()
-    first_today, last_hour, cache_in = None, 0.0, {}
+    first_today, last_hour, cache_in, sessions = None, 0.0, {}, {}
     out = {"today": 0.0, "week": 0.0, "models": {}, "split": {"main": [0.0, 0.0], "sub": [0.0, 0.0]}, "projects": {}}
     for path, proj, sub in files:
         c = scan(path, cache)
         name = os.path.basename((c["cwd"] or proj).rstrip("/")) or proj
+        # a subagent's spend belongs to the session that ran it: <project>/<session>/subagents/<agent>.jsonl
+        sid = os.path.basename(os.path.dirname(os.path.dirname(path))) if sub else os.path.basename(path)[:-6]
+        ses = sessions.setdefault(sid, {"usd": 0.0, "title": None, "project": name, "at": 0})
+        if not sub: ses["title"], ses["project"] = (c.get("title") or "").lstrip("!") or None, name
+        ses["at"] = max(ses["at"], os.path.getmtime(path))
         for slot, models in c.get("slots", {}).items():
             s0 = int(slot) * SLOT
             if s0 < day_start or s0 > now: continue
@@ -131,7 +139,7 @@ def report(files, cache, today, now=None):
                 cin = cache_in.setdefault((day == today, family(model)), [0, 0])
                 cin[0] += t[2]; cin[1] += t[0] + t[2] + t[3] + t[4]
                 if day == today:
-                    out["today"] += usd; fam[0] += usd; s[0] += usd; p[0] += usd
+                    out["today"] += usd; fam[0] += usd; s[0] += usd; p[0] += usd; ses["usd"] += usd
     out["days"] = [[n, round(daily[n], 4)] for n in names]
     r = lambda v: [round(x, 4) for x in v]
     out["models"] = {k: r(v) for k, v in out["models"].items()}
@@ -141,6 +149,8 @@ def report(files, cache, today, now=None):
     out["subagents"] = ledger(today)
     # pace: the last hour (six 10-minute slots, the current one partial) and today's average per active hour
     out["lastHour"] = round(last_hour, 4)
+    top = max(sessions.values(), key=lambda x: x["usd"], default=None)
+    out["topSession"] = {**top, "usd": round(top["usd"], 4), "at": int(top["at"])} if top and top["usd"] > 0 else None
     out["cached"] = {}
     for fam in out["models"]:
         today_, week_ = cache_in.get((True, fam), [0, 0]), [a + b for a, b in zip(cache_in.get((True, fam), [0, 0]), cache_in.get((False, fam), [0, 0]))]
