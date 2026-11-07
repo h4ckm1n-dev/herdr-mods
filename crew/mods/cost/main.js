@@ -128,10 +128,10 @@ export default class Cost extends View {
         // models, then the subagents' share in one line (was its own section)
         section(t, "s-models", "By model", "today · 7 days", { icon: "mods/cost/icons/cpu.svg" }),
         this.card(t, "c-models", ...(modelsRows.length ? modelsRows.map(([k, v]) =>
-          this.meter(t, `m-${k}`, h_flex().id(`mc-${k}`).gap(6).items_center().child(div().size(6).flex_none().rounded(3).bg(M[k]?.[1] ?? t.muted)).child(M[k]?.[0] ?? k)
+          this.meter(t, `m-${k}`, h_flex().id(`mc-${k}`).w_full().gap(6).items_center().child(div().size(6).flex_none().rounded(3).bg(M[k]?.[1] ?? t.muted)).child(div().flex_1().min_w(0).truncate().child(M[k]?.[0] ?? k))
             // share of input read from cache: low means full-price re-reads
             .when(d.cached?.[k] !== undefined, (el) => el.tooltip(`${d.cached[k]}% of input read from cache`)
-              .child(div().text_size(SIZE.micro).text_color(d.cached[k] < 70 ? t.working : t.dim).child(`${d.cached[k]}%`))), v[1] / maxModel, t.muted, usd(v[0]), usd(v[1]), 88)) : [div().px(12).text_color(t.dim).child("No usage yet")]),
+              .child(div().flex_none().text_right().text_size(SIZE.micro).text_color(d.cached[k] < 70 ? t.working : t.dim).child(`${d.cached[k]}%`))), v[1] / maxModel, t.muted, usd(v[0]), usd(v[1]), 88)) : [div().px(12).text_color(t.dim).child("No usage yet")]),
           this.meter(t, "p-sub", h_flex().gap(6).items_center().child(div().size(6).flex_none()).child("Subagents"), splitTot ? d.split.sub[1] / splitTot : 0, t.muted, usd(d.split.sub[0]), usd(d.split.sub[1]), 88),
           d.subagents.length ? div().px(12).text_size(SIZE.micro).text_color(t.dim).truncate()
             .child(d.subagents.map(([a, n]) => `${a.replace(/^.*:/, "")} ${n}`).join(" · ")) : div()),
