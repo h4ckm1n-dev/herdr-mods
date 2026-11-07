@@ -99,6 +99,13 @@ class Cost(unittest.TestCase):
             self.assertEqual(r["topSession"]["title"], "Fix login")   # 1000 + 3000 from its subagent beats 3500
             self.assertAlmostEqual(r["topSession"]["usd"], cost.cost("claude-opus-5-5", [20, 4000, 0, 0, 0]), places=4)
 
+    def test_today_adds_codex(self):
+        res = {"today": 10.0, "lastHour": 2.0, "firstToday": 1000.0, "perHour": 0}
+        cx = {"usdToday": 5.0, "usdLastHour": 1.0, "firstToday": 1000.0 - 3600}
+        r = cost.merge_codex(res, cx, now=1000.0 + 3600)
+        self.assertEqual((r["today"], r["claudeToday"], r["lastHour"]), (15.0, 10.0, 3.0))
+        self.assertAlmostEqual(r["perHour"], 7.5)   # 15 over the 2 hours since Codex's first call
+
     def test_cache_share(self):
         with tempfile.TemporaryDirectory() as d:
             f = os.path.join(d, "s.jsonl"); ts = "2026-11-06T12:00:00Z"

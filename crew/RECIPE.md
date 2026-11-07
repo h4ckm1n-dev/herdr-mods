@@ -58,7 +58,8 @@ A row filling the window, with no system title bar (traffic lights at 12,16) on 
 - Right-clicking a tab, space or terminal opens the crew context menu.
 - The quota block runs `limits.py` every 30s: Claude from the statusline cache, Codex from the newest
   `rate_limits` in `~/.codex/sessions` (a window past its reset reads 0). With neither, it is empty.
-- The Cost panel fits without scrolling: today against the daily budget, then `Last hour $19 · $13/h
+- The Cost panel fits without scrolling: today (Claude Code plus Codex at API prices; the split in the
+  amount's tooltip, `· Codex $3` on the pace line once Codex spent 50¢) against the daily budget, then `Last hour $19 · $13/h
   today` (the last hour amber when it runs past 1.5x today's average per active hour); a card for the priciest
   session today (its title as Claude Code names it, its subagents included, its project, last active); the last 7 days as columns
   (Claude $ in grey, today in the accent; a thin cyan row of Codex under it when Codex was used, at

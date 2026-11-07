@@ -105,7 +105,8 @@ export default class Cost extends View {
       body = list("cost-list").children([
         this.card(t, "c-today",
           h_flex().px(12).gap(8).items_baseline()
-            .child(div().text_size(22).font_semibold().text_color(over ? t.blocked : t.foreground).child(usd(d.today)))
+            .child(div().id("c-amount").text_size(22).font_semibold().text_color(over ? t.blocked : t.foreground).child(usd(d.today))
+              .when(d.claudeToday !== undefined, (el) => el.tooltip(`Claude Code ${usd(d.claudeToday)} · Codex ${usd(d.codex?.usdToday ?? 0)}`)))
             .child(div().text_size(SIZE.meta).text_color(t.muted).child(`of ${usd(DAILY_BUDGET)} today`))
             .child(div().flex_1())
             .child(tag(t, over ? `+${usd(d.today - DAILY_BUDGET)} over` : `${Math.round((d.today / DAILY_BUDGET) * 100)}%`, over ? t.blocked : undefined)),
@@ -115,7 +116,9 @@ export default class Cost extends View {
             .when(d.lastHour !== undefined, (el) => el
               .child(div().text_color(t.muted).child("Last hour"))
               .child(div().text_color(d.perHour && d.lastHour > 1.5 * d.perHour ? t.working : t.foreground).child(usd(d.lastHour)))
-              .child(div().child(`· ${usd(d.perHour)}/h today`)))
+              .child(div().child(`· ${usd(d.perHour)}/h today`))
+              // Codex's share, only when it spent something today
+              .when((d.codex?.usdToday ?? 0) >= 0.5, (e2) => e2.child(div().flex_1().min_w(0).truncate().child(`· Codex ${usd(d.codex.usdToday)}`))))
 ),  // the 7-day average now reads off the columns below
         // where today's money went: the one session (with its subagents) that cost the most
         ...(d.topSession ? [this.card(t, "c-top",

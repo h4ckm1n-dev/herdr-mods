@@ -157,6 +157,7 @@ def report(files, cache, today, now=None):
         r_, tot = today_ if today_[1] else week_
         if tot: out["cached"][fam] = round(100 * r_ / tot)
     out["perHour"] = round(out["today"] / max(1.0, (now - first_today) / 3600), 4) if first_today is not None else 0.0
+    out["firstToday"] = first_today
     return out
 
 CODEX = os.path.join(HOME, ".codex", "sessions")
@@ -180,12 +181,14 @@ def codex_cost(model, fresh, cached, out, long=False):
     pin, pcache, pout = CODEX_PRICES[best][1 if long else 0]
     return (fresh * pin + cached * pcache + out * pout) / 1e6
 
-def codex(today, since, root=CODEX):
+def codex(today, since, root=CODEX, now=None):
     """Codex per local day: tokens and API-equivalent $ (Codex itself runs on a ChatGPT plan).
     Each token_count reports running totals; a day gets the growth seen that day, priced at the
     model of the turn (turn_context) and the long-context rate when that request passed 272K."""
     names = [(date.fromisoformat(today) - timedelta(days=WINDOW - 1 - i)).isoformat() for i in range(WINDOW)]
     tok, usd = dict.fromkeys(names, 0), dict.fromkeys(names, 0.0)
+    now = time.time() if now is None else now
+    last_hour, first_today = 0.0, None
     for path in glob.glob(os.path.join(root, "*", "*", "*", "rollout-*.jsonl")):
         if os.path.getmtime(path) < since: continue
         prev, model = {"total_tokens": 0, "input_tokens": 0, "cached_input_tokens": 0, "output_tokens": 0}, None
@@ -208,11 +211,23 @@ def codex(today, since, root=CODEX):
                     if day not in tok: continue
                     cached = min(dl["cached_input_tokens"], dl["input_tokens"])
                     long = ((info.get("last_token_usage") or {}).get("input_tokens") or 0) > LONG
-                    tok[day] += dl["total_tokens"]
-                    usd[day] += codex_cost(model, dl["input_tokens"] - cached, cached, dl["output_tokens"], long)
+                    spent = codex_cost(model, dl["input_tokens"] - cached, cached, dl["output_tokens"], long)
+                    tok[day] += dl["total_tokens"]; usd[day] += spent
+                    at = epoch(d["timestamp"])
+                    if day == today: first_today = at if first_today is None else min(first_today, at)
+                    if now - 3600 <= at <= now: last_hour += spent
         except (OSError, ValueError): continue
     return {"today": tok[today], "week": sum(tok.values()), "days": [[n, tok[n]] for n in names],
-            "usdToday": round(usd[today], 4), "usdWeek": round(sum(usd.values()), 4), "usdDays": [[n, round(usd[n], 4)] for n in names]}
+            "usdLastHour": round(last_hour, 4), "firstToday": first_today, "usdToday": round(usd[today], 4), "usdWeek": round(sum(usd.values()), 4), "usdDays": [[n, round(usd[n], 4)] for n in names]}
+
+def merge_codex(res, cx, now):
+    """The Today card is every agent: Claude Code plus Codex at API prices (claudeToday keeps Claude's part)."""
+    res["codex"], res["claudeToday"] = cx, res["today"]
+    res["today"] = round(res["today"] + cx["usdToday"], 4)
+    res["lastHour"] = round(res["lastHour"] + cx["usdLastHour"], 4)
+    firsts = [f for f in (res.get("firstToday"), cx.get("firstToday")) if f is not None]
+    res["perHour"] = round(res["today"] / max(1.0, (now - min(firsts)) / 3600), 4) if firsts else 0.0
+    return res
 
 def find(since):
     """Transcripts touched since `since` (epoch): older files can't hold a message from the window."""
@@ -239,6 +254,6 @@ if __name__ == "__main__":
     start = datetime.combine(date.fromisoformat(today) - timedelta(days=WINDOW), datetime.min.time()).timestamp()
     files, cache = find(start), load()
     res = report(files, cache, today)
-    res["codex"] = codex(today, start)
+    merge_codex(res, codex(today, start), time.time())
     save(cache, {f[0] for f in files})
     print(json.dumps(res, separators=(",", ":")))
