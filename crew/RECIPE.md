@@ -58,8 +58,10 @@ A row filling the window, with no system title bar (traffic lights at 12,16) on 
 - Right-clicking a tab, space or terminal opens the crew context menu.
 - The quota block runs `limits.py` every 30s: Claude from the statusline cache, Codex from the newest
   `rate_limits` in `~/.codex/sessions` (a window past its reset reads 0). With neither, it is empty.
-- The Cost panel adds a Codex section (tokens per day, no dollars: Codex runs on a ChatGPT plan) when
-  Codex was used this week.
+- The Cost panel fits without scrolling: today against the daily budget; the last 7 days as columns
+  (Claude $ in grey, today in the accent; a thin cyan row of Codex tokens under it when Codex was used,
+  no dollars since Codex runs on a ChatGPT plan; hover a column for its value); by model with a
+  Subagents row and today's sub-agent runs; the top 8 projects.
 
 ## Built from
 

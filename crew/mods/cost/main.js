@@ -61,6 +61,14 @@ export default class Cost extends View {
       .when(Boolean(sub), (el) => el.child(div().flex_none().w(40).text_right().text_size(SIZE.micro).text_color(t.dim).child(sub)));
   }
 
+  // One column per day, bottom-aligned, height = share of the week's max; the value in the tooltip.
+  columns(t, id, days, h, color, fmt) {
+    const max = Math.max(1e-9, ...days.map((x) => x[1]));
+    return h_flex().px(12).h(h).gap(6).items_end().children(days.map(([day, v], i) =>
+      div().id(`${id}-${day}`).flex_1().h(v > 0 ? Math.max(2, Math.round((v / max) * h)) : 1).rounded(2)
+        .bg(v > 0 ? color(v, i === days.length - 1) : t.border).tooltip(`${weekday(day)} · ${fmt(v)}`)));
+  }
+
   card(t, id, ...children) {
     return v_flex().id(id).flex_none().rounded(8).bg(t.surface).border_1().border_color(t.border).py(8).children(children);
   }
@@ -104,24 +112,20 @@ export default class Cost extends View {
             .child(tag(t, over ? `+${usd(d.today - DAILY_BUDGET)} over` : `${Math.round((d.today / DAILY_BUDGET) * 100)}%`, over ? t.blocked : undefined)),
           h_flex().px(12).pt(8).pb(4).child(bar(t, "c-budget", d.today / DAILY_BUDGET, accent)),
           div().px(12).text_size(SIZE.meta).text_color(t.dim).child(`Avg ${usd(d.week / 7)} a day over 7 days`)),
-        section(t, "s-week", "Last 7 days", usd(d.week), { icon: "mods/cost/icons/calendar.svg" }),
-        this.card(t, "c-week", ...d.days.map(([day, v], i) =>
-          this.meter(t, `w-${day}`, i === d.days.length - 1 ? "Today" : weekday(day), v / maxDay, i === d.days.length - 1 ? accent : t.muted, usd(v)))),
+        // 7 days as columns: Claude $ on top, Codex tokens as a thin row under (when used); hover a column for its value
+        section(t, "s-week", "Last 7 days", d.codex?.week ? `${usd(d.week)} · ${tok(d.codex.week)} Codex` : usd(d.week), { icon: "mods/cost/icons/calendar.svg" }),
+        this.card(t, "c-week",
+          this.columns(t, "wk", d.days, 44, (v, last) => (last ? accent : t.muted), usd),
+          ...(d.codex?.week ? [this.columns(t, "cx", d.codex.days, 14, () => agentColor(t, "codex"), (v) => `${tok(v)} tokens`)] : []),
+          h_flex().px(12).pt(4).gap(4).children(d.days.map(([day], i) => div().flex_1().text_center().text_size(SIZE.micro)
+            .text_color(i === d.days.length - 1 ? t.foreground : t.dim).child(i === d.days.length - 1 ? "Today" : weekday(day))))),
+        // models, then the subagents' share in one line (was its own section)
         section(t, "s-models", "By model", "today · 7 days", { icon: "mods/cost/icons/cpu.svg" }),
         this.card(t, "c-models", ...(modelsRows.length ? modelsRows.map(([k, v]) =>
-          this.meter(t, `m-${k}`, h_flex().gap(6).items_center().child(div().size(6).flex_none().rounded(3).bg(M[k]?.[1] ?? t.muted)).child(M[k]?.[0] ?? k), v[1] / maxModel, M[k]?.[1] ?? t.muted, usd(v[0]), usd(v[1]))) : [div().px(12).text_color(t.dim).child("No usage yet")])),
-        section(t, "s-split", "Main vs subagents", "7 days", { icon: "mods/cost/icons/split.svg" }),
-        this.card(t, "c-split",
-          this.meter(t, "p-main", "Main", splitTot ? d.split.main[1] / splitTot : 0, t.muted, usd(d.split.main[0]), usd(d.split.main[1]), 88),
-          this.meter(t, "p-sub", "Subagents", splitTot ? d.split.sub[1] / splitTot : 0, t.muted, usd(d.split.sub[0]), usd(d.split.sub[1]), 88),
-          d.subagents.length ? div().px(12).pt(4).text_size(SIZE.meta).text_color(t.dim).truncate()
-            .child("Runs today: " + d.subagents.map(([a, n]) => `${a.replace(/^.*:/, "")} ${n}`).join(" · ")) : div()),
-        // Codex: tokens, not dollars (it runs on a ChatGPT plan); only when it was used this week
-        ...(d.codex?.week ? [
-          section(t, "s-codex", "Codex", `${tok(d.codex.week)} tokens · 7 days`, { icon: "mods/cost/icons/cpu.svg" }),
-          this.card(t, "c-codex", ...d.codex.days.map(([day, v], i) =>
-            this.meter(t, `x-${day}`, i === d.codex.days.length - 1 ? "Today" : weekday(day), v / Math.max(1, ...d.codex.days.map((x) => x[1])), agentColor(t, "codex"), tok(v)))),
-        ] : []),
+          this.meter(t, `m-${k}`, h_flex().gap(6).items_center().child(div().size(6).flex_none().rounded(3).bg(M[k]?.[1] ?? t.muted)).child(M[k]?.[0] ?? k), v[1] / maxModel, M[k]?.[1] ?? t.muted, usd(v[0]), usd(v[1]), 72)) : [div().px(12).text_color(t.dim).child("No usage yet")]),
+          this.meter(t, "p-sub", "Subagents", splitTot ? d.split.sub[1] / splitTot : 0, t.muted, usd(d.split.sub[0]), usd(d.split.sub[1]), 72),
+          d.subagents.length ? div().px(12).text_size(SIZE.micro).text_color(t.dim).truncate()
+            .child(d.subagents.map(([a, n]) => `${a.replace(/^.*:/, "")} ${n}`).join(" · ")) : div()),
         section(t, "s-proj", "Top projects", "today · 7 days", { icon: "folder" }),
         this.card(t, "c-proj", ...(d.projects.length ? d.projects.map(([name, today, week]) =>
           this.meter(t, `j-${name}`, name, week / maxProj, t.muted, usd(today), usd(week), 88)) : [div().px(12).text_color(t.dim).child("No usage yet")])),
