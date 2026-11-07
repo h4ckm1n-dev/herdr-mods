@@ -1,12 +1,19 @@
 # Herdr mods
 
-The Crew collection for [Herdr](https://herdr.dev): one look across the sidebar, tab bar, panels,
-dialogs and bottom bar, plus a few standalone mods (git panel, theme gallery, keybinds, cost).
+Mods and a layout for [Herdr](https://herdr.dev). Each folder is one entry on herdr.dev, with its own
+`RECIPE.md` and `preview.png`:
+
+| Folder | What |
+|---|---|
+| [`crew/`](crew/RECIPE.md) | Layout: agents-first sidebar, panel tab bar, status + Claude quota bar, and the Crew dialogs and menus |
+| [`git/`](git/RECIPE.md) | Mod: git panel (graph, changes, branches, stash, commit, pull/push) |
+| [`theme-gallery/`](theme-gallery/RECIPE.md) | Mod: every Ghostty theme with live preview |
+| [`help-crew/`](help-crew/RECIPE.md) | Mod: keybinds dialog with keycaps, on cmd-/ |
 
 ## Install
 
 ```sh
-git clone <this repo> && cd herdr-mods
+git clone https://github.com/h4ckm1n-dev/herdr-mods && cd herdr-mods
 ./install.sh            # pick from a list
 ./install.sh --all      # everything + the crew layout
 ./install.sh git theme-gallery help-crew
@@ -19,7 +26,7 @@ Anything it replaces is saved under `~/.config/herdr-app/backup/<time>/`. To upd
 
 Mods are copied, not symlinked: Herdr only hot-reloads files under its own home.
 
-Mods marked *crew layout* are blocks of `layouts/crew.json`; the installer offers the layout and
+Mods marked *crew layout* are blocks of `crew/layouts/crew.json`; the installer offers the layout and
 brings the mods it needs. Pick **crew** in Settings > Layout afterwards.
 
 ## Needs

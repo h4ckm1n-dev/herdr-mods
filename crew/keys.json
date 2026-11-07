@@ -1,0 +1,13 @@
+{
+  "layout:crew": {
+    "cmd-shift-a": "agents-crew.focus",
+    "cmd-shift-s": "spaces-crew.focus",
+    "cmd-g": "tabs-crew.graph",
+    "cmd-e": "tabs-crew.files",
+    "cmd-shift-u": "tabs-crew.cost"
+  },
+  "global": {
+    "cmd-j": "tabs-crew.next-blocked",
+    "cmd-p": "mod.open:picker-crew"
+  }
+}

@@ -1,12 +1,26 @@
 # The installer proper; run it through install.sh.
-import json, os, shutil, subprocess, sys, time, filecmp
+import glob, json, os, shutil, subprocess, sys, time, filecmp
 
 APP, args = sys.argv[1], sys.argv[2:]
 YES = "-y" in args
 args = [a for a in args if a != "-y"]
 CAT = [l.rstrip("\n").split("\t") for l in open("mods.tsv") if l.strip() and not l.startswith("#")]
 NAMES = [c[0] for c in CAT]
-LAYOUT = json.load(open("layouts/crew.json"))
+LAYOUT_FILE = os.path.join("crew", "layouts", "crew.json")
+LAYOUT = json.load(open(LAYOUT_FILE))
+# Each top folder is one herdr.dev entry (crew, git, ...); a mod may sit in several, same files.
+SRC = {}
+for entry in sorted(os.listdir(".")):
+    for m in (os.listdir(os.path.join(entry, "mods")) if os.path.isdir(os.path.join(entry, "mods")) else []):
+        SRC.setdefault(m, os.path.join(entry, "mods", m))
+# A mod's keybinds: the entries' keys.json bindings whose action names it (mod.open:help-crew, tabs-crew.graph).
+KEYS = {}
+for f in sorted(glob.glob("*/keys.json")):
+    for section, binds in json.load(open(f)).items():
+        for k, action in binds.items():
+            for m in SRC:
+                if action == f"mod.open:{m}" or action.startswith(f"{m}."):
+                    KEYS.setdefault(m, {}).setdefault(section, {})[k] = action
 STAMP = time.strftime("%Y%m%d-%H%M%S")
 BACKUP = os.path.join(APP, "backup", STAMP)
 
@@ -75,7 +89,7 @@ if want_layout:
 # ---- copy mods ----------------------------------------------------------------------
 ign = shutil.ignore_patterns("__pycache__", "*.pyc", ".DS_Store")
 for m in chosen:
-    src, dst = os.path.join("mods", m), os.path.join(APP, "mods", m)
+    src, dst = SRC[m], os.path.join(APP, "mods", m)
     if same_tree(src, dst): print(f"  = {m} (up to date)"); continue
     existed = os.path.lexists(dst)
     backup(dst)
@@ -87,17 +101,15 @@ for m in chosen:
 if want_layout:
     dst = os.path.join(APP, "layouts", "crew.json")
     os.makedirs(os.path.dirname(dst), exist_ok=True)
-    if not (os.path.exists(dst) and filecmp.cmp("layouts/crew.json", dst, shallow=False)):
-        backup(dst); shutil.copy2("layouts/crew.json", dst); print("  + layouts/crew.json (pick it in Settings > Layout)")
+    if not (os.path.exists(dst) and filecmp.cmp(LAYOUT_FILE, dst, shallow=False)):
+        backup(dst); shutil.copy2(LAYOUT_FILE, dst); print("  + layouts/crew.json (pick it in Settings > Layout)")
 
 # ---- keys: merge each mod's bindings; never overwrite yours without asking --------------
 kpath = os.path.join(APP, "keys.json")
 keys = json.load(open(kpath)) if os.path.exists(kpath) else {}
 changed = False
 for m in chosen:
-    f = os.path.join("keys", f"{m}.json")
-    if not os.path.exists(f): continue
-    for section, binds in json.load(open(f)).items():
+    for section, binds in KEYS.get(m, {}).items():
         sec = keys.setdefault(section, {})
         for k, action in binds.items():
             cur = sec.get(k)

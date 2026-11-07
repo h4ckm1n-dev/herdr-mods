@@ -1,0 +1,93 @@
+# Crew
+
+A Herdr window built around your coding agents. A left sidebar shows every agent first, then your
+spaces. A tab bar carries buttons for the side panels: files, a git graph and Claude Code spend. A
+28px bottom bar shows where you are, who is working, and your Claude 5h / 7d quota. Every piece is
+drawn with one small kit: theme colors only, a 36px text indent, spinners for live work, and
+keycaps for shortcuts.
+
+![Crew](preview.png)
+
+## What you see
+
+A row filling the window, with no system title bar (traffic lights at 12,16) on `canvas`:
+
+1. **Sidebar**, 268px, `chrome`. It narrows to a 44px rail by dragging its edge or with the brand
+   row's toggle.
+   - **Brand row**, 46px, draggable: the Herdr mark, search, sidebar toggle.
+   - **Agents**, half the remaining height: a 42px header with `Agents`, a count tag, a live
+     `n working` and a sort button. Under it, groups (Working, Needs you, Done, Idle) of 36px rows.
+     A row has a 16px status gutter (a spinner while working, 8px dots otherwise), the agent's
+     icon in its color (Claude coral `#D97757`, Codex cyan), its name, and the time since its last
+     state change. A Claude or Codex agent adds lines under its row: the last thing it did, its
+     context fill as a 4px bar, and its running sub-agents with progress bars. A Codex footer card
+     shows Codex's 5h / 7d quota.
+   - **Spaces**, the other half: stable colored avatars, worktrees nested under their checkout,
+     grouped by machine when there is more than one, plus a `New space there` row.
+   - **Footer**, 69px: Settings and Add machine.
+2. **Work column**:
+   - **Tab bar**, 42px, draggable. It holds the tabs, a `+` button (new tab or agent menu), and on
+     the right one icon button per side panel: Files, Graph, Cost.
+   - **Body**, 8px padding and gap: the terminal pane. Each pane has a 30px `pane-crew` header
+     with the program, title, folder, and split / zoom / close buttons. A side panel column sits
+     at the right, 368px (280–900, resizable). It is hidden until a tab-bar button opens it, and
+     stacks the Files, Graph and Cost panels.
+   - **Bottom bar**, 28px, `chrome`, 1px top border, 11px `muted` type:
+     - On the left: a monitor or server icon with the machine, the branch as a tag, then
+       `n working` with a spinner and `n needs you` with a `blocked` dot, or just `n agents`.
+       After that, a `Commands ⌘⇧P` button.
+     - On the right, a 290px block with the Claude quotas: `5h` and a 28px bar, the percent and
+       time to reset, a 1px separator, then the same for `7d`. The bars are `done` green, turn
+       `working` amber at 50% and `blocked` red at 90%.
+   - **Dialogs and menus** share one look: `popover` background, a 42px header with an `Esc`
+     keycap, 30px menu items with shortcuts drawn as keycaps. This covers the tab and terminal
+     context menus, the new tab menu, the worktree dialogs, and the ⌘P go-to-tab picker (16:9,
+     1040×585).
+
+## How it behaves
+
+- Agent statuses: **working** shows a spinner in the theme's `working` color, **blocked** a
+  `blocked` dot plus a Needs you group, **done** a `done` dot (a viewed done agent stays in Done
+  until you leave it), **idle** a `dim` dot. Coral is only used for a live Claude.
+- Clicking an agent focuses its terminal, in any space. ⌘J jumps to the next agent waiting on you.
+- ⌘⇧A and ⌘⇧S give the keyboard to Agents and Spaces (arrows, Enter).
+- ⌘E opens Files, ⌘G the git graph and ⌘⇧U Cost. The same key again closes the panel.
+- ⌘P opens the tab picker: spaces with something that needs you first, typing filters.
+- Right-clicking a tab, space or terminal opens the crew context menu.
+- The bottom bar's quota block reads the statusline cache every 30s. With no cache, it is empty.
+
+## Built from
+
+- `layouts/crew.json`: the root row, then the `sidebar` column with `brand` (workspace-chrome-crew),
+  `sidebar-lists` (agents-crew, spaces-crew) and `sidebar-footer` (workspace-chrome-crew with
+  `{footer: true}`). Next to it, the `work` column with `tabs` (tabs-crew) and `work-body`. The
+  `work-body` row holds the terminal and a hidden `panel` stack: files-crew, git, cost. Below it,
+  the `status-row` holds workspace-status-crew and claude-usage at 290px. Pane headers use
+  pane-crew, and `terminal_menu` is menu-crew.
+- Mods in `mods/`: agents-crew, spaces-crew, workspace-chrome-crew, tabs-crew,
+  workspace-status-crew, claude-usage, pane-crew, files-crew, git, cost, menu-crew,
+  new-menu-crew, worktree-crew, picker-crew. Each mod has its own copy of the Crew `kit.js`.
+- Programs: `python3` scripts read Claude Code and Codex transcripts (agents-crew `scan.py`,
+  `codex_scan.py`, cost `cost.py`). git runs `git`. claude-usage `cat`s
+  `/tmp/claude/statusline-usage-cache.json`.
+- Icons come from the shipped `mods/workspace-chrome/*.svg`.
+
+## Watch out
+
+- **Shared files:** agents-crew and cost read `~/.claude/projects` (your transcripts, local only).
+  claude-usage only shows data if your Claude Code statusline writes the usage cache.
+- **Install all the mods together:** the layout names every mod above, so a missing one leaves
+  an empty block.
+- **Keep the kit in sync:** keep one canonical `kit.js` and copy it into each mod, or the looks
+  drift.
+- **Drop typings:** `gpui-kit.d.ts` is editor typing only; leave it out of copies.
+- **Ops slot:** tabs-crew shows an Ops button only when the layout has an `ops` block (none here).
+
+## Done when
+
+- `herdr-app check` passes for every mod in `mods/`, and `layout.switch {name: "crew"}` shows the
+  sidebar, tab bar and bottom bar with no empty block.
+- With a Claude agent working, its row shows a spinner and its context bar. The bottom bar reads
+  `1 working`.
+- ⌘G opens the git graph in the side panel, and ⌘G again closes it.
+- `herdr-app shot` shows the bottom bar's 5h / 7d meters when the statusline cache exists.
