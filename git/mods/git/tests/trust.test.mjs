@@ -6,7 +6,9 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { RISKY, riskyKeys, syncOf } from "../repos.js";
 
-assert.deepEqual(riskyKeys("filter.lfs.clean git-lfs clean -- %f\nfilter.lfs.clean x\ncore.sshcommand ssh -i k\n"), ["filter.lfs.clean", "core.sshcommand"]);
+assert.deepEqual(riskyKeys("local\tfilter.lfs.clean git-lfs clean -- %f\nlocal\tfilter.lfs.clean x\nworktree\tcore.sshcommand ssh -i k\n"), ["filter.lfs.clean", "core.sshcommand"]);
+assert.deepEqual(riskyKeys("global\tfilter.lfs.clean git-lfs clean\nsystem\tcredential.helper osxkeychain\n"), [], "the person's own config is not the repo's");
+assert.deepEqual(riskyKeys("local\tcore.fsmonitor true\nlocal\tcore.fsmonitor ./evil\nlocal\tremote.origin.uploadpack sh -c x\n"), ["core.fsmonitor", "remote.origin.uploadpack"]);
 assert.deepEqual(riskyKeys(""), []);
 assert.deepEqual(syncOf({ untrusted: ["filter.x.clean"] }), { kind: "untrusted", text: "not read" });
 
@@ -20,8 +22,13 @@ utimesSync(join(dir, "f"), new Date(Date.now() + 5000), new Date(Date.now() + 50
 assert.deepEqual(riskyKeys(execFileSync("git", RISKY, { cwd: dir }).toString()), ["filter.evil.clean"]);
 assert.equal(existsSync(pwned), false, "reading the config must not run the filter");
 
-// A plain repository has none (git config exits 1: nothing to flag).
+// A plain repository has none of its own.
 const clean = mkdtempSync(join(tmpdir(), "git-trust-")); execFileSync("git", ["init", "-q"], { cwd: clean });
-let code = 0; try { execFileSync("git", RISKY, { cwd: clean, stdio: "pipe" }); } catch (e) { code = e.status; }
-assert.equal(code, 1);
+let out = ""; try { out = execFileSync("git", RISKY, { cwd: clean, stdio: "pipe" }).toString(); } catch {}
+assert.deepEqual(riskyKeys(out), []);
+// A key reached through a local include counts.
+const inc = mkdtempSync(join(tmpdir(), "git-trust-")); execFileSync("git", ["init", "-q"], { cwd: inc });
+writeFileSync(join(inc, "x.cfg"), "[remote \"o\"]\n\tuploadpack = sh -c id\n");
+execFileSync("git", ["config", "include.path", join(inc, "x.cfg")], { cwd: inc });
+assert.ok(riskyKeys(execFileSync("git", RISKY, { cwd: inc }).toString()).includes("include.path"));
 console.log("trust: ok");
