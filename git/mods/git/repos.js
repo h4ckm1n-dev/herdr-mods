@@ -45,11 +45,12 @@ export function parseFound(root, stdout, max = 500) {
 
 // Repo config (local, worktree, or a file they include) that can make git run a program:
 // filter drivers (status), textconv/diff commands (diff), merge drivers, ssh/proxy/askpass/
-// credential helpers, upload/receive-pack and protocol overrides (fetch), hooks path, pager,
-// editor, a non-boolean fsmonitor. Reading config runs nothing. A found repository with any of
+// credential helpers, upload/receive-pack and protocol overrides (fetch), pager,
+// editor, any *command/*program/*driver/*helper key (core.alternateRefsCommand, gpg.program…),
+// a non-boolean fsmonitor. Reading config runs nothing. A found repository with any of
 // these isn't read or fetched until the person opens it. Global/system config is theirs: ignored.
 export const RISKY = [...READ, "config", "--show-scope", "--includes", "--get-regexp",
-  "^(filter\\..*|diff\\..*\\.(textconv|command)|merge\\..*\\.driver|core\\.(sshcommand|gitproxy|askpass|hookspath|pager|editor|fsmonitor)|remote\\..*\\.(uploadpack|receivepack|vcs)|credential\\..*|protocol\\..*|url\\..*\\.(insteadof|pushinsteadof)|include(if)?\\..*)$"];
+  "^(filter\\..*|credential\\..*|protocol\\..*|include(if)?\\..*|url\\..*\\.(insteadof|pushinsteadof)|remote\\..*\\.(uploadpack|receivepack|vcs)|core\\.(gitproxy|fsmonitor)|.*(command|cmd|program|driver|helper|textconv|askpass|editor|pager))$"];
 const BOOL = /^(true|false|yes|no|on|off|1|0)?$/i;
 export const riskyKeys = (stdout) => [...new Set(stdout.split("\n").map((l) => l.match(/^(\S+)\s+(\S+)\s?(.*)$/)).filter(Boolean)
   .filter(([, scope, key, value]) => (scope === "local" || scope === "worktree") && !(key === "core.fsmonitor" && BOOL.test(value.trim())))
@@ -82,7 +83,7 @@ export function parseRepoStatus(stdout) {
 // A background fetch, as manygit runs it: saved credentials and SSH's own
 // configuration still work, but nothing may stop to ask for a login. Git tries
 // askpass before GIT_TERMINAL_PROMPT, so an empty GIT_ASKPASS goes with it.
-export const FETCH = ["GCM_INTERACTIVE=0", "GIT_TERMINAL_PROMPT=0", "GIT_ASKPASS=", "git", "-c", "core.fsmonitor=false", "-c", "maintenance.auto=false", "-c", "gc.auto=0", "fetch", "--quiet", "--no-recurse-submodules"];
+export const FETCH = ["GCM_INTERACTIVE=0", "GIT_TERMINAL_PROMPT=0", "GIT_ASKPASS=", "git", "-c", "core.fsmonitor=false", "-c", "core.hooksPath=/dev/null", "-c", "maintenance.auto=false", "-c", "gc.auto=0", "fetch", "--quiet", "--no-recurse-submodules"];
 // Worth fetching: a repository that has a remote, or isn't read yet.
 export const fetchable = (st) => !st || st.error || Boolean(st.upstream || st.hasRemote);
 

@@ -144,7 +144,9 @@ function changesOf(status) {
 async function readRepo(path, on, tags, trusted) {
   if (!trusted) {
     const c = await exec("git", RISKY, { cwd: path, on }).catch(() => null);
-    const keys = c?.code === 0 ? riskyKeys(c.stdout) : [];
+    // fail closed: only "no match" (exit 1, nothing on stderr) counts as clean
+    if (!c || (c.code !== 0 && !(c.code === 1 && !c.stderr?.trim()))) return { untrusted: ["config unreadable"] };
+    const keys = c.code === 0 ? riskyKeys(c.stdout) : [];
     if (keys.length) return { untrusted: keys };
   }
   const [r, tag] = await Promise.all([exec("git", REPO_STATUS, { cwd: path, on }), tags ? exec("git", LATEST_TAG, { cwd: path, on }) : null]);

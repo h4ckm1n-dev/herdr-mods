@@ -31,4 +31,9 @@ const inc = mkdtempSync(join(tmpdir(), "git-trust-")); execFileSync("git", ["ini
 writeFileSync(join(inc, "x.cfg"), "[remote \"o\"]\n\tuploadpack = sh -c id\n");
 execFileSync("git", ["config", "include.path", join(inc, "x.cfg")], { cwd: inc });
 assert.ok(riskyKeys(execFileSync("git", RISKY, { cwd: inc }).toString()).includes("include.path"));
+// Any command-like key, wherever it lives, is flagged by the pattern itself.
+const cmd = mkdtempSync(join(tmpdir(), "git-trust-")); execFileSync("git", ["init", "-q"], { cwd: cmd });
+execFileSync("git", ["config", "core.alternateRefsCommand", "sh -c id"], { cwd: cmd });
+execFileSync("git", ["config", "gpg.program", "evil"], { cwd: cmd });
+assert.deepEqual(riskyKeys(execFileSync("git", RISKY, { cwd: cmd }).toString()).sort(), ["core.alternaterefscommand", "gpg.program"]);
 console.log("trust: ok");
