@@ -490,6 +490,7 @@ export default class Spaces extends View {
         cx.notify();
       })
       .on_mouse_down("right", () => this.menu(w))
+      .on_hover((h, cx) => { if (h) this.hoverId = w.id; else if (this.hoverId === w.id) this.hoverId = null; cx.notify(); })
       // Crew row anatomy: avatar in the 16px gutter, 12px semibold name, dim 11px meta right.
       // A worktree hangs one gutter in, its branch glyph where the avatar would be.
       .child(
@@ -500,7 +501,12 @@ export default class Spaces extends View {
           .when(Boolean(tree), el => el.pl(24).child(h_flex().w(16).flex_none().justify_center().child(svg(ICON("branch")).size(12).text_color(t.dim))))
           .when(!tree, el => el.child(avatar(fill, w.name)))
           .child(div().flex_1().min_w(0).truncate().font_semibold().text_color(on ? t.foreground : tree ? t.muted : t.foreground).child(w.name))
-          .when(Boolean(mark), (el) => el.child(mark)),
+          .when(Boolean(mark), (el) => el.child(mark))
+          // close: on hover (and on the shown space), in a slot kept so names never shift.
+          // space.close without `confirmed` lets Herdr ask first when the space has running terminals.
+          .child(div().w(20).flex_none().flex().justify_end()
+            .when(this.hoverId === w.id || on, (el) => el.child(iconButton(t, `sp-close-${w.id}`, "x",
+              () => run("space.close", { id: w.id }), { tip: `Close ${w.name}`, size: 12 }).size(20)))),
       )
       // second line, under the name: repo · branch ↑↓ (the gutter stays empty, as under an agent)
       .when(Boolean(meta), (el) => el.child(h_flex().pl(tree ? 48 : 24).min_w(0).child(this.gitTail(meta, t))));
