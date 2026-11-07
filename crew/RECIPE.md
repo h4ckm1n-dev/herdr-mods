@@ -38,8 +38,8 @@ A row filling the window, with no system title bar (traffic lights at 12,16) on 
        After that, a `Commands ⌘⇧P` button.
      - On the right, a 420px block of quotas, right-aligned: for each tool with data, `5h` and a
        28px bar with the percent, then `7d` the same. With one tool, the time to reset follows each
-       percent. With Claude and Codex both, each group starts with the tool's 12px program icon (Claude
-       coral, Codex cyan), a 1px separator between them, resets in the tooltips. The bars are `muted`
+       percent. With Claude and Codex both, each group starts with a 12px line glyph in the tool's color
+       (an asterisk in Claude coral, a `>_` prompt in a rounded square in Codex cyan; the mod's own SVGs), a 1px separator between them, resets in the tooltips. The bars are `muted`
        grey, turn `working` amber at 50% and `blocked` red at 90%; percents sit in a fixed 28px column.
    - **Dialogs and menus** share one look: `popover` background, a 42px header with an `Esc`
      keycap, 30px menu items with shortcuts drawn as keycaps. This covers the tab and terminal

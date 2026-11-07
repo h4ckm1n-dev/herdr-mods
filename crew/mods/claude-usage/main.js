@@ -1,13 +1,14 @@
 // Agent usage: 5h / 7d quota meters for Claude Code and Codex in the bottom bar.
 // Source: limits.py (the Claude statusline cache, Codex's own session reports). Nothing fetched.
 // One tool: its meters with time to reset. Both: each behind its icon, resets in the tooltip.
-import { View, div, svg, image } from "gpui-kit";
+import { View, div, svg } from "gpui-kit";
 import { h_flex } from "gpui-base";
 import { SIZE, agentColor } from "./kit.js";
 import { theme, exec, appHome, knownAgents } from "herdr";
 
 const POLL_MS = 30_000;
 const TOOLS = [["claude", "Claude"], ["codex", "Codex"]];
+const OWN = { claude: "mods/claude-usage/claude.svg", codex: "mods/claude-usage/codex.svg" };
 // resets_at is UTC; "2h05m" / "3d4h" left
 const resetIn = (iso) => {
   const m = Math.floor((Date.parse(iso ?? "") - Date.now()) / 60000);
@@ -55,10 +56,13 @@ export default class AgentUsage extends View {
 
   // The tool's icon in its color (name in the tooltip); its name only if the icon isn't known.
   mark(t, k, name) {
+    // always one flat 12px line glyph in the tool's color (the program table's icons are full-color art,
+    // louder than everything around them); a tintable table icon for any other tool
     const a = this.icons[k], color = agentColor(t, k);
-    if (!a) return div().text_size(SIZE.micro).font_medium().text_color(color).child(name);
+    const icon = OWN[k] ?? (a?.tint ? a.icon : null);
+    if (!icon) return div().text_size(SIZE.micro).font_medium().text_color(color).child(name);
     return div().id(`mark-${k}`).flex_none().tooltip(name).accessibility_label(name)
-      .child(a.tint ? svg(a.icon).size(12).text_color(color) : image(a.icon).w(12).h(12));
+      .child(svg(icon).size(12).text_color(color));
   }
 
   render() {
