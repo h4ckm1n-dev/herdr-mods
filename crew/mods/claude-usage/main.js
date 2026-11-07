@@ -41,7 +41,7 @@ export default class AgentUsage extends View {
 
   meter(t, key, label, w, showReset) {
     const p = Math.max(0, Math.min(100, Math.round(w?.utilization ?? 0)));
-    const color = p >= 90 ? t.blocked : p >= 50 ? t.working : t.done;
+    const color = p >= 90 ? t.blocked : p >= 50 ? t.working : t.muted; // color only when it means something
     const reset = resetIn(w?.resets_at);
     return h_flex().id(`u-${key}`).flex_none().gap(4).items_center()
       .when(!showReset && Boolean(reset), (el) => el.tooltip(`${label} window · ${p}% used · resets in ${reset}`))
@@ -49,7 +49,7 @@ export default class AgentUsage extends View {
       .child(h_flex().w(28).h(4).rounded(2).overflow_hidden().bg(t.border)
         .child(div().h_full().rounded(2).flex_basis(0).flex_grow(p / 100).bg(color))
         .child(div().h_full().flex_basis(0).flex_grow(1 - p / 100)))
-      .child(div().text_size(SIZE.meta).text_color(p >= 50 ? color : t.muted).child(`${p}%`))
+      .child(div().w(28).flex_none().text_right().text_size(SIZE.meta).text_color(p >= 50 ? color : t.muted).child(`${p}%`)) // fixed: digits never shift
       .when(showReset && Boolean(reset), (el) => el.child(div().text_size(SIZE.micro).text_color(t.dim).child(reset)));
   }
 
@@ -58,7 +58,7 @@ export default class AgentUsage extends View {
     const a = this.icons[k], color = agentColor(t, k);
     if (!a) return div().text_size(SIZE.micro).font_medium().text_color(color).child(name);
     return div().id(`mark-${k}`).flex_none().tooltip(name).accessibility_label(name)
-      .child(a.tint ? svg(a.icon).size(13).text_color(color) : image(a.icon).w(13).h(13));
+      .child(a.tint ? svg(a.icon).size(12).text_color(color) : image(a.icon).w(12).h(12));
   }
 
   render() {

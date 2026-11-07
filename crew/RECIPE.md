@@ -36,11 +36,11 @@ A row filling the window, with no system title bar (traffic lights at 12,16) on 
      - On the left: a monitor or server icon with the machine, the branch as a tag, then
        `n working` with a spinner and `n needs you` with a `blocked` dot, or just `n agents`.
        After that, a `Commands ⌘⇧P` button.
-     - On the right, a 380px block of quotas, right-aligned: for each tool with data, `5h` and a
+     - On the right, a 420px block of quotas, right-aligned: for each tool with data, `5h` and a
        28px bar with the percent, then `7d` the same. With one tool, the time to reset follows each
-       percent. With Claude and Codex both, each group starts with the tool's 13px program icon (Claude
-       coral, Codex cyan), a 1px separator between them, resets in the tooltips. The bars are `done`
-       green, turn `working` amber at 50% and `blocked` red at 90%.
+       percent. With Claude and Codex both, each group starts with the tool's 12px program icon (Claude
+       coral, Codex cyan), a 1px separator between them, resets in the tooltips. The bars are `muted`
+       grey, turn `working` amber at 50% and `blocked` red at 90%; percents sit in a fixed 28px column.
    - **Dialogs and menus** share one look: `popover` background, a 42px header with an `Esc`
      keycap, 30px menu items with shortcuts drawn as keycaps. This covers the tab and terminal
      context menus, the new tab menu, the worktree dialogs, and the ⌘P go-to-tab picker (16:9,
@@ -69,7 +69,7 @@ A row filling the window, with no system title bar (traffic lights at 12,16) on 
   `sidebar-lists` (agents-crew, spaces-crew) and `sidebar-footer` (workspace-chrome-crew with
   `{footer: true}`). Next to it, the `work` column with `tabs` (tabs-crew) and `work-body`. The
   `work-body` row holds the terminal and a hidden `panel` stack: files-crew, git, cost. Below it,
-  the `status-row` holds workspace-status-crew and claude-usage at 380px. Pane headers use
+  the `status-row` holds workspace-status-crew and claude-usage at 420px. Pane headers use
   pane-crew, and `terminal_menu` is menu-crew.
 - Mods in `mods/`: agents-crew, spaces-crew, workspace-chrome-crew, tabs-crew,
   workspace-status-crew, claude-usage, pane-crew, files-crew, git, cost, menu-crew,
