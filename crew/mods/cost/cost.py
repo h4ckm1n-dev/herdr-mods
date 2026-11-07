@@ -188,7 +188,7 @@ def codex(today, since, root=CODEX, now=None):
     names = [(date.fromisoformat(today) - timedelta(days=WINDOW - 1 - i)).isoformat() for i in range(WINDOW)]
     tok, usd = dict.fromkeys(names, 0), dict.fromkeys(names, 0.0)
     now = time.time() if now is None else now
-    last_hour, first_today = 0.0, None
+    last_hour, first_today, cache = 0.0, None, {"today": [0, 0], "week": [0, 0]}  # [cached, input]
     for path in glob.glob(os.path.join(root, "*", "*", "*", "rollout-*.jsonl")):
         if os.path.getmtime(path) < since: continue
         prev, model = {"total_tokens": 0, "input_tokens": 0, "cached_input_tokens": 0, "output_tokens": 0}, None
@@ -213,11 +213,14 @@ def codex(today, since, root=CODEX, now=None):
                     long = ((info.get("last_token_usage") or {}).get("input_tokens") or 0) > LONG
                     spent = codex_cost(model, dl["input_tokens"] - cached, cached, dl["output_tokens"], long)
                     tok[day] += dl["total_tokens"]; usd[day] += spent
+                    for k in (["today", "week"] if day == today else ["week"]):
+                        cache[k][0] += cached; cache[k][1] += dl["input_tokens"]
                     at = epoch(d["timestamp"])
                     if day == today: first_today = at if first_today is None else min(first_today, at)
                     if now - 3600 <= at <= now: last_hour += spent
         except (OSError, ValueError): continue
     return {"today": tok[today], "week": sum(tok.values()), "days": [[n, tok[n]] for n in names],
+            "cached": (lambda c: round(100 * c[0] / c[1]) if c[1] else None)(cache["today"] if cache["today"][1] else cache["week"]),
             "usdLastHour": round(last_hour, 4), "firstToday": first_today, "usdToday": round(usd[today], 4), "usdWeek": round(sum(usd.values()), 4), "usdDays": [[n, round(usd[n], 4)] for n in names]}
 
 def merge_codex(res, cx, now):

@@ -61,8 +61,9 @@ export default class Cost extends View {
   }
 
   // One column per day, bottom-aligned, height = share of the week's max; the value in the tooltip.
-  columns(t, id, days, h, color, fmt) {
-    const max = Math.max(1e-9, ...days.map((x) => x[1]));
+  // `scale`: the max to measure against (a second series shares the first one's dollars); else its own max.
+  columns(t, id, days, h, color, fmt, scale) {
+    const max = Math.max(1e-9, scale ?? Math.max(...days.map((x) => x[1])));
     return h_flex().px(12).h(h).gap(6).items_end().children(days.map(([day, v], i) =>
       div().id(`${id}-${day}`).flex_1().h(v > 0 ? Math.max(2, Math.round((v / max) * h)) : 1).rounded(2)
         .bg(v > 0 ? color(v, i === days.length - 1) : t.border).tooltip(`${weekday(day)} · ${fmt(v)}`)));
@@ -132,7 +133,7 @@ export default class Cost extends View {
         section(t, "s-week", "Last 7 days", d.codex?.week ? `${usd(d.week)} · Codex ${usd(d.codex.usdWeek)}` : usd(d.week), { icon: "mods/cost/icons/calendar.svg" }),
         this.card(t, "c-week",
           this.columns(t, "wk", d.days, 44, (v, last) => (last ? accent : t.muted), usd),
-          ...(d.codex?.week ? [div().h(4), this.columns(t, "cx", d.codex.usdDays, 12, () => agentColor(t, "codex"), (v) => `Codex ${usd(v)}`)] : []),
+          ...(d.codex?.week ? [div().h(4), this.columns(t, "cx", d.codex.usdDays, 12, () => agentColor(t, "codex"), (v) => `Codex ${usd(v)}`, Math.max(...d.days.map((x) => x[1])))] : []),
           h_flex().px(12).pt(4).gap(4).children(d.days.map(([day], i) => div().flex_1().text_center().text_size(SIZE.micro)
             .text_color(i === d.days.length - 1 ? t.foreground : t.dim).child(i === d.days.length - 1 ? "Today" : weekday(day))))),
         // models, then the subagents' share in one line (was its own section)
@@ -143,7 +144,9 @@ export default class Cost extends View {
             .when(d.cached?.[k] !== undefined, (el) => el.tooltip(`${d.cached[k]}% of input read from cache`)
               .child(div().flex_none().text_right().text_size(SIZE.micro).text_color(d.cached[k] < 70 ? t.working : t.dim).child(`${d.cached[k]}%`))), v[1] / maxModel, t.muted, usd(v[0]), usd(v[1]), 88)) : [div().px(12).text_color(t.dim).child("No usage yet")]),
           // Codex at API prices, one row like a model (its dot in Codex cyan)
-          ...(d.codex?.week ? [this.meter(t, "m-codex", h_flex().gap(6).items_center().child(div().size(6).flex_none().rounded(3).bg(agentColor(t, "codex"))).child("Codex"),
+          ...(d.codex?.week ? [this.meter(t, "m-codex", h_flex().id("mc-codex").w_full().gap(6).items_center().child(div().size(6).flex_none().rounded(3).bg(agentColor(t, "codex"))).child(div().flex_1().min_w(0).truncate().child("Codex"))
+              .when(d.codex.cached != null, (el) => el.tooltip(`${d.codex.cached}% of input read from cache`)
+                .child(div().flex_none().text_right().text_size(SIZE.micro).text_color(d.codex.cached < 70 ? t.working : t.dim).child(`${d.codex.cached}%`))),
             d.codex.usdWeek / maxModel, t.muted, usd(d.codex.usdToday), usd(d.codex.usdWeek), 88)] : []),
           this.meter(t, "p-sub", h_flex().gap(6).items_center().child(div().size(6).flex_none()).child("Subagents"), splitTot ? d.split.sub[1] / splitTot : 0, t.muted, usd(d.split.sub[0]), usd(d.split.sub[1]), 88),
           d.subagents.length ? div().px(12).text_size(SIZE.micro).text_color(t.dim).truncate()

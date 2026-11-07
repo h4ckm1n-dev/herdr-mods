@@ -69,6 +69,7 @@ class Cost(unittest.TestCase):
             short = (600_000 * 10 + 400_000 * 1 + 100_000 * 50) / 1e6
             long = (300_000 * 20 + 10_000 * 75) / 1e6
             self.assertAlmostEqual(r["usdToday"], short + long, places=4)
+            self.assertEqual(r["cached"], round(100 * 400_000 / 1_300_000))  # cached share of all input
             self.assertAlmostEqual(cost.codex_cost("gpt-6.1-sol-2026", 1e6, 0, 0), 2.0)   # prefix match
             self.assertAlmostEqual(cost.codex_cost("mystery", 1e6, 0, 0), 2.0)            # unknown: Codex default
 
