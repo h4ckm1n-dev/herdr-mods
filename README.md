@@ -33,7 +33,7 @@ The whole window, redrawn around agents:
 - **Agents first.** Working, Needs you, Done and Idle groups. A spinner shows while an agent works. Each agent shows its last action, its context fill, and running sub-agents with progress.
 - **⌘J** jumps to the next agent waiting on you, in any space.
 - **Spaces** with stable colored avatars and worktrees nested under their repo.
-- **A panel tab bar:** Files (⌘E), Git (⌘G) and Cost (⌘⇧U): Claude Code spend plus Codex tokens.
+- **A panel tab bar:** Files (⌘E), Git (⌘G) and Cost (⌘⇧U): Claude Code and Codex spend at API prices.
 - **A bottom bar** with the machine, the branch, `2 working · 1 needs you`, and your **Claude Code and Codex 5h / 7d quotas** side by side.
 - Menus, dialogs and the ⌘P tab picker in one consistent style.
 

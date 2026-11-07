@@ -1,5 +1,5 @@
 // Cost: Claude Code spend, from the transcripts (~/.claude/projects), summarised by cost.py,
-// plus Codex usage in tokens (~/.codex/sessions; no per-token price on a ChatGPT plan).
+// plus Codex at OpenAI's API prices (~/.codex/sessions; Codex itself runs on a ChatGPT plan).
 // Today / last 7 days, by model, main session vs subagents, top projects, against a daily budget.
 
 import { View, div, svg } from "gpui-kit";
@@ -15,7 +15,6 @@ const POLL_MS = 60_000;
 const usd = (v) => (v > 0 && v < 1 ? "<$1" : `$${String(Math.round(v)).replace(/\B(?=(\d{3})+$)/g, ",")}`);
 const ago = (ms) => { const m = Math.round((Date.now() - ms) / 60000); return m < 1 ? "just now" : m < 60 ? `${m}m ago` : `${Math.round(m / 60)}h ago`; };
 const MODELS = (t) => ({ opus: ["Opus", CORAL], sonnet: ["Sonnet", t.ansi4], haiku: ["Haiku", t.ansi2], fable: ["Fable", t.ansi5], mythos: ["Mythos", t.ansi5], other: ["Other", t.muted] });
-const tok = (n) => (n >= 1e6 ? `${+(n / 1e6).toFixed(1)}M` : n >= 1e3 ? `${Math.round(n / 1e3)}K` : String(n));
 const weekday = (iso) => ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][new Date(iso + "T12:00:00").getDay()];
 
 export default class Cost extends View {
@@ -127,10 +126,10 @@ export default class Cost extends View {
             .child(div().flex_none().child("Priciest today"))
             .child(div().flex_1().min_w(0).truncate().child(`· ${d.topSession.project} · ${ago(d.topSession.at * 1000)}`)))] : []),
         // 7 days as columns: Claude $ on top, Codex tokens as a thin row under (when used); hover a column for its value
-        section(t, "s-week", "Last 7 days", d.codex?.week ? `${usd(d.week)} · ${tok(d.codex.week)} Codex` : usd(d.week), { icon: "mods/cost/icons/calendar.svg" }),
+        section(t, "s-week", "Last 7 days", d.codex?.week ? `${usd(d.week)} · Codex ${usd(d.codex.usdWeek)}` : usd(d.week), { icon: "mods/cost/icons/calendar.svg" }),
         this.card(t, "c-week",
           this.columns(t, "wk", d.days, 44, (v, last) => (last ? accent : t.muted), usd),
-          ...(d.codex?.week ? [div().h(4), this.columns(t, "cx", d.codex.days, 12, () => agentColor(t, "codex"), (v) => `${tok(v)} tokens`)] : []),
+          ...(d.codex?.week ? [div().h(4), this.columns(t, "cx", d.codex.usdDays, 12, () => agentColor(t, "codex"), (v) => `Codex ${usd(v)}`)] : []),
           h_flex().px(12).pt(4).gap(4).children(d.days.map(([day], i) => div().flex_1().text_center().text_size(SIZE.micro)
             .text_color(i === d.days.length - 1 ? t.foreground : t.dim).child(i === d.days.length - 1 ? "Today" : weekday(day))))),
         // models, then the subagents' share in one line (was its own section)
@@ -140,6 +139,9 @@ export default class Cost extends View {
             // share of input read from cache: low means full-price re-reads
             .when(d.cached?.[k] !== undefined, (el) => el.tooltip(`${d.cached[k]}% of input read from cache`)
               .child(div().flex_none().text_right().text_size(SIZE.micro).text_color(d.cached[k] < 70 ? t.working : t.dim).child(`${d.cached[k]}%`))), v[1] / maxModel, t.muted, usd(v[0]), usd(v[1]), 88)) : [div().px(12).text_color(t.dim).child("No usage yet")]),
+          // Codex at API prices, one row like a model (its dot in Codex cyan)
+          ...(d.codex?.week ? [this.meter(t, "m-codex", h_flex().gap(6).items_center().child(div().size(6).flex_none().rounded(3).bg(agentColor(t, "codex"))).child("Codex"),
+            d.codex.usdWeek / maxModel, t.muted, usd(d.codex.usdToday), usd(d.codex.usdWeek), 88)] : []),
           this.meter(t, "p-sub", h_flex().gap(6).items_center().child(div().size(6).flex_none()).child("Subagents"), splitTot ? d.split.sub[1] / splitTot : 0, t.muted, usd(d.split.sub[0]), usd(d.split.sub[1]), 88),
           d.subagents.length ? div().px(12).text_size(SIZE.micro).text_color(t.dim).truncate()
             .child(d.subagents.map(([a, n]) => `${a.replace(/^.*:/, "")} ${n}`).join(" · ")) : div()),

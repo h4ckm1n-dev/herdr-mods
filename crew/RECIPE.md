@@ -61,9 +61,9 @@ A row filling the window, with no system title bar (traffic lights at 12,16) on 
 - The Cost panel fits without scrolling: today against the daily budget, then `Last hour $19 · $13/h
   today` (the last hour amber when it runs past 1.5x today's average per active hour); a card for the priciest
   session today (its title as Claude Code names it, its subagents included, its project, last active); the last 7 days as columns
-  (Claude $ in grey, today in the accent; a thin cyan row of Codex tokens under it when Codex was used,
-  no dollars since Codex runs on a ChatGPT plan; hover a column for its value); by model, each with its cache share
-  (input read from cache, amber under 70%) and a Subagents row and today's sub-agent runs; the top 8 projects.
+  (Claude $ in grey, today in the accent; a thin cyan row of Codex under it when Codex was used, at
+  OpenAI's API prices; hover a column for its value); by model, each with its cache share
+  (input read from cache, amber under 70%), a Codex row and a Subagents row and today's sub-agent runs; the top 8 projects.
 
 ## Built from
 

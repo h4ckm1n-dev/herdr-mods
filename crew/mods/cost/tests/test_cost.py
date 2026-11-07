@@ -55,6 +55,23 @@ class Cost(unittest.TestCase):
             self.assertEqual(r["week"], 250)
             self.assertEqual(len(r["days"]), 7)
 
+    def test_codex_dollars(self):
+        with tempfile.TemporaryDirectory() as d:
+            p = os.path.join(d, "2026", "11", "06"); os.makedirs(p)
+            ctx = json.dumps({"timestamp": "2026-11-06T12:00:00Z", "type": "turn_context", "payload": {"model": "gpt-6-astra"}}) + "\n"
+            tc = lambda ts, i, c, o, last_in: json.dumps({"timestamp": ts, "type": "event_msg", "payload": {"type": "token_count", "info": {
+                "total_token_usage": {"input_tokens": i, "cached_input_tokens": c, "output_tokens": o, "total_tokens": i + o},
+                "last_token_usage": {"input_tokens": last_in}}}}) + "\n"
+            # 1M in (400K cached) + 100K out at short rates, then a 300K-input request at long rates
+            open(os.path.join(p, "rollout-y.jsonl"), "w").write(ctx + tc("2026-11-06T12:01:00Z", 1_000_000, 400_000, 100_000, 50_000)
+                + tc("2026-11-06T12:02:00Z", 1_300_000, 400_000, 110_000, 300_000))
+            r = cost.codex(cost.local_day("2026-11-06T12:00:00Z"), 0, root=d)
+            short = (600_000 * 10 + 400_000 * 1 + 100_000 * 50) / 1e6
+            long = (300_000 * 20 + 10_000 * 75) / 1e6
+            self.assertAlmostEqual(r["usdToday"], short + long, places=4)
+            self.assertAlmostEqual(cost.codex_cost("gpt-6.1-sol-2026", 1e6, 0, 0), 2.0)   # prefix match
+            self.assertAlmostEqual(cost.codex_cost("mystery", 1e6, 0, 0), 2.0)            # unknown: Codex default
+
     def test_last_hour_and_rate(self):
         with tempfile.TemporaryDirectory() as d:
             f = os.path.join(d, "s.jsonl")

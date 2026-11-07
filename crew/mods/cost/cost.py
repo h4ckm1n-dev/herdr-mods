@@ -161,26 +161,58 @@ def report(files, cache, today, now=None):
 
 CODEX = os.path.join(HOME, ".codex", "sessions")
 
+# Codex models, $/MTok: (input, cached input, output) for <=272K input, then >272K. Source: OpenAI's
+# pricing page (developers.openai.com/api/docs/pricing, read 2026-11-07); gpt-5.6-sol is promotional
+# until 2026-11-30. Longest id prefix wins; an unknown model is billed as gpt-6.1-sol (Codex's default).
+CODEX_PRICES = {
+    "gpt-6.1-sol":   ((2.00, 0.10, 10.00), (4.00, 0.20, 15.00)),
+    "gpt-6.1-terra": ((1.00, 0.05, 5.00), (2.00, 0.10, 7.50)),
+    "gpt-6-astra":   ((10.00, 1.00, 50.00), (20.00, 2.00, 75.00)),
+    "gpt-6-sol":     ((2.00, 0.20, 10.00), (4.00, 0.40, 15.00)),
+    "gpt-6-luna":    ((0.10, 0.01, 0.50), (0.20, 0.02, 0.75)),
+    "gpt-5.6-sol":   ((4.00, 0.40, 20.00), (8.00, 0.80, 30.00)),
+    "gpt-5.3-codex": ((1.75, 0.175, 14.00), (1.75, 0.175, 14.00)),
+}
+LONG = 272_000
+
+def codex_cost(model, fresh, cached, out, long=False):
+    best = max((p for p in CODEX_PRICES if (model or "").startswith(p)), key=len, default="gpt-6.1-sol")
+    pin, pcache, pout = CODEX_PRICES[best][1 if long else 0]
+    return (fresh * pin + cached * pcache + out * pout) / 1e6
+
 def codex(today, since, root=CODEX):
-    """Codex tokens per local day (no $: Codex runs on a ChatGPT plan, no per-token price to apply).
-    Each session's token_count reports a running total; a day gets the growth seen that day."""
+    """Codex per local day: tokens and API-equivalent $ (Codex itself runs on a ChatGPT plan).
+    Each token_count reports running totals; a day gets the growth seen that day, priced at the
+    model of the turn (turn_context) and the long-context rate when that request passed 272K."""
     names = [(date.fromisoformat(today) - timedelta(days=WINDOW - 1 - i)).isoformat() for i in range(WINDOW)]
-    per = dict.fromkeys(names, 0)
+    tok, usd = dict.fromkeys(names, 0), dict.fromkeys(names, 0.0)
     for path in glob.glob(os.path.join(root, "*", "*", "*", "rollout-*.jsonl")):
         if os.path.getmtime(path) < since: continue
-        prev = 0
+        prev, model = {"total_tokens": 0, "input_tokens": 0, "cached_input_tokens": 0, "output_tokens": 0}, None
         try:
             with open(path, encoding="utf-8", errors="replace") as f:
                 for line in f:
+                    if '"turn_context"' in line:
+                        try: model = (json.loads(line).get("payload") or {}).get("model") or model
+                        except ValueError: pass
+                        continue
                     if '"token_count"' not in line: continue
                     try: d = json.loads(line)
                     except ValueError: continue
-                    tot = (((d.get("payload") or {}).get("info") or {}).get("total_token_usage") or {}).get("total_tokens")
-                    if not tot or tot <= prev: continue  # a repeated report, or a rate-limit-only one
-                    day, prev, delta = local_day(d.get("timestamp") or ""), tot, tot - prev
-                    if day in per: per[day] += delta
+                    info = (d.get("payload") or {}).get("info") or {}
+                    tot = info.get("total_token_usage") or {}
+                    if not tot.get("total_tokens") or tot["total_tokens"] <= prev["total_tokens"]: continue  # a repeat, or rate limits only
+                    dl = {k: max(0, (tot.get(k) or 0) - prev[k]) for k in prev}
+                    prev = {k: tot.get(k) or 0 for k in prev}
+                    day = local_day(d.get("timestamp") or "")
+                    if day not in tok: continue
+                    cached = min(dl["cached_input_tokens"], dl["input_tokens"])
+                    long = ((info.get("last_token_usage") or {}).get("input_tokens") or 0) > LONG
+                    tok[day] += dl["total_tokens"]
+                    usd[day] += codex_cost(model, dl["input_tokens"] - cached, cached, dl["output_tokens"], long)
         except (OSError, ValueError): continue
-    return {"today": per[today], "week": sum(per.values()), "days": [[n, per[n]] for n in names]}
+    return {"today": tok[today], "week": sum(tok.values()), "days": [[n, tok[n]] for n in names],
+            "usdToday": round(usd[today], 4), "usdWeek": round(sum(usd.values()), 4), "usdDays": [[n, round(usd[n], 4)] for n in names]}
 
 def find(since):
     """Transcripts touched since `since` (epoch): older files can't hold a message from the window."""
