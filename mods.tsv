@@ -1,0 +1,17 @@
+# name	needs	description
+agents-crew	layout	Agents sidebar: Claude and Codex sessions, sub-agents, progress, Codex 5h/7d
+spaces-crew	layout	Spaces sidebar: colored avatars, worktrees under their checkout
+workspace-chrome-crew	layout	Sidebar brand row and footer (Settings, Add machine)
+tabs-crew	layout	Tab bar with panel buttons (Files, Graph, Cost) and the waiting-agent key
+workspace-status-crew	layout	Bottom bar: machine, branch, working agents, Commands key
+claude-usage	layout	Bottom bar: Claude 5h / 7d quotas (reads the Claude Code statusline cache)
+pane-crew	layout	Pane header for the crew layout
+files-crew	layout	Files panel: lazy browser of the focused pane's folder, read-only previews
+git	-	Git panel: graph, changes, stage/discard, branches, stash, commit, pull/push
+cost	-	Claude Code spend from your transcripts: today, 7 days, by model and project
+menu-crew	-	Context menus (tab, space, terminal) in the crew style
+new-menu-crew	-	New tab / agent menu
+worktree-crew	-	New / open / remove worktree dialogs
+picker-crew	-	Go-to-tab picker, cmd-P
+theme-gallery	-	Every Ghostty theme with live preview, cmd-shift-T
+help-crew	-	Keybinds dialog in two columns with keycaps, cmd-/

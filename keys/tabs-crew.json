@@ -1,0 +1,10 @@
+{
+  "global": {
+    "cmd-j": "tabs-crew.next-blocked"
+  },
+  "layout:crew": {
+    "cmd-g": "tabs-crew.graph",
+    "cmd-e": "tabs-crew.files",
+    "cmd-shift-u": "tabs-crew.cost"
+  }
+}

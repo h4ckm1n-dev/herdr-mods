@@ -1,0 +1,9 @@
+{
+  "place": "none",
+  "title": "Themes",
+  "overlay": {
+    "kind": "dialog",
+    "width": 1040,
+    "height": 585
+  }
+}

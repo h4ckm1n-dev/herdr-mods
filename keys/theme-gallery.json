@@ -1,0 +1,3 @@
+{
+  "global": { "cmd-shift-t": "mod.open:theme-gallery" }
+}

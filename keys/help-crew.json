@@ -1,0 +1,6 @@
+{
+  "global": {
+    "cmd-/": "mod.open:help-crew",
+    "cmd-shift-/": "mod.open:help-crew"
+  }
+}

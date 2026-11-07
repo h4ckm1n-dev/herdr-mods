@@ -1,0 +1,6 @@
+{
+  "place": "none",
+  "title": "Keybinds",
+  "overlay": { "kind": "dialog", "width": 1040, "height": 585 },
+  "cloned_from": { "name": "help", "version": "0.1.13" }
+}
