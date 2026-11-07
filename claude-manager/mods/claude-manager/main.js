@@ -156,7 +156,7 @@ export default class ClaudeManager extends View {
         .child(x.event && x.event !== prev?.event ? x.event : "")))
       .child(div().w(this.kind === "hooks" ? 220 : 300).flex_none().truncate().text_color(x.on ? c.foreground : c.dim)
         .when(sel || x.id === "*", (d) => d.font_medium()).child(x.name))
-      .child(div().flex_1().min_w(0).truncate().text_size(SIZE.meta).text_color(c.dim).child(x.desc || " "))
+      .child(div().flex_1().min_w(0).truncate().text_size(SIZE.body).text_color(x.on ? c.muted : c.dim).child(x.desc || " "))
       .child(div().w(80).flex_none().text_right().text_size(SIZE.micro)
         .text_color(x.on ? c.dim : c.working).child(!x.on ? "off" : x.mode && x.mode !== "on" ? x.mode : ""));
   }
