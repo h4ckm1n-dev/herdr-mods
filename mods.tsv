@@ -15,4 +15,4 @@ worktree-crew	-	New / open / remove worktree dialogs
 picker-crew	-	Go-to-tab picker, cmd-P
 theme-gallery	-	Every Ghostty theme with live preview, cmd-shift-T
 help-crew	-	Keybinds dialog in two columns with keycaps, cmd-/
-claude-manager	-	Claude Code skills, agents and MCP servers on or off (native settings.json switches), cmd-shift-K
+claude-manager	-	Claude Code skills, commands, agents, MCP servers, hooks and plugins on or off, cmd-shift-K

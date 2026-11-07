@@ -1,35 +1,67 @@
-# python3 -I tests/test_manage.py : off then on puts settings.json back byte for byte
+# python3 -I tests/test_manage.py : every kind off then on puts settings.json back byte for byte
 import json, os, subprocess, sys, tempfile
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 home = tempfile.mkdtemp()
 cfg = os.path.join(home, ".claude")
-os.makedirs(os.path.join(cfg, "skills", "demo"))
-os.makedirs(os.path.join(cfg, "agents"))
+for d in ("skills/demo", "agents", "commands"):
+    os.makedirs(os.path.join(cfg, d))
 open(os.path.join(cfg, "skills", "demo", "SKILL.md"), "w").write("---\nname: demo\ndescription: |\n  A demo\n  skill.\nother: x\n---\nbody")
 open(os.path.join(cfg, "agents", "helper.md"), "w").write("---\nname: helper\ndescription: Helps.\n---\n")
+open(os.path.join(cfg, "commands", "deep.md"), "w").write("# Go deep on one thing\n")
 json.dump({"mcpServers": {"srv": {"command": "/usr/bin/srv", "env": {"TOKEN": "secret"}}}}, open(os.path.join(home, ".claude.json"), "w"))
-orig = json.dumps({"permissions": {"allow": ["Read"], "deny": ["Bash(rm *)"]}, "model": "opus"}, indent=2) + "\n"
+HOOKS = {
+    "PreToolUse": [{"matcher": "Bash", "hooks": [{"type": "command", "command": "bash ~/.claude/hooks/block.sh"},
+                                                {"type": "command", "command": "rtk hook claude"}]},
+                   {"matcher": "Read", "hooks": [{"type": "command", "command": "bash ~/.claude/hooks/warn.sh"}]}],
+    "Stop": [{"hooks": [{"type": "command", "command": "node \"/x/graft-hooks.cjs\" stop"}]}],
+}
+orig = json.dumps({"permissions": {"allow": ["Read"], "deny": ["Bash(rm *)"]}, "hooks": HOOKS, "model": "opus",
+                   "enabledPlugins": {"p@m": True, "q@m": False}}, indent=2) + "\n"
 S = os.path.join(cfg, "settings.json")
 open(S, "w").write(orig)
 env = {**os.environ, "HOME": home, "CLAUDE_CONFIG_DIR": cfg}
 run = lambda *a: subprocess.run([sys.executable, "-I", os.path.join(HERE, "manage.py"), *a], env=env, capture_output=True, text=True, check=True).stdout
-state = lambda: {k: {x["name"]: x["on"] for x in v} for k, v in json.loads(run("list")).items() if k != "settings"}
+L = lambda: json.loads(run("list"))
+state = lambda: {k: {x["id"]: x["on"] for x in v} for k, v in L().items() if k != "settings"}
 
-assert state() == {"skills": {"demo": True}, "agents": {"helper": True}, "mcp": {"srv": True}}
-L = json.loads(run("list"))
-assert L["skills"][0]["desc"] == "A demo skill.", L["skills"][0]
-assert "secret" not in json.dumps(L) and L["mcp"][0]["desc"] == "stdio · srv"
-for kind, name in [("skill", "demo"), ("agent", "helper"), ("mcp", "srv")]:
+d = L()
+assert d["skills"][0]["desc"] == "A demo skill.", d["skills"][0]
+assert d["commands"] == [{"id": "deep", "name": "/deep", "desc": "Go deep on one thing", "on": True}], d["commands"]
+assert "secret" not in json.dumps(d) and d["mcp"][0]["desc"] == "stdio · srv"
+assert [p["on"] for p in d["plugins"]] == [True, False]
+names = [h["name"] for h in d["hooks"]]
+assert names == ["All hooks", "PreToolUse · block", "PreToolUse · rtk hook", "PreToolUse · warn", "Stop · graft-hooks stop"], names
+hid = {h["name"]: h["id"] for h in d["hooks"]}
+
+for kind, name in [("skill", "demo"), ("command", "deep"), ("agent", "helper"), ("mcp", "srv"), ("plugin", "p@m"), ("hook", "*")]:
     run("set", kind, name, "off")
 s = json.load(open(S))
-assert s["skillOverrides"] == {"demo": "off"} and "Agent(helper)" in s["permissions"]["deny"] and s["deniedMcpServers"] == [{"serverName": "srv"}]
-assert state() == {"skills": {"demo": False}, "agents": {"helper": False}, "mcp": {"srv": False}}
-assert open(S + ".bak-claude-manager").read() != orig  # backup = state before the last write
+assert s["skillOverrides"] == {"demo": "off", "deep": "off"} and "Agent(helper)" in s["permissions"]["deny"]
+assert s["deniedMcpServers"] == [{"serverName": "srv"}] and s["enabledPlugins"]["p@m"] is False and s["disableAllHooks"] is True
 run("set", "agent", "helper", "off")  # idempotent: no duplicate rule
 assert json.load(open(S))["permissions"]["deny"].count("Agent(helper)") == 1
-for kind, name in [("skill", "demo"), ("agent", "helper"), ("mcp", "srv")]:
+for kind, name in [("skill", "demo"), ("command", "deep"), ("agent", "helper"), ("mcp", "srv"), ("plugin", "p@m"), ("hook", "*")]:
     run("set", kind, name, "on")
 assert open(S).read() == orig, open(S).read()
+
+# hooks: off empties a group and a whole event; back on in another order lands where it was
+order = ["PreToolUse · rtk hook", "Stop · graft-hooks stop", "PreToolUse · warn", "PreToolUse · block"]
+for n in order:
+    run("set", "hook", hid[n], "off")
+s = json.load(open(S))
+assert "hooks" not in s, s.get("hooks")
+assert all(not on for i, on in state()["hooks"].items() if i != "*")
+assert open(S + ".bak-claude-manager").read() != orig
+for n in ["PreToolUse · block", "Stop · graft-hooks stop", "PreToolUse · rtk hook", "PreToolUse · warn"]:
+    run("set", "hook", hid[n], "on")
+assert json.load(open(S))["hooks"] == HOOKS, json.load(open(S))["hooks"]
+assert json.load(open(os.path.join(cfg, "claude-manager", "hooks-off.json"))) == []
+# one off, then back: byte for byte
+run("set", "hook", hid["PreToolUse · rtk hook"], "off"); run("set", "hook", hid["PreToolUse · rtk hook"], "on")
+
 bad = subprocess.run([sys.executable, "-I", os.path.join(HERE, "manage.py"), "set", "agent", "x)", "off"], env=env, capture_output=True)
-assert bad.returncode != 0 and open(S).read() == orig
+assert bad.returncode != 0
+assert subprocess.run([sys.executable, "-I", os.path.join(HERE, "manage.py"), "set", "hook", "nope", "off"], env=env, capture_output=True).returncode != 0
+s = json.load(open(S)); s.pop("hooks"); o = json.loads(orig); o.pop("hooks")
+assert s == o and json.load(open(S))["hooks"] == HOOKS
 print("ok")
