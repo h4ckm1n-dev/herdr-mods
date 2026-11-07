@@ -29,7 +29,7 @@ export default class ClaudeManager extends View {
     this.at = 0;
     this.busy = new Set(); // "kind:id" being written
     this.status = "Reading ~/.claude…";
-    this.queue = Promise.resolve(); // one write at a time: each is read-modify-write of settings.json
+    this.lock = Promise.resolve(); // one write at a time: each is read-modify-write of settings.json
     this.script = `${appHome()}/mods/claude-manager/manage.py`;
     this.scroll = VirtualListScrollHandle.new();
     this.handle = cx.focus_handle();
@@ -68,15 +68,31 @@ export default class ClaudeManager extends View {
     item.on = want; // optimistic; load() below puts back what the file really says
     this.busy.add(key);
     cx.notify();
-    this.queue = this.queue.then(async () => {
+    this.write(cx, key, ["set", kind, item.id, want ? "on" : "off"], (ok, err) =>
+      ok ? null : `Couldn't turn ${item.name} ${want ? "on" : "off"}: ${err}`);
+  }
+
+  // Runs manage.py in its own task (its own cx: a handler's cx is dead once it returns), one at a
+  // time, then reloads what the files say. msg(ok, err) is the status line after.
+  write(cx, key, args, msg) {
+    cx.spawn(async (cx) => {
+      const prev = this.lock;
+      let release;
+      this.lock = new Promise((r) => (release = r));
+      let status;
       try {
-        const r = await exec("python3", ["-I", this.script, "set", kind, item.id, want ? "on" : "off"]);
-        this.status = r.code === 0 ? null : `Couldn't turn ${item.name} ${want ? "on" : "off"}: ${r.stderr.trim().split("\n").at(-1)}`;
+        await prev;
+        const r = await exec("python3", ["-I", this.script, ...args]);
+        status = msg(r.code === 0, r.stderr.trim().split("\n").at(-1));
       } catch (e) {
-        this.status = `Couldn't write settings.json: ${e.message ?? e}`;
+        status = msg(false, e.message ?? String(e));
+      } finally {
+        release(); // never left pending or rejected: the next write always runs
       }
       this.busy.delete(key);
-      await this.load(cx);
+      await this.load(cx); // clears the status line
+      this.status = status;
+      cx.notify();
     });
   }
 
@@ -94,19 +110,8 @@ export default class ClaudeManager extends View {
     this.busy.add(`${kind}:${x.id}`);
     this.status = `Moving ${x.name} to the Trash…`;
     cx.notify();
-    this.queue = this.queue.then(async () => {
-      let msg;
-      try {
-        const r = await exec("python3", ["-I", this.script, "delete", kind, x.id]);
-        msg = r.code === 0 ? `${x.name} is in the Trash` : `Couldn't trash ${x.name}: ${r.stderr.trim().split("\n").at(-1)}`;
-      } catch (e) {
-        msg = `Couldn't trash ${x.name}: ${e.message ?? e}`;
-      }
-      this.busy.delete(`${kind}:${x.id}`);
-      await this.load(cx); // clears the status line
-      this.status = msg;
-      cx.notify();
-    });
+    this.write(cx, `${kind}:${x.id}`, ["delete", kind, x.id], (ok, err) =>
+      ok ? `${x.name} is in the Trash` : `Couldn't trash ${x.name}: ${err}`);
   }
 
   setKind(k, cx) {
