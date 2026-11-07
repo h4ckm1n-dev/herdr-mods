@@ -116,14 +116,14 @@ export default class Cost extends View {
         section(t, "s-week", "Last 7 days", d.codex?.week ? `${usd(d.week)} · ${tok(d.codex.week)} Codex` : usd(d.week), { icon: "mods/cost/icons/calendar.svg" }),
         this.card(t, "c-week",
           this.columns(t, "wk", d.days, 44, (v, last) => (last ? accent : t.muted), usd),
-          ...(d.codex?.week ? [this.columns(t, "cx", d.codex.days, 14, () => agentColor(t, "codex"), (v) => `${tok(v)} tokens`)] : []),
+          ...(d.codex?.week ? [div().h(4), this.columns(t, "cx", d.codex.days, 12, () => agentColor(t, "codex"), (v) => `${tok(v)} tokens`)] : []),
           h_flex().px(12).pt(4).gap(4).children(d.days.map(([day], i) => div().flex_1().text_center().text_size(SIZE.micro)
             .text_color(i === d.days.length - 1 ? t.foreground : t.dim).child(i === d.days.length - 1 ? "Today" : weekday(day))))),
         // models, then the subagents' share in one line (was its own section)
         section(t, "s-models", "By model", "today · 7 days", { icon: "mods/cost/icons/cpu.svg" }),
         this.card(t, "c-models", ...(modelsRows.length ? modelsRows.map(([k, v]) =>
-          this.meter(t, `m-${k}`, h_flex().gap(6).items_center().child(div().size(6).flex_none().rounded(3).bg(M[k]?.[1] ?? t.muted)).child(M[k]?.[0] ?? k), v[1] / maxModel, M[k]?.[1] ?? t.muted, usd(v[0]), usd(v[1]), 72)) : [div().px(12).text_color(t.dim).child("No usage yet")]),
-          this.meter(t, "p-sub", "Subagents", splitTot ? d.split.sub[1] / splitTot : 0, t.muted, usd(d.split.sub[0]), usd(d.split.sub[1]), 72),
+          this.meter(t, `m-${k}`, h_flex().gap(6).items_center().child(div().size(6).flex_none().rounded(3).bg(M[k]?.[1] ?? t.muted)).child(M[k]?.[0] ?? k), v[1] / maxModel, t.muted, usd(v[0]), usd(v[1]), 88)) : [div().px(12).text_color(t.dim).child("No usage yet")]),
+          this.meter(t, "p-sub", h_flex().gap(6).items_center().child(div().size(6).flex_none()).child("Subagents"), splitTot ? d.split.sub[1] / splitTot : 0, t.muted, usd(d.split.sub[0]), usd(d.split.sub[1]), 88),
           d.subagents.length ? div().px(12).text_size(SIZE.micro).text_color(t.dim).truncate()
             .child(d.subagents.map(([a, n]) => `${a.replace(/^.*:/, "")} ${n}`).join(" · ")) : div()),
         section(t, "s-proj", "Top projects", "today · 7 days", { icon: "folder" }),
