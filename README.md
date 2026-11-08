@@ -67,12 +67,10 @@ sub-agents, and your top projects.
 
 ### The bottom bar
 
-![Bottom bar: machine, working agents, Whop figures, Claude Code and Codex quotas](crew/bottom-bar.png)
+![Bottom bar: machine, working agents, Claude Code and Codex quotas](crew/bottom-bar.png)
 
-Where you are and who is working on the left. On the right:
-
-- **Whop:** MRR, net revenue over 30 days, paid members and visitors, summed across every business your `whop` CLI is logged into. No CLI, no band.
-- **Agent usage:** your Claude Code and Codex 5h and 7d quotas side by side. The gauges stay grey until 50%, then turn amber, and red past 90%.
+Where you are and who is working on the left. On the right, your Claude Code and Codex 5h and 7d
+quotas side by side. The gauges stay grey until 50%, then turn amber, and red past 90%.
 
 ## Mods that work in any layout
 
@@ -168,7 +166,7 @@ paths outside it. A symlinked mod loads, then never updates while you edit it.
 
 ## Safe by design
 
-- **Local first.** Agent rows, spend and quotas come from files already on your disk: your Claude Code transcripts (`~/.claude/projects`), the usage cache your Claude Code statusline writes, and the session logs Codex keeps in `~/.codex/sessions`. The only mod that goes online is the Whop band, through your own `whop` CLI.
+- **Local only.** Nothing here calls a server. Agent rows, spend and quotas come from files already on your disk: your Claude Code transcripts (`~/.claude/projects`), the usage cache your Claude Code statusline writes, and the session logs Codex keeps in `~/.codex/sessions`.
 - **No surprise git.** The Git panel won't automatically read a repo whose own config can launch a program: filter drivers, ssh, credential or askpass helpers, upload-pack and similar settings. Such a repo shows as *not read* until you open it. Fetch never prompts for credentials and never runs auto-gc.
 - **Your Claude config, reversibly.** Claude Manager only uses Claude Code's own switches in `~/.claude/settings.json` (`skillOverrides`, `permissions.deny`, `deniedMcpServers`, `enabledPlugins`, `disableAllHooks`). Each write is atomic and backed up. A single hook, which has no native switch, is set aside in a side file and put back in place. Deleting moves files to the Trash, after a second ⌘⌫.
 - **Asks first.** Discard, drop, abort, reset and Trash each ask for confirmation, and the installer asks before changing your keys.
@@ -177,7 +175,6 @@ paths outside it. A symlinked mod loads, then never updates while you edit it.
 
 - The Herdr desktop app and `python3`. The Git mod also needs `git`.
 - For the agent rows, Cost and the quota bar: Claude Code and/or Codex. Claude's quota meters need a Claude Code statusline that caches usage to `/tmp/claude/statusline-usage-cache.json`; Codex's come from its own session logs.
-- For the Whop band: the [`whop` CLI](https://whop.com), logged in. Without it the band stays empty.
 - Claude Manager's Trash uses macOS `/usr/bin/trash`.
 
 ## Rebuild it, remix it

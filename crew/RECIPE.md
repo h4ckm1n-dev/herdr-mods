@@ -2,7 +2,7 @@
 
 A Herdr window built around your coding agents. A left sidebar shows every agent first, then your
 spaces. A tab bar carries buttons for the side panels: files, a git graph and Claude Code spend. A
-28px bottom bar shows where you are, who is working, your Whop figures, and your Claude Code and Codex 5h / 7d quotas. Every piece is
+28px bottom bar shows where you are, who is working, and your Claude Code and Codex 5h / 7d quotas. Every piece is
 drawn with one small kit: theme colors only, a 36px text indent, spinners for live work, and
 keycaps for shortcuts.
 
@@ -36,13 +36,6 @@ A row filling the window, with no system title bar (traffic lights at 12,16) on 
      - On the left: a monitor or server icon with the machine, the branch as a tag, then
        `n working` with a spinner and `n needs you` with a `blocked` dot, or just `n agents`.
        After that, a `Commands ⌘⇧P` button.
-     - Then a 420px Whop band, right-aligned: the Whop glyph in `ansi3`, then `MRR`, `Net`,
-       `Members` and `Visitors`, each a `dim` 10.5px label and an 11px `muted` figure (`$12.5k`
-       style; net in `blocked` when negative), and a 1px hairline after it. It sums every business
-       the `whop` CLI is logged into: monthly recurring revenue, net revenue and unique visitors
-       over 30 days, paid members. It refreshes every 5 minutes, and a click opens the Whop
-       dashboard. On a failed fetch it shows `Offline, run \`whop login\``. Without the CLI it
-       draws nothing.
      - On the right, a 420px block of quotas, right-aligned: for each tool with data, `5h` and a
        28px bar with the percent, then `7d` the same. With one tool, the time to reset follows each
        percent. With Claude and Codex both, each group starts with a 12px line glyph in the tool's color
@@ -81,16 +74,14 @@ A row filling the window, with no system title bar (traffic lights at 12,16) on 
   `sidebar-lists` (agents-crew, spaces-crew) and `sidebar-footer` (workspace-chrome-crew with
   `{footer: true}`). Next to it, the `work` column with `tabs` (tabs-crew) and `work-body`. The
   `work-body` row holds the terminal and a hidden `panel` stack: files-crew, git, cost. Below it,
-  the `status-row` holds workspace-status-crew, whop at 420px and claude-usage at 420px. Pane headers use
+  the `status-row` holds workspace-status-crew and claude-usage at 420px. Pane headers use
   pane-crew, and `terminal_menu` is menu-crew.
 - Mods in `mods/`: agents-crew, spaces-crew, workspace-chrome-crew, tabs-crew,
-  workspace-status-crew, whop, claude-usage, pane-crew, files-crew, git, cost, menu-crew,
+  workspace-status-crew, claude-usage, pane-crew, files-crew, git, cost, menu-crew,
   new-menu-crew, worktree-crew, picker-crew. Each mod has its own copy of the Crew `kit.js`.
 - Programs: `python3` scripts read Claude Code and Codex transcripts (agents-crew `scan.py`,
   `codex_scan.py`, cost `cost.py`). git runs `git`. claude-usage runs `limits.py`
-  (reads `/tmp/claude/statusline-usage-cache.json` and `~/.codex/sessions`). whop runs
-  `~/.local/bin/whop accounts list` and `whop stats get` per business and metric (the only network
-  access in the layout), and `map.js` turns the answers into the four figures.
+  (reads `/tmp/claude/statusline-usage-cache.json` and `~/.codex/sessions`).
 - Icons come from the shipped `mods/workspace-chrome/*.svg`.
 
 ## Watch out

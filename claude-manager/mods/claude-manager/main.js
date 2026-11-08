@@ -4,7 +4,7 @@
 // disableAllHooks); one hook, which has no native switch, is stashed and put back in place. Type to filter, Tab for the kind, ↑/↓ and Enter (or click) to flip.
 // New Claude Code sessions pick a change up; a session already running keeps what it loaded.
 
-// Look: the bottom bar's (whop, agent usage). Grey by default, one coral Claude mark,
+// Look: the bottom bar's quota meters. Grey by default, one coral Claude mark,
 // color only where it means something: amber marks what Claude Code no longer loads.
 
 import { View, div, svg } from "gpui-kit";

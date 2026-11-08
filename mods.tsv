@@ -16,4 +16,3 @@ picker-crew	-	Go-to-tab picker, cmd-P
 theme-gallery	-	Every Ghostty theme with live preview, cmd-shift-T
 help-crew	-	Keybinds dialog in two columns with keycaps, cmd-/
 claude-manager	-	Claude Code skills, commands, agents, MCP servers, hooks and plugins on or off, cmd-shift-K
-whop	layout	Bottom bar: Whop MRR, net 30d, members and visitors across your businesses (whop CLI)
