@@ -73,6 +73,20 @@ plain words ("Delete word", not `\u0017`). Type to filter.
 
 </td>
 </tr>
+<tr>
+<td width="50%" valign="top">
+
+![Claude Manager](claude-manager/preview.png)
+
+### [Claude Manager](claude-manager/RECIPE.md) · mod
+
+**⌘⇧K**: every Claude Code skill, command, agent, MCP server, hook and plugin in `~/.claude`, on or
+off with a click. It writes Claude Code's own settings, so on puts the file back as it was. ⌘⌫ twice
+moves a skill or an agent to the Trash.
+
+</td>
+<td width="50%" valign="top"></td>
+</tr>
 </table>
 
 ## Install
