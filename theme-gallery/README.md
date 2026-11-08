@@ -1,12 +1,19 @@
-# Theme Gallery · mod
+<div align="center">
 
-Every terminal theme your machine has, in one dialog: Herdr's own plus the whole Ghostty
-collection, 800+ themes. Move through the list and the whole Herdr window recolors live. Enter
-keeps the theme, Esc puts your old one back.
+<img src="hero.png" width="100%" alt="824 themes. Try them on live. The Theme Gallery over a Herdr window repainted in a light theme: dark and light filters, a live terminal preview, and the Use button.">
 
-[← The whole system](../README.md) · [Recipe](RECIPE.md)
+<br>
 
-![Theme Gallery](preview.png)
+**Herdr's themes plus the whole Ghostty collection, previewed on the whole app.**<br>
+Arrow through 824 themes and every pane, panel and terminal repaints as you go. Enter keeps one, Esc puts yours back.
+
+```sh
+./install.sh theme-gallery
+```
+
+<sub><a href="../README.md">All modules</a> · <a href="RECIPE.md">Recipe, to rebuild it with your agent</a></sub>
+
+</div>
 
 ## What it does
 
@@ -20,6 +27,11 @@ keeps the theme, Esc puts your old one back.
   restores what you had.
 - A theme sets the half that matches it: a dark theme becomes your dark theme, a light one your
   light theme.
+
+<p>
+<img src="docs/dark.png" width="49%" alt="Theme Gallery on a dark theme">
+<img src="docs/light.png" width="49%" alt="Theme Gallery on a light theme">
+</p>
 
 ## Where the themes come from
 

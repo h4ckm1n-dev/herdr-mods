@@ -1,12 +1,19 @@
-# Crew · layout
+<div align="center">
 
-The Herdr window, rebuilt around your coding agents. One layout and 13 mods that replace the
-sidebar, the tab bar, the pane headers, the side panels, the bottom bar, the menus and the dialogs.
-Each piece also stands alone, but together they make one window where agents come first.
+<img src="hero.png" width="100%" alt="Agents first. The whole window. The Herdr window in the Crew layout: agents grouped by what they need, spaces with branch and color, a Claude Code terminal, the Cost panel and the bottom bar.">
 
-[← The whole system](../README.md) · [Recipe](RECIPE.md)
+<br>
 
-![Crew](preview.png)
+**One layout and 13 mods that rebuild the Herdr window around your coding agents.**<br>
+Agents and spaces on the left, Files, Git and Cost on the right, quotas along the bottom. Each piece also works alone.
+
+```sh
+./install.sh --all
+```
+
+<sub><a href="../README.md">All modules</a> · <a href="RECIPE.md">Recipe, to rebuild it with your agent</a></sub>
+
+</div>
 
 ## The window, region by region
 

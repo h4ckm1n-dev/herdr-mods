@@ -1,12 +1,19 @@
-# Git · mod
+<div align="center">
 
-Your daily git loop in one side panel, laid out like VS Code's Source Control view with the commit
-graph kept underneath. Stage files or single hunks, commit, pull and push, switch branches, stash,
-without leaving the terminal you are in.
+<img src="hero.png" width="100%" alt="Stage, commit, sync. Never leave the terminal. The Git side panel next to a terminal: commit box, changed files with stage and discard buttons, and the commit graph.">
 
-[← The whole system](../README.md) · [Recipe](RECIPE.md)
+<br>
 
-![The Git panel: commit box and changes, and the commit graph underneath](../docs/git.png)
+**Your daily git loop in one side panel, with the commit graph underneath.**<br>
+Stage files or single hunks, commit, pull and push, switch branches and stash, without leaving the terminal you're in.
+
+```sh
+./install.sh git
+```
+
+<sub><a href="../README.md">All modules</a> · <a href="RECIPE.md">Recipe, to rebuild it with your agent</a></sub>
+
+</div>
 
 ## What it does
 

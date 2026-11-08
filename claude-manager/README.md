@@ -1,12 +1,19 @@
-# Claude Manager · mod
+<div align="center">
 
-Everything Claude Code loads from `~/.claude`, on one sheet, each with a switch: skills, commands,
-agents, MCP servers, hooks and plugins. Turn off what you don't need right now, and new Claude Code
-sessions start lighter. Turn it back on, and your settings file is exactly as it was.
+<img src="hero.png" width="100%" alt="All of Claude Code. One switch each. The Claude Manager dialog: tabs for skills, commands, agents, MCP, hooks and plugins, a switch on every row, and per-kind counts in the footer.">
 
-[← The whole system](../README.md) · [Recipe](RECIPE.md)
+<br>
 
-![Claude Manager](preview.png)
+**Every skill, command, agent, MCP server, hook and plugin Claude Code loads, each with a switch.**<br>
+Turn off what you don't need and new sessions start lighter. Turn it back on and your settings file is exactly as it was.
+
+```sh
+./install.sh claude-manager
+```
+
+<sub><a href="../README.md">All modules</a> · <a href="RECIPE.md">Recipe, to rebuild it with your agent</a></sub>
+
+</div>
 
 ## What it does
 

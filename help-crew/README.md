@@ -1,11 +1,19 @@
-# Keybinds · mod
+<div align="center">
 
-Every Herdr shortcut on one 16:9 sheet. Keys are drawn as real keycaps (`⌥` `⌘` `[`), actions read
-as plain words ("Select space 1", "Delete word", not `\u0017`), and typing filters the list.
+<img src="hero.png" width="100%" alt="Every Herdr shortcut. One sheet. The Keybinds dialog: a filter field and every shortcut in two columns, drawn as keycaps.">
 
-[← The whole system](../README.md) · [Recipe](RECIPE.md)
+<br>
 
-![Keybinds](preview.png)
+**Every Herdr shortcut on one sheet, drawn as real keycaps.**<br>
+Actions read as plain words, keys as keycaps, and typing filters by either. It reads your keys.json every time, so a key you just rebound shows at once.
+
+```sh
+./install.sh help-crew
+```
+
+<sub><a href="../README.md">All modules</a> · <a href="RECIPE.md">Recipe, to rebuild it with your agent</a></sub>
+
+</div>
 
 ## What it does
 
