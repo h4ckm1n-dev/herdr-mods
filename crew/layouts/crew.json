@@ -181,6 +181,16 @@
               }
             },
             {
+              "id": "whop",
+              "type": "block",
+              "content": {
+                "mod": "whop"
+              },
+              "size": {
+                "px": 420
+              }
+            },
+            {
               "id": "claude-usage",
               "type": "block",
               "content": {
