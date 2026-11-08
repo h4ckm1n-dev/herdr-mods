@@ -3,9 +3,9 @@
 // ↑/↓ move, Enter runs, Esc closes. An item is [label, command, args];
 // a command "worktree" opens the worktree dialog instead.
 
-import { View } from "gpui-kit";
-import { v_flex } from "gpui-base";
-import { run, props, closeOverlay, openOverlay, theme, keys, terminals, spaces, panes, exec, window } from "herdr";
+import { View, div } from "gpui-kit";
+import { v_flex, h_flex } from "gpui-base";
+import { run, props, closeOverlay, openOverlay, theme, keys, terminals, spaces, panes, exec, window, shared, setShared } from "herdr";
 import { SIZE, menuItem, menuSeparator, keyLabel } from "./kit.js";
 
 // Where a space is now: its first terminal's live folder, else where it was made.
@@ -78,6 +78,25 @@ function menuIcon(command) {
   return `mods/workspace-chrome/${name}.svg`;
 }
 
+// A space's color (shared "space.colors", read by every mod that draws spaces or
+// their agents): the six theme-named marks spaces get by default, then two more.
+const MARK = { ansi6: "#22a99a", ansi3: "#e3814f", ansi4: "#5b8def", ansi5: "#8b7cf6", ansi2: "#3fae6a", ansi1: "#d9649a" };
+const SWATCHES = ["ansi6", "ansi3", "ansi4", "ansi5", "ansi2", "ansi1", "#d6a83a", "#8a919c"];
+const fillOf = (c) => (c.startsWith("#") ? c : MARK[c]);
+
+function swatches(t, id) {
+  const now = (shared("space.colors") ?? {})[id];
+  return h_flex().px(8).py(6).gap(6).items_center().children(SWATCHES.map((c) =>
+    div().id(`sw-${c}`).size(16).flex_none().rounded(8).cursor_pointer().bg(fillOf(c))
+      .when(c === now, (el) => el.border_2().border_color(t.foreground))
+      .hover((s) => s.border_2().border_color(t.foreground))
+      .tooltip(c === now ? "Current color" : "Use this color")
+      .on_click(() => {
+        setShared("space.colors", { ...(shared("space.colors") ?? {}), [id]: c });
+        closeOverlay(props()?.overlay);
+      })));
+}
+
 // The key bound to a command, for the hint on the right.
 function shortcut(name, args) {
   // `pane.split:right` binds pane.split with { direction: "right" }.
@@ -121,6 +140,7 @@ export default class Menu extends View {
       .p(4)
       .bg(t.popover)
       .text_size(SIZE.body)
+      .when(props()?.tab === "space" && Boolean(props()?.target?.id), (el) => el.child(swatches(t, props().target.id)).child(menuSeparator(t)))
       .on_key_down((e, cx) => {
         if (e.key === "down") this.at = (this.at + 1) % list.length;
         else if (e.key === "up") this.at = (this.at + list.length - 1) % list.length;

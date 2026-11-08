@@ -71,6 +71,16 @@ function duration(ms) {
   return h < 24 ? `${h}h` : `${Math.floor(h / 24)}d`;
 }
 
+// The color of an agent's space (shared "space.colors": a theme color name or #rrggbb, as the
+// Spaces list draws it); the home space ("~") has none.
+const MARK = { ansi6: "#22a99a", ansi3: "#e3814f", ansi4: "#5b8def", ansi5: "#8b7cf6", ansi2: "#3fae6a", ansi1: "#d9649a" };
+function spaceFill(t, a) {
+  const c = (shared("space.colors") ?? {})[a.space];
+  return c ? (c.startsWith("#") ? c : MARK[c] ?? t[c]) : null;
+}
+// A 3px bar on the row's left edge, in its space's color; absolute, so nothing moves.
+const spaceBar = (fill) => div().absolute().left(0).top(8).bottom(8).w(3).rounded(2).bg(fill);
+
 // The agent's icon from the app's program table: a one-color glyph or a picture.
 function icon(p, size, color) {
   if (!p?.icon) return null;
@@ -295,8 +305,11 @@ export default class Agents extends View {
       if (collapsed) {
         // The rail: number + status gutter. Icon-less, so the tooltip names the agent.
         const tip = [a.space_name, label(a)].filter(Boolean).join(" \u00b7 ");
+        const railFill = spaceFill(t, a);
         return h_flex()
           .id(`ag-${a.address}`)
+          .relative()
+          .when(Boolean(railFill), (el) => el.child(spaceBar(railFill)))
           .h(26)
           .mx(4)
           .px(4)
@@ -349,8 +362,11 @@ export default class Agents extends View {
       // Claude/Codex agents may carry lines under the row (crew.js): then the selection, hover and click
       // belong to the block holding both, so they read as one item.
       const lines = crewLines(this, t, a, now), sel = a.focused || (kb && curId === `ag-${a.address}`);
+      const fill = spaceFill(t, a);
       const top = h_flex()
         .id(`ag-${a.address}`)
+        .relative()
+        .when(Boolean(fill), (el) => el.child(spaceBar(fill)))
         .px(8)
         .h(30)
         .flex_none()
