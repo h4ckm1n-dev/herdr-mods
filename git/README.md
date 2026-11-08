@@ -6,10 +6,7 @@ without leaving the terminal you are in.
 
 [← The whole system](../README.md) · [Recipe](RECIPE.md)
 
-<p>
-<img src="docs/panel.png" width="49%" alt="Changes and commit graph">
-<img src="docs/diff.png" width="49%" alt="A diff with hunk buttons">
-</p>
+![The Git panel: commit box and changes, and the commit graph underneath](../docs/git.png)
 
 ## What it does
 

@@ -89,7 +89,11 @@ and close.
 
 ### Files · `files-crew`
 
+<img src="files.png" align="right" width="220" alt="Files panel">
+
 The focused pane's folder as a lazy tree, with read-only previews. It follows the terminal you are in.
+
+<br clear="right">
 
 ### Git · `git`
 
@@ -134,6 +138,8 @@ With neither, the block stays empty.
 | `new-menu-crew` | The **+** menu: a new terminal, or any agent you have installed |
 | `worktree-crew` | New, open and remove worktree dialogs |
 | `picker-crew` | **⌘P**, go to a tab: spaces that need you first, typing filters |
+
+![Go to: tabs grouped by space, the one that needs you first](picker.png)
 
 All share one look: `popover` background, a 42px header with an `Esc` keycap, 30px items, and
 shortcuts drawn as keycaps.
