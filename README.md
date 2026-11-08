@@ -2,127 +2,87 @@
 
 # Crew for Herdr
 
-**See every coding agent you run, in one calm window.**
+**A cockpit for the coding agents you run: one calm window, every agent in sight.**
 
-A layout and mods for [Herdr](https://herdr.dev) that put your Claude Code and Codex agents first.
-You see who is working, who needs you, what each one just did, what it costs, and how much of your
-Claude and Codex quota is left, without switching tabs.
+Crew is a set of modules for the [Herdr](https://herdr.dev) desktop app. Together they turn Herdr
+into a control room for Claude Code and Codex: who is working, who needs you, what each agent just
+did, what it costs, how much quota is left, and which skills, agents and MCP servers Claude Code
+loads. Take the whole system, or one module at a time.
 
-![Crew: agents and spaces on the left, terminals, the Cost panel, and the bottom bar](crew/preview.png)
+![Crew: agents and spaces on the left, a Claude Code terminal, the Cost panel, the quota bar](crew/preview.png)
 
 ```sh
 git clone https://github.com/h4ckm1n-dev/herdr-mods && cd herdr-mods && ./install.sh
 ```
 
-Pick what you want from the list. You can try one mod or install the whole look.
-
 </div>
 
 ---
 
-## Crew · layout
+## The modules
 
-The whole window, redrawn around agents. [Recipe](crew/RECIPE.md)
+| Module | Kind | What it gives you | Key | Docs |
+|---|---|---|---|---|
+| **[Crew](crew/)** | layout + 13 mods | The window itself: agents and spaces sidebar, tab bar with side panels, Cost panel, quota bar, menus and dialogs in one style | ⌘J · ⌘P · ⌘⇧U | [README](crew/README.md) · [Recipe](crew/RECIPE.md) |
+| **[Claude Manager](claude-manager/)** | mod (dialog) | Every Claude Code skill, command, agent, MCP server, hook and plugin, on or off with a click | ⌘⇧K | [README](claude-manager/README.md) · [Recipe](claude-manager/RECIPE.md) |
+| **[Git](git/)** | mod (panel) | Source Control and a commit graph in one side panel: stage hunks, commit, sync, branches, stash | ⌘G | [README](git/README.md) · [Recipe](git/RECIPE.md) |
+| **[Theme Gallery](theme-gallery/)** | mod (dialog) | Herdr's themes plus the whole Ghostty collection, previewed live on the whole app | ⌘⇧T | [README](theme-gallery/README.md) · [Recipe](theme-gallery/RECIPE.md) |
+| **[Keybinds](help-crew/)** | mod (dialog) | Every Herdr shortcut on one sheet, drawn as keycaps, filterable | ⌘/ | [README](help-crew/README.md) · [Recipe](help-crew/RECIPE.md) |
 
-<table>
-<tr>
-<td width="30%" valign="top">
+Each module stands on its own. Crew is the only one that needs its layout; the four others work in
+any Herdr layout, including the default one.
 
-![Agents and spaces sidebar](crew/sidebar.png)
+## How it fits together
 
-</td>
-<td width="40%" valign="top">
+```mermaid
+flowchart LR
+  subgraph disk[Your machine]
+    T[Claude Code transcripts<br/>~/.claude/projects]
+    Q[Statusline usage cache]
+    X[Codex sessions<br/>~/.codex/sessions]
+    S[Claude Code settings<br/>~/.claude/settings.json]
+    G[Git repositories]
+    H[Ghostty themes]
+  end
+  subgraph herdr[Herdr window · Crew layout]
+    A[Agents sidebar]
+    C[Cost panel]
+    U[Quota bar]
+    GP[Git panel]
+    CM[Claude Manager]
+    TG[Theme Gallery]
+  end
+  T --> A
+  T --> C
+  X --> A
+  X --> C
+  X --> U
+  Q --> U
+  S <--> CM
+  G <--> GP
+  H --> TG
+```
 
-### Agents first
+- **One source of truth, already on your disk.** No module keeps its own database. Agent rows and
+  spend are read from the transcripts Claude Code and Codex already write; quotas from the cache
+  your statusline writes and the limits Codex logs; switches straight from Claude Code's own
+  settings file.
+- **Small Python readers, native UI.** The heavy reading is done by stdlib Python scripts run with
+  `python3 -I` (`scan.py`, `codex_scan.py`, `cost.py`, `limits.py`, `manage.py`, `scan.py`). They
+  print JSON, and the mods draw it with Herdr's native GPU UI.
+- **Modules talk through Herdr's shared state, never through each other's code:**
 
-- **Working, Needs you, Done, Idle.** A spinner while an agent works. Each row shows the agent's last action, its context fill, and its running sub-agents with progress.
-- **⌘J** jumps to the next agent waiting on you, in any space.
-- **Codex too:** Codex sessions get their own rows and a 5h / 7d quota card.
+  | Key | Written by | Read by | Means |
+  |---|---|---|---|
+  | `space.colors` | space menu, spaces, picker | spaces, agents, menu, picker | the color you picked for a space |
+  | `crew.panel-focus` | tab bar (⌘E, ⌘G, ⌘⇧U) | every side panel | "this panel should take the keyboard" |
+  | `sidebar.width`, `sidebar.collapsed` | agents, brand row | agents, brand row | the sidebar's size and rail mode |
+  | `agents.sort` | agents | agents | the agents list's sort order |
+  | `git-graph.*` | Git | Git | columns, depth, tags, last fetch, "repo changed" |
 
-### Spaces
-
-- Stable colored avatars, worktrees nested under their repo, grouped by machine.
-- **Pick a space's color** from its menu. Its agents carry the same color as a thin bar, so you see at a glance which project an agent belongs to.
-
-### One style everywhere
-
-Tab bar, pane headers, menus, the New tab menu, worktree dialogs and the ⌘P tab picker all share
-one small kit: theme colors only, keycaps for shortcuts, spinners for live work, no gradients. It
-works in any Herdr theme, light or dark.
-
-</td>
-<td width="30%" valign="top">
-
-![Cost panel](crew/cost.png)
-
-### Cost panel · ⌘⇧U
-
-What your Claude Code and Codex sessions would cost at API prices: today against a daily budget,
-the last hour and your pace, the priciest session, 7 days as columns, by model with cache share,
-sub-agents, and your top projects.
-
-</td>
-</tr>
-</table>
-
-### The bottom bar
-
-![Bottom bar: machine, working agents, Claude Code and Codex quotas](crew/bottom-bar.png)
-
-Where you are and who is working on the left. On the right, your Claude Code and Codex 5h and 7d
-quotas side by side. The gauges stay grey until 50%, then turn amber, and red past 90%.
-
-## Mods that work in any layout
-
-<table>
-<tr>
-<td width="50%" valign="top">
-
-![Claude Manager](claude-manager/preview.png)
-
-### [Claude Manager](claude-manager/RECIPE.md) · mod
-
-**⌘⇧K**: every Claude Code skill, command, agent, MCP server, hook and plugin in `~/.claude`, on or
-off with a click. It writes Claude Code's own settings, so turning an item back on leaves the file as it was. ⌘⌫ twice
-moves a skill or an agent to the Trash.
-
-</td>
-<td width="50%" valign="top">
-
-![Git panel](git/preview.png)
-
-### [Git](git/RECIPE.md) · mod
-
-VS Code's Source Control view and a commit graph in one panel. Stage files or single hunks, commit
-with ⌘⏎, pull and push, switch branches, stash. Every destructive action asks first. Open a folder
-that holds several repos and it lists them all with their sync state.
-
-</td>
-</tr>
-<tr>
-<td width="50%" valign="top">
-
-![Theme Gallery](theme-gallery/preview.png)
-
-### [Theme Gallery](theme-gallery/RECIPE.md) · mod
-
-**⌘⇧T**: Herdr's themes plus the whole Ghostty collection (800+). Arrow keys recolor the whole app
-live, Enter keeps the theme, Esc puts your old one back. A preview card shows light themes even while
-you're in dark mode.
-
-</td>
-<td width="50%" valign="top">
-
-![Keybinds](help-crew/preview.png)
-
-### [Keybinds](help-crew/RECIPE.md) · mod
-
-**⌘/**: every Herdr shortcut on one 16:9 sheet, drawn as real keycaps (`⌥` `⌘` `[`) and written in
-plain words ("Delete word", not `\u0017`). Type to filter.
-
-</td>
-</tr>
-</table>
+- **One design kit.** Every module copies the same `kit.js`: theme colors only, a 4px rhythm, 42px
+  headers, keycaps for shortcuts, spinners only for live work, coral only for a live Claude, no
+  gradients. It follows any Herdr theme, light or dark.
 
 ## Install
 
@@ -133,13 +93,14 @@ plain words ("Delete word", not `\u0017`). Type to filter.
 ./install.sh --list                   # what's available
 ```
 
-**What the installer does:**
+The installer:
 - Copies each mod into `~/.config/herdr-app/mods/` (or `$HERDR_APP_HOME`) and checks each one with `herdr-app check`.
-- Merges the keybinds. It **asks before rebinding a key you already use**, and keeps your key if you say no or don't answer.
+- Merges the keybinds, and **asks before rebinding a key you already use**. If you say no or don't answer, your key stays.
 - **Backs up whatever it replaces** to `~/.config/herdr-app/backup/<time>/`.
-- When a mod belongs to the Crew layout, offers that layout and brings the mods it needs. Pick **crew** in Settings › Layout.
+- When a mod belongs to the Crew layout, offers that layout and the mods it needs. Then pick **crew** in Settings › Layout.
 
-**Update:** `git pull && ./install.sh`. Mods that haven't changed are left as they are.
+**Update:** `git pull && ./install.sh`. Mods that haven't changed are left alone.
+**Remove:** delete the mod's folder from `~/.config/herdr-app/mods/`, or put back the copy in `backup/`.
 
 Prefer the Herdr way? Ask the agent inside Herdr to add a folder, for example
 `add https://github.com/h4ckm1n-dev/herdr-mods/tree/main/git`.
@@ -152,41 +113,65 @@ paths outside it. A symlinked mod loads, then never updates while you edit it.
 
 </details>
 
-## Keys
+## Every key
 
-| Key | What it does | From |
+| Key | What it does | Module |
 |---|---|---|
-| <kbd>⌘</kbd><kbd>J</kbd> | Next agent waiting on you | Crew |
+| <kbd>⌘</kbd><kbd>J</kbd> | Next agent waiting on you, in any space | Crew |
 | <kbd>⌘</kbd><kbd>P</kbd> | Go to a tab | Crew |
-| <kbd>⌘</kbd><kbd>E</kbd> · <kbd>⌘</kbd><kbd>G</kbd> · <kbd>⌘</kbd><kbd>⇧</kbd><kbd>U</kbd> | Files · Git · Cost panel | Crew |
+| <kbd>⌘</kbd><kbd>E</kbd> · <kbd>⌘</kbd><kbd>G</kbd> · <kbd>⌘</kbd><kbd>⇧</kbd><kbd>U</kbd> | Files · Git · Cost panel (again: close) | Crew |
 | <kbd>⌘</kbd><kbd>⇧</kbd><kbd>A</kbd> · <kbd>⌘</kbd><kbd>⇧</kbd><kbd>S</kbd> | Keyboard to Agents · Spaces | Crew |
 | <kbd>⌘</kbd><kbd>⇧</kbd><kbd>K</kbd> | Claude Manager | Claude Manager |
 | <kbd>⌘</kbd><kbd>⇧</kbd><kbd>T</kbd> | Theme Gallery | Theme Gallery |
 | <kbd>⌘</kbd><kbd>/</kbd> | Every keybind | Keybinds |
 
+## Requirements
+
+| | Herdr app | `python3` | `git` | Claude Code / Codex | Other |
+|---|:-:|:-:|:-:|:-:|---|
+| Crew | ✓ | ✓ | for the Git panel | for agents, Cost, quotas | a statusline that caches usage, for Claude's quota meters |
+| Claude Manager | ✓ | ✓ | | Claude Code | macOS `/usr/bin/trash` for Move to Trash |
+| Git | ✓ | | ✓ | | |
+| Theme Gallery | ✓ | ✓ | | | Ghostty, cmux or AiMux for the extra themes |
+| Keybinds | ✓ | | | | |
+
+Claude's quota meters read `/tmp/claude/statusline-usage-cache.json`, which a Claude Code statusline
+has to write. Codex's come from its own session logs, nothing to set up.
+
 ## Safe by design
 
-- **Local only.** Nothing here calls a server. Agent rows, spend and quotas come from files already on your disk: your Claude Code transcripts (`~/.claude/projects`), the usage cache your Claude Code statusline writes, and the session logs Codex keeps in `~/.codex/sessions`.
+- **Local only.** Nothing here calls a server. Everything is read from files already on your disk.
 - **No surprise git.** The Git panel won't automatically read a repo whose own config can launch a program: filter drivers, ssh, credential or askpass helpers, upload-pack and similar settings. Such a repo shows as *not read* until you open it. Fetch never prompts for credentials and never runs auto-gc.
-- **Your Claude config, reversibly.** Claude Manager only uses Claude Code's own switches in `~/.claude/settings.json` (`skillOverrides`, `permissions.deny`, `deniedMcpServers`, `enabledPlugins`, `disableAllHooks`). Each write is atomic and backed up. A single hook, which has no native switch, is set aside in a side file and put back in place. Deleting moves files to the Trash, after a second ⌘⌫.
+- **Your Claude config, reversibly.** Claude Manager writes only Claude Code's own switches, atomically and with a backup. Turning an item back on leaves the file byte for byte as it was. Deleting moves files to the Trash after a second ⌘⌫.
 - **Asks first.** Discard, drop, abort, reset and Trash each ask for confirmation, and the installer asks before changing your keys.
 
-## Needs
+## What's in this repository
 
-- The Herdr desktop app and `python3`. The Git mod also needs `git`.
-- For the agent rows, Cost and the quota bar: Claude Code and/or Codex. Claude's quota meters need a Claude Code statusline that caches usage to `/tmp/claude/statusline-usage-cache.json`; Codex's come from its own session logs.
-- Claude Manager's Trash uses macOS `/usr/bin/trash`.
+```
+herdr-mods/
+├── README.md            you are here: the system
+├── install.sh           the installer (runs install.py)
+├── mods.tsv             the catalog the installer lists
+├── crew/                the Crew layout and its 13 mods
+│   ├── README.md · RECIPE.md · keys.json · preview.png
+│   ├── layouts/crew.json
+│   └── mods/            agents-crew, spaces-crew, tabs-crew, cost, claude-usage, …
+├── claude-manager/      README.md · RECIPE.md · keys.json · mods/claude-manager
+├── git/                 README.md · RECIPE.md · docs/ · mods/git
+├── theme-gallery/       README.md · RECIPE.md · keys.json · mods/theme-gallery
+└── help-crew/           README.md · RECIPE.md · keys.json · mods/help-crew
+```
 
-## Rebuild it, remix it
-
-Every folder has a `RECIPE.md`: a precise brief another agent can build the mod from in an empty
-folder. It covers sizes, colors, behavior, the gotchas, and the checks that prove a build works. Fork
-a recipe, change one line, and ask your agent to build your own version.
+Every module folder is one entry on herdr.dev: a **README** for people who use it, and a
+**RECIPE** for the agent that builds it. A recipe is a precise brief another agent can rebuild the
+module from in an empty folder: sizes, colors, behavior, the gotchas, and the checks that prove a
+build works. Fork a recipe, change one line, and ask your agent to build your own version.
 
 ## Contributing
 
-Issues and PRs welcome. Keep a change to one mod, run `herdr-app check` on it, and update its
-`RECIPE.md` when what you see or how it behaves changes.
+Issues and PRs welcome. Keep a change to one module, run `herdr-app check` on each mod you touched,
+run its tests if it has some (`tests/`), and update its README and RECIPE when what you see or how
+it behaves changes.
 
 ---
 
