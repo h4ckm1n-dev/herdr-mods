@@ -30,6 +30,15 @@ The panel is the `graph` block in the side panel (368px, min 280, max 900). It i
 - **Confirms**: every destructive action asks first: discard (file, group or hunk; for untracked files the wording is "Delete untracked files" with a Delete button; a mix of tracked and untracked is titled "Discard changes and delete files" with a separate counted "Delete N untracked files" list), stash drop, mark resolved, abort rebase/merge, pull. A hunk discard shows the hunk's `@@` header and first changed line. Discard, stash drop, hunk discard and mark resolved use the red (danger) confirm button. All say it can't be undone where it can't.
 - **Divider**: drag it to resize (split kept between 0.2 and 0.8 of the body, remembered in `localStorage` key `split`); double-click resets it to 0.5.
 - **Refresh**: no polling. The panel reads git again when `watchFolder` reports a change in the repo (local only), when the focus, space or tab changes, after its own actions (`shared("git-graph.changed")`), and on the refresh button. On a remote machine (`on`) the folder watch is not available, so only the last three apply.
+- **Repos found in a folder (Manygit) are checked before they are read.** For each one the panel first runs only `git config --show-scope --includes --get-regexp <pattern>` (reading config runs nothing) and looks for keys, in the repo's `local` or `worktree` scope or a file they include, that can make git launch a program:
+  - filter drivers, textconv and diff commands, merge drivers;
+  - ssh, proxy, askpass and credential helpers;
+  - `remote.*.uploadpack` / `receivepack` / `vcs`, `protocol.*`, `url.*.insteadOf`, `include`/`includeIf`;
+  - a non-boolean `core.fsmonitor`, the pager and editor;
+  - any `*command`, `*cmd`, `*program`, `*driver` or `*helper` key (`core.alternateRefsCommand`, `gpg.program`…).
+
+  The person's global and system config is ignored. A repo with any such key gets an amber `not read` tag, whose tooltip lists the keys and says to click to open it. Neither its status nor Fetch all touches it until then. Opening it (a click) is the go-ahead: it is trusted for the rest of the session, in memory only. A config that can't be read counts as not trusted.
+- **Network actions never prompt.** Fetch, pull and push run under `env GCM_INTERACTIVE=0 GIT_TERMINAL_PROMPT=0 GIT_ASKPASS=`. Fetch all (Manygit) also sets `-c core.fsmonitor=false -c core.hooksPath=/dev/null -c maintenance.auto=false -c gc.auto=0` and `--quiet --no-recurse-submodules`.
 - Graph interactions (double-click a label to check it out, right-click menus for branches, tags and commits, the Manygit list, fetch all) are the original Git Graph's, kept as they were.
 
 ## Built from
@@ -57,7 +66,8 @@ The panel is the `graph` block in the side panel (368px, min 280, max 900). It i
 - Lists in Herdr 0.1.12 or later zoom themselves; the graph checks the app version (`updates()`) to know whether its row heights are layout units or pixels.
 - Hidden mods stay alive in Herdr, so the panel must not poll; git runs only on the events listed above.
 - Herdr's `exec` has a 30 s limit: a slow `pull --rebase` (diverged sync) can be cut off mid-rebase. The header then shows Rebasing… and Abort recovers.
-- A repository whose `.git/config` sets filter drivers (or other command-running config) runs them on the panel's `status`/`diff` reads, as any git prompt in that folder would. The panel adds no protection beyond `--no-ext-diff --no-textconv`.
+- **The repository you are working in is read directly**, the way any git prompt in that folder would read it. A filter driver in its `.git/config` still runs on `status`. Reads set `core.fsmonitor=false` and `diff.autoRefreshIndex=false`, and diffs add `--no-ext-diff --no-textconv`. Only repos *found* in a folder go through the check above, because the person never chose to enter them.
+- Keep the check config-only: the `RISKY` pattern must be read with `git config`, never by running `status`, or the filter it is guarding against runs. `tests/trust.test.mjs` proves a planted `filter.*.clean` doesn't run.
 - Not built: line-level staging, conflict resolution (only the `!` marker and Continue/Abort), amend, blame, file history, commit search, editing files.
 - Don't edit Herdr's shipped `mods/changes`; Herdr overwrites shipped mods on start. Delete `mods/git-graph` only after `mods/git` passes its checks, and nothing else should reference it.
 
@@ -69,4 +79,5 @@ The panel is the `graph` block in the side panel (368px, min 280, max 900). It i
 - Against a local bare remote: pushing and pulling updates `↑N ↓N`. On a diverged branch, sync offers rebase or merge; a clean rebase pushes; a conflicting one stops with `!` files and Abort restores the earlier state.
 - In a conflicted repo, Commit with nothing staged refuses.
 - A folder that isn't a repo but contains repos shows the Manygit list.
+- In that folder, a repo whose `.git/config` sets `filter.x.clean` shows `not read` in amber, and its filter doesn't run (no file it would create appears). Clicking it opens and reads it.
 - `npm test` in the mod folder passes.

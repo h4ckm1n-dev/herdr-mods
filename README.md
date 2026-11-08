@@ -141,7 +141,7 @@ has to write. Codex's come from its own session logs, nothing to set up.
 ## Safe by design
 
 - **Local only.** Nothing here calls a server. Everything is read from files already on your disk.
-- **No surprise git.** The Git panel won't automatically read a repo whose own config can launch a program: filter drivers, ssh, credential or askpass helpers, upload-pack and similar settings. Such a repo shows as *not read* until you open it. Fetch never prompts for credentials and never runs auto-gc.
+- **No surprise git.** Open a folder of repos and the Git panel checks each one's own config before reading it. A repo that could make git launch a program (filter drivers, ssh, credential or askpass helpers, upload-pack and similar) shows as *not read* until you open it. Fetch, pull and push never prompt for credentials, and Fetch all never runs hooks or auto-gc.
 - **Your Claude config, reversibly.** Claude Manager writes only Claude Code's own switches, atomically and with a backup. Turning an item back on leaves the file byte for byte as it was. Deleting moves files to the Trash after a second ⌘⌫.
 - **Asks first.** Discard, drop, abort, reset and Trash each ask for confirmation, and the installer asks before changing your keys.
 

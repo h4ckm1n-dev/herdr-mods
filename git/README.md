@@ -34,9 +34,12 @@ without leaving the terminal you are in.
 
 - **Every destructive action asks first:** discard (file, group or hunk), deleting untracked files,
   stash drop, mark resolved, abort. The confirm says when it can't be undone.
-- **No surprise git.** A repo whose own config can launch a program (filter drivers, ssh, credential
-  or askpass helpers, upload-pack and similar) is shown as *not read* until you open it.
-- **Fetch** never prompts for credentials and never runs auto-gc.
+- **No surprise git in a folder of repos.** Before reading a repo it found, the panel reads only its
+  config. A repo that could make git launch a program (filter drivers, ssh, credential or askpass
+  helpers, upload-pack and similar) shows as *not read* until you click it. The repo you are working
+  in is read like any git prompt there would read it.
+- **Fetch, pull and push never prompt** for credentials. **Fetch all** also skips hooks, auto-gc and
+  submodules.
 - **If the branch moved** in a terminal since the panel drew, the action is refused rather than
   applied to the new HEAD.
 - **No polling.** It reads git when the repo changes on disk, when you change focus, space or tab,
