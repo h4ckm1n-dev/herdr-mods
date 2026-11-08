@@ -128,7 +128,7 @@ reading; the panel refreshes every minute while it is visible.
 ![Bottom bar](bottom-bar.png)
 
 - **Left:** the machine, the branch, `n working` with a spinner, `n needs you`, and a `Commands ⌘⇧P` button.
-- **Right:** your Claude Code and Codex 5h and 7d quotas side by side. Grey until 50%, amber after, red past 90%, with the time to reset in the tooltip.
+- **Right:** your Codex and Claude Code 5h and 7d quotas side by side. Grey until 50%, amber after, red past 90%, with the time to reset in the tooltip.
 
 `limits.py` reads them every 30 seconds:
 - **Claude:** from the cache your Claude Code statusline writes (`/tmp/claude/statusline-usage-cache.json`).

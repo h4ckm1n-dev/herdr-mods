@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="docs/hero.png" width="100%" alt="Crew for Herdr. Five agents running, one needs you. The Herdr window with the agents sidebar showing one agent waiting on you and four working, a Claude Code terminal, the Cost panel with today's spend, and the Claude and Codex quota bar.">
+<img src="docs/hero.png" width="100%" alt="Crew for Herdr. Five agents running, one needs you. The Herdr window with the agents sidebar showing one agent waiting on you and four working, a Claude Code terminal, the Cost panel with today's spend, and the Codex and Claude quota bar.">
 
 <br>
 
@@ -26,7 +26,7 @@ in the window you already work in.
 |---|---|
 | An agent sits on a question for twenty minutes because its tab was out of sight. | **Needs you** sits at the top of the sidebar, red, in every space. <kbd>⌘</kbd><kbd>J</kbd> takes you straight to it. |
 | You learn what a day of agents cost when the invoice lands. | The **Cost** panel prices every Claude Code and Codex session live: today, last hour, 7 days, by model and project. |
-| The 5-hour quota runs out halfway through a refactor. | Claude and Codex **5h and 7d quotas** sit in the bottom bar, grey until 50%, amber after, red past 90%. |
+| The 5-hour quota runs out halfway through a refactor. | Codex and Claude **5h and 7d quotas** sit in the bottom bar, grey until 50%, amber after, red past 90%. |
 
 <br>
 

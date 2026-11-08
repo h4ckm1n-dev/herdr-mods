@@ -2,7 +2,7 @@
 
 A Herdr window built around your coding agents. A left sidebar shows every agent first, then your
 spaces. A tab bar carries buttons for the side panels: files, a git graph and Claude Code spend. A
-28px bottom bar shows where you are, who is working, and your Claude Code and Codex 5h / 7d quotas. Every piece is
+28px bottom bar shows where you are, who is working, and your Codex and Claude Code 5h / 7d quotas. Every piece is
 drawn with one small kit: theme colors only, a 36px text indent, spinners for live work, and
 keycaps for shortcuts.
 
@@ -37,8 +37,8 @@ A row filling the window, with no system title bar (traffic lights at 12,16) on 
        After that, a `Commands ⌘⇧P` button.
      - On the right, a 420px block of quotas, right-aligned: for each tool with data, `5h` and a
        28px bar with the percent, then `7d` the same. With one tool, the time to reset follows each
-       percent. With Claude and Codex both, each group starts with a 12px line glyph in the tool's color
-       (an asterisk in Claude coral, a `>_` prompt in a rounded square in Codex cyan; the mod's own SVGs), a 1px separator between them, resets in the tooltips. The bars are `muted`
+       percent. With Codex and Claude both, Codex first, each group starts with a 12px line glyph in the tool's color
+       (a `>_` prompt in a rounded square in Codex cyan, an asterisk in Claude coral; the mod's own SVGs), a 1px separator between them, resets in the tooltips. The bars are `muted`
        grey, turn `working` amber at 50% and `blocked` red at 90%; percents sit in a fixed 28px column.
    - **Dialogs and menus** share one look: `popover` background, a 42px header with an `Esc`
      keycap, 30px menu items with shortcuts drawn as keycaps. This covers the tab and terminal

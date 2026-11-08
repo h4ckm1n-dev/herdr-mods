@@ -7,7 +7,7 @@ import { SIZE, agentColor } from "./kit.js";
 import { theme, exec, appHome, knownAgents } from "herdr";
 
 const POLL_MS = 30_000;
-const TOOLS = [["claude", "Claude"], ["codex", "Codex"]];
+const TOOLS = [["codex", "Codex"], ["claude", "Claude"]];
 const OWN = { claude: "mods/claude-usage/claude.svg", codex: "mods/claude-usage/codex.svg" };
 // resets_at is UTC; "2h05m" / "3d4h" left
 const resetIn = (iso) => {
