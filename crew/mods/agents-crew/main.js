@@ -5,7 +5,7 @@ import { View, div, image, svg } from "gpui-kit";
 import { v_flex, h_flex } from "gpui-base";
 import { agents, terminals, panes, focused, spaces, run, theme, shared, setShared, setAgentOrder, openOverlay, closeOverlay, props, window, layout, nextCommand } from "herdr";
 import { ICON, SIZE, dot, empty, gutter, iconButton, menuItem, plural, section, spinner, statusColor, surfaceless, tag, header as panelHeader, navKey, trackTerminal, keyHints } from "./kit.js";
-import { startCrew, crewLines, conflictBand, quotas, nextBlocked, hasTasks } from "./crew.js";
+import { startCrew, crewLines, conflictBand, nextBlocked, hasTasks } from "./crew.js";
 
 function find(node, id) {
   if (node?.id === id) return node;
@@ -105,7 +105,7 @@ export default class Agents extends View {
     if (!this.pendingPins.length) localStorage.removeItem("pins");
     this.migratingPins = new Set();
     cx.timer.every(30000, (cx) => cx.notify());
-    startCrew(this, cx); // what Crew showed: activity, context, subagents, conflicts, quotas
+    startCrew(this, cx); // what Crew showed: activity, context, subagents, conflicts
   }
 
   // Stamps agents whose state changed. Done and idle count as one: looking at a
@@ -519,7 +519,6 @@ export default class Agents extends View {
           hint: "They show up here once they report their status. Older versions and agents inside tmux may not.",
         }).text_center()
         : v_flex().id("ag-list").flex_1().min_h(0).px(collapsed ? 0 : 8).pb(8).gap(2).overflow_y_scrollbar().mode("always").children(rows))
-      .when(!collapsed, (el) => el.child(quotas(this, t, now) ?? div()))
       .when(kb && !collapsed, (el) => el.child(keyHints(t, "ag-keys", [["↑↓", "move"], ["⏎", "open"], ["Space", "fold"], ["p", "pin"], ["s", "sort"], ["Esc", "terminal"]])))
       .when(collapsed, (el) =>
         el.child(h_flex().h(34).flex_none().items_center().justify_center()

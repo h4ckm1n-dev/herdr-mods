@@ -20,8 +20,7 @@ A row filling the window, with no system title bar (traffic lights at 12,16) on 
      A row has a 16px status gutter (a spinner while working, 8px dots otherwise), the agent's
      icon in its color (Claude coral `#D97757`, Codex cyan), its name, and the time since its last
      state change. A Claude or Codex agent adds lines under its row: the last thing it did, its
-     context fill as a 4px bar, and its running sub-agents with progress bars. A Codex footer card
-     shows Codex's 5h / 7d quota.
+     context fill as a 4px bar, and its running sub-agents with progress bars.
    - **Spaces**, the other half: stable colored avatars, worktrees nested under their checkout,
      grouped by machine when there is more than one, plus a `New space there` row.
    - **Footer**, 69px: Settings and Add machine.

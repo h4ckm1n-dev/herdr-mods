@@ -59,7 +59,6 @@ Every Claude Code and Codex session, in four groups: **Working**, **Needs you**,
 - Under it: the last thing the agent did, its context fill as a 4px bar, and its running
   sub-agents with progress bars.
 - A thin bar on the left edge carries the color of the agent's space.
-- A Codex card at the bottom shows Codex's 5h / 7d quota.
 - Click a row to jump to that agent's terminal, in any space. **⌘⇧A** gives the list the keyboard
   (arrows, Enter).
 

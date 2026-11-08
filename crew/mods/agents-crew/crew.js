@@ -1,11 +1,11 @@
 // What the Crew panel knew, folded into the agents list: per Claude/Codex agent, what it is doing now,
-// model and context fill, its in-session subagents; plus the conflict radar and the 5h/7d quotas.
+// model and context fill, its in-session subagents; plus the conflict radar.
 // Data: scan.py (Claude transcripts) and codex_scan.py (Codex sessions), polled while the sidebar shows.
 
 import { div, svg } from "gpui-kit";
 import { v_flex, h_flex } from "gpui-base";
 import { agents, panes, terminals, exec, appHome, hc, run, notify } from "herdr";
-import { ICON, SIZE, spinner, bar } from "./kit.js";
+import { ICON, SIZE, spinner } from "./kit.js";
 
 const POLL_MS = 3000;
 const COMPACT_AT = 0.8; // Claude Code auto-compacts around here: offer a /compact first
@@ -226,31 +226,4 @@ export function conflictBand(self, t) {
       .child(div().flex_shrink(1).min_w(0).truncate().text_color(t.blocked).child(file.split("/").at(-1)))
       .child(div().flex_1().min_w(0).truncate().text_color(t.dim).child(who.map(name).join(" · ")))))
     .when(clash.length > 3, (el) => el.child(div().pl(17).text_size(SIZE.micro).text_color(t.dim).child(`+${clash.length - 3} more files`)));
-}
-
-// resets_at is UTC; real time left
-const resetIn = (iso, now) => {
-  const m = Math.floor((Date.parse(iso ?? "") - now) / 60000);
-  if (!(m >= 0)) return "";
-  const d = Math.floor(m / 1440), h = Math.floor((m % 1440) / 60);
-  return d ? `${d}d${h}h` : h ? `${h}h${String(m % 60).padStart(2, "0")}` : `${Math.max(1, m)}m`;
-};
-/** 5h / 7d quotas at the foot of the list: Codex only (Claude's are in the bottom bar). */
-export function quotas(self, t, now) {
-  const codex = agents().filter(isCodex).map((a) => self.crew?.[a.address]?.limits).find(Boolean);
-  const rows = [codex && ["Codex", codex]].filter(Boolean); // Claude's 5h/7d live in the bottom bar (claude-usage mod)
-  if (!rows.length) return null;
-  // one card per provider, drawn like the Ops node tiles: name, then label · bar · percent · reset
-  const line = (key, label, w) => {
-    const p = Math.max(0, Math.min(100, Math.round(w?.utilization ?? 0))), color = p >= 90 ? t.blocked : p >= 50 ? t.working : t.muted;
-    return h_flex().id(`q-${key}-${label}`).gap(6).items_center().text_size(SIZE.micro)
-      .tooltip(`${label} window · ${p}% used · resets in ${resetIn(w?.resets_at, now) || "?"}`) // reset lives here, as the node tiles keep detail in hover
-      .child(div().flex_none().w(16).text_color(t.dim).child(label))
-      .child(bar(t, `qb-${key}-${label}`, p / 100, color))
-      .child(div().flex_none().w(28).text_right().text_color(p >= 50 ? color : t.muted).child(`${p}%`));
-  };
-  return v_flex().id("quotas").flex_none().px(8).py(8).gap(8)
-    .children(rows.map(([name, r]) => v_flex().id(`q-${name}`).px(12).py(8).gap(6).rounded(8).bg(t.surface).border_1().border_color(t.border)
-      .child(div().text_size(SIZE.body).font_semibold().child(name))
-      .child(line(name, "5h", r.five_hour)).child(line(name, "7d", r.seven_day))));
 }

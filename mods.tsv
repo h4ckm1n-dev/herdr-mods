@@ -1,5 +1,5 @@
 # name	needs	description
-agents-crew	layout	Agents sidebar: Claude and Codex sessions, sub-agents, progress, Codex 5h/7d
+agents-crew	layout	Agents sidebar: Claude and Codex sessions, sub-agents, progress
 spaces-crew	layout	Spaces sidebar: colored avatars, worktrees under their checkout
 workspace-chrome-crew	layout	Sidebar brand row and footer (Settings, Add machine)
 tabs-crew	layout	Tab bar with panel buttons (Files, Graph, Cost) and the waiting-agent key
