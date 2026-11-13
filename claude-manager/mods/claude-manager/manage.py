@@ -4,6 +4,7 @@
   manage.py list                         -> JSON {skills, commands, agents, mcp, hooks, plugins}: [{id, name, desc, on}]
   manage.py set KIND ID on|off           KIND: skill command agent mcp hook plugin
   manage.py delete skill|agent ID        moves its files to the Trash (macOS `trash`: Put Back works)
+  manage.py profile save|apply|delete NAME   a profile is a named set of what is off, across every kind
 
 Off is written to ~/.claude/settings.json the native way wherever Claude Code has one
 (checked against Claude Code 2.1.319: a fresh `claude -p` no longer lists the component):
@@ -14,6 +15,8 @@ Off is written to ~/.claude/settings.json the native way wherever Claude Code ha
   hook "*"       -> "disableAllHooks": true                   (every hook and the status line)
 Claude Code has no switch for one hook, so a hook turned off is taken out of settings.json and
 kept, with where it was, in ~/.claude/claude-manager/hooks-off.json; on puts it back in place.
+Profiles are in ~/.claude/claude-manager/profiles.json: {NAME: {KIND: [ids that are off]}}. Applying one
+flips only what differs, in one write; what it names that is gone is ignored, what it doesn't name is on.
 Nothing is deleted. Each write is atomic (temp file + rename) after a copy to *.bak-claude-manager.
 """
 import glob, hashlib, json, os, re, shutil, subprocess, sys, tempfile
@@ -24,6 +27,8 @@ SETTINGS = os.path.join(CLAUDE, "settings.json")
 STATE = os.path.join(HOME, ".claude.json")  # user-scope MCP servers live here
 STASH = os.path.join(CLAUDE, "claude-manager", "hooks-off.json")
 PLUGINS = os.path.join(CLAUDE, "plugins", "installed_plugins.json")
+PROFILES = os.path.join(CLAUDE, "claude-manager", "profiles.json")
+LISTS = {"skill": "skills", "command": "commands", "agent": "agents", "mcp": "mcp", "hook": "hooks", "plugin": "plugins"}
 
 
 def load(path, default):
@@ -199,8 +204,51 @@ def listing():
     key = lambda x: x["name"].lower()
     hooks = [item("*", "Every hook below, and the status line", not s.get("disableAllHooks"), name="All hooks")] \
         + sorted(live + off, key=lambda x: (x["event"].lower(), x["name"].lower()))
-    return {"skills": sorted(skills, key=key), "commands": sorted(commands, key=key), "agents": sorted(agents, key=key),
-            "mcp": sorted(mcp, key=key), "hooks": hooks, "plugins": sorted(plugins, key=key), "settings": SETTINGS}
+    out = {"skills": sorted(skills, key=key), "commands": sorted(commands, key=key), "agents": sorted(agents, key=key),
+           "mcp": sorted(mcp, key=key), "hooks": hooks, "plugins": sorted(plugins, key=key), "settings": SETTINGS}
+    now = off_now(out)
+    # active: applying it would change nothing (ids it names that are gone don't count)
+    out["profiles"] = [{"name": n, "off": sum(len(v) for v in p.values()),
+                        "active": all(set(p.get(k, [])) & {x["id"] for x in out[LISTS[k]]} == set(now[k]) for k in LISTS)}
+                       for n, p in load(PROFILES, {}).items()]
+    return out
+
+
+# ---- profiles ------------------------------------------------------------------------------
+
+def off_now(data):
+    return {k: [x["id"] for x in data[LISTS[k]] if not x["on"]] for k in LISTS}
+
+
+def profile(action, name):
+    profiles = load(PROFILES, {})
+    if action == "save":
+        profiles[name] = off_now(listing())
+        return write_atomic(PROFILES, profiles)
+    if name not in profiles:
+        raise SystemExit(f"no profile {name}")
+    if action == "delete":
+        del profiles[name]
+        return write_atomic(PROFILES, profiles)
+    data = listing()
+    s, stash = load(SETTINGS, {}), load(STASH, [])  # read right before writing: Claude Code writes this file too
+    before = list(stash)
+    changed = 0
+    for kind, lst in LISTS.items():
+        want_off = set(profiles[name].get(kind, []))
+        for x in data[lst]:
+            if x["on"] == (x["id"] in want_off):  # differs from the profile; a skill's partial mode counts as on and stays
+                apply(s, stash, kind, x["id"], not x["on"])
+                changed += 1
+    if changed:
+        # a hook is never only in neither file: its copy lands before settings.json loses it, and leaves after it is back
+        both = before + [r for r in stash if r not in before]
+        if both != before:
+            write_atomic(STASH, both)
+        write_atomic(SETTINGS, s)
+        if stash != both:
+            write_atomic(STASH, stash)
+    print(changed)
 
 
 # ---- writing -------------------------------------------------------------------------------
@@ -321,6 +369,11 @@ def main(argv):
         if not argv[2] or "/" in argv[2] or argv[2] in (".", ".."):
             sys.exit(f"bad name {argv[2]!r}")
         delete(argv[1], argv[2])
+    elif len(argv) == 3 and argv[0] == "profile" and argv[1] in ("save", "apply", "delete"):
+        name = argv[2].strip()
+        if not name or len(name) > 40 or any(ord(c) < 32 for c in name):
+            sys.exit(f"bad profile name {argv[2]!r}")
+        profile(argv[1], name)
     else:
         sys.exit(__doc__)
 

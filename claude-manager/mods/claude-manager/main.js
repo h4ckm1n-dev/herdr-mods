@@ -4,14 +4,14 @@
 // disableAllHooks); one hook, which has no native switch, is stashed and put back in place. Type to filter, Tab for the kind, ↑/↓ and Enter (or click) to flip.
 // New Claude Code sessions pick a change up; a session already running keeps what it loaded.
 
-// Controls match OhMyHerdr Mods: accent switches and bordered state badges.
+// Same dialog as OhMyHerdr Mods: its shell, two-line rows with the switch at the right, its keycap footer.
 
 import { View, div, svg } from "gpui-kit";
 import { v_flex, h_flex, InputState, Input, v_virtual_list, VirtualListScrollHandle, Scrollbar } from "gpui-base";
-import { header, field, kbd, kbdHint, chip, tag, SIZE, CORAL } from "./kit.js";
+import { dialog, field, kbd, kbdHint, chip, tag, SIZE, CORAL } from "./kit.js";
 import { theme, exec, appHome, props, closeOverlay } from "herdr";
 
-const ROW = 28;
+const ROW = 48;
 // ponytail: fixed list width (dialog 1040 - padding 32); a virtual list takes its width from a row.
 const LIST_W = 1008;
 // [list key, label, manage.py kind]; each has icons/<list key>.svg
@@ -37,6 +37,10 @@ export default class ClaudeManager extends View {
     this.input.on("submit", (_e, cx) => this.flip(this.rows()[this.at], cx));
     this.input.focus();
     cx.timer.after(600, () => this.input.focus());
+    // Naming a profile: this field takes the search field's place until Enter or Esc.
+    this.naming = false;
+    this.nameInput = InputState.new({ placeholder: "Profile name, Enter to save what is off now" });
+    this.nameInput.on("submit", (_e, cx) => this.saveProfile(cx));
     cx.spawn((cx) => this.load(cx));
   }
 
@@ -113,6 +117,47 @@ export default class ClaudeManager extends View {
       ok ? `${x.name} is in the Trash` : `Couldn't trash ${x.name}: ${err}`);
   }
 
+  // A profile is a named set of what is off, across every kind (manage.py profile ...).
+  profiles() { return this.data?.profiles ?? []; }
+
+  applyProfile(p, cx) {
+    if (!p || this.busy.has("profile")) return;
+    this.confirm = null;
+    this.busy.add("profile");
+    this.status = `Applying ${p.name}…`;
+    cx.notify();
+    this.write(cx, "profile", ["profile", "apply", p.name], (ok, err) => ok ? `Profile ${p.name} applied` : `Couldn't apply ${p.name}: ${err}`);
+  }
+
+  name(on, cx) {
+    this.naming = on;
+    this.confirm = null;
+    this.status = null;
+    if (on) this.nameInput.set_value("");
+    (on ? this.nameInput : this.input).focus();
+    cx.notify();
+  }
+
+  saveProfile(cx) {
+    const n = this.nameInput.value().trim();
+    if (!n) return;
+    this.name(false, cx);
+    this.busy.add("profile");
+    this.write(cx, "profile", ["profile", "save", n], (ok, err) => ok ? `Profile ${n} saved` : `Couldn't save ${n}: ${err}`);
+  }
+
+  // Right-click once names what goes, again deletes it (the profile only: no switch moves).
+  dropProfile(p, cx) {
+    if (this.confirm !== `profile:${p.name}`) {
+      this.confirm = `profile:${p.name}`;
+      this.status = `Right-click ${p.name} again to delete the profile`;
+      return cx.notify();
+    }
+    this.confirm = null;
+    this.busy.add("profile");
+    this.write(cx, "profile", ["profile", "delete", p.name], (ok, err) => ok ? `Profile ${p.name} deleted` : `Couldn't delete ${p.name}: ${err}`);
+  }
+
   setKind(k, cx) {
     this.kind = k;
     this.at = 0;
@@ -134,50 +179,53 @@ export default class ClaudeManager extends View {
       .child(div().size(12).rounded(6).bg(c.foreground));
   }
 
-  // label + gauge + value, as the quota bar draws its 5h / 7d meters
-  gauge(c, k, label, list) {
-    const n = list.length, live = list.filter((x) => x.on).length;
-    const p = n ? live / n : 1;
-    return h_flex().id(`cm-g-${k}`).flex_none().gap(4).items_center()
-      .tooltip(`${label}: ${live} of ${n} load in new sessions`).accessibility_label(`${label} ${live} of ${n} on`)
-      .child(icon(k).text_color(c.dim))
-      .child(h_flex().w(28).h(4).rounded(2).overflow_hidden().bg(c.border)
-        .child(div().h_full().rounded(2).flex_basis(0).flex_grow(p).bg(c.muted))
-        .child(div().h_full().flex_basis(0).flex_grow(1 - p)))
-      .child(div().text_size(SIZE.meta).text_color(live < n ? c.working : c.muted).child(`${live}/${n}`));
-  }
-
-  // Hooks: the event names a group, so it shows on the group's first row only.
+  // The OhMyHerdr Mods row: name over its description, the switch at the right edge. The switch says
+  // on / off; a tag only for what it can't (a skill's mode, the event a group of hooks answers).
   row(x, sel, prev) {
     const c = theme();
     const kind = KINDS.find(([k]) => k === this.kind)[2];
+    const mode = x.on && x.mode && x.mode !== "on" ? x.mode : null;
+    const event = this.kind === "hooks" && x.event && x.event !== prev?.event ? x.event : null;
     // No handlers in here: a virtual list's rows can't hold any (the list's on_item_click does clicks).
-    return h_flex().h(ROW).w(LIST_W - 8).mx(4).px(8).gap(12).items_center().rounded(8).cursor_pointer().text_size(SIZE.body)
+    return h_flex().w(LIST_W - 8).h(ROW).flex_none().px(12).gap(12).items_center().rounded(8).cursor_pointer()
       .when(sel, (el) => el.bg(c.selected ?? c.hover))
-      .child(this.toggle(c, x.on, this.busy.has(`${kind}:${x.id}`)))
-      .when(this.kind === "hooks", (el) => el.child(div().w(136).flex_none().truncate().text_size(SIZE.meta).text_color(c.muted)
-        .child(x.event && x.event !== prev?.event ? x.event : "")))
-      .child(div().w(this.kind === "hooks" ? 220 : 300).flex_none().truncate().text_color(x.on ? c.foreground : c.dim)
-        .when(sel || x.id === "*", (d) => d.font_medium()).child(x.name))
-      .child(div().flex_1().min_w(0).truncate().text_size(SIZE.body).text_color(x.on ? c.muted : c.dim).child(x.desc || " "))
-      .child(tag(c, !x.on ? "Off" : x.mode && x.mode !== "on" ? x.mode : "On", x.on ? undefined : c.working));
+      .accessibility_label(`${x.name}: ${x.on ? "on" : "off"}`)
+      .child(v_flex().flex_1().min_w(0).gap(4)
+        .child(div().truncate().text_size(SIZE.body).text_color(x.on ? c.foreground : c.dim).child(x.name))
+        .child(div().truncate().text_size(SIZE.meta).text_color(x.on ? c.muted : c.dim).child(x.desc || " ")))
+      .when(Boolean(event), (el) => el.child(tag(c, event)))
+      .when(Boolean(mode), (el) => el.child(tag(c, mode)))
+      .child(this.toggle(c, x.on, this.busy.has(`${kind}:${x.id}`)));
   }
 
   render() {
     const c = theme();
     const rows = this.rows();
     this.at = Math.max(0, Math.min(this.at, rows.length - 1));
-    const d = this.data;
+    const data = this.data;
+    const all = data?.[this.kind] ?? [];
+    // each kind's chip carries how many of it load: what the footer gauges used to say
     const kindChip = ([k, label]) => chip(c, `cm-kind-${k}`,
-      h_flex().gap(6).items_center().child(icon(k).text_color(this.kind === k ? c.foreground : c.muted)).child(label),
+      h_flex().gap(6).items_center().child(icon(k).text_color(this.kind === k ? c.foreground : c.muted)).child(label)
+        .when(Boolean(data), (el) => el.child(div().text_color(c.dim).child(`${data[k].filter((x) => x.on).length}/${data[k].length}`))),
       { on: this.kind === k, onClick: (_e, cx) => this.setKind(k, cx) });
-    const sep = () => div().w(1).h(14).flex_none().bg(c.border);
+    const d = dialog(c, "claude-manager", {
+      title: "Claude Manager",
+      glyph: svg("mods/claude-manager/claude.svg").size(20).flex_none().text_color(CORAL),
+      status: h_flex().flex_none().gap(12).items_center()
+        .when(all.length > 0, (el) => el.child(div().text_size(SIZE.meta).text_color(c.dim)
+          .child(`${all.filter((x) => x.on).length} of ${all.length} on`)))
+        .child(kbd(c, "Esc")),
+    });
 
-    return v_flex().id("claude-manager").track_focus(this.handle).size_full().min_h(0).bg(c.popover).text_color(c.foreground).text_size(SIZE.title)
+    return d.root.size_full().track_focus(this.handle)
       .on_key_down((e, cx) => {
         const k = e.key;
-        if (k === "escape") return closeOverlay(props().overlay);
+        if (k === "escape") { if (!this.naming) return closeOverlay(props().overlay); this.name(false, cx); return cx.stop_propagation(); }
+        if (this.naming) return;
         if (k === "backspace" && e.modifiers.platform) { this.trash(cx); return cx.stop_propagation(); }
+        if (k === "s" && e.modifiers.platform) { this.name(true, cx); return cx.stop_propagation(); }
+        if (/^[1-9]$/.test(k) && e.modifiers.platform) { this.applyProfile(this.profiles()[Number(k) - 1], cx); return cx.stop_propagation(); }
         if (this.confirm) { this.confirm = null; this.status = null; }
         if (k === "down") this.step(1, cx);
         else if (k === "up") this.step(-1, cx);
@@ -188,34 +236,50 @@ export default class ClaudeManager extends View {
         cx.stop_propagation();
         cx.notify();
       })
-      .child(header(c, { glyph: svg("mods/claude-manager/claude.svg").size(14).flex_none().text_color(CORAL), title: "Claude Manager", status: kbd(c, "Esc") }))
-      .child(v_flex().flex_1().min_h(0).p(16).gap(12)
-        .child(h_flex().gap(8).items_center()
-          .child(field(c, Input.new(this.input).flex_1().min_w(0), true))
-          .child(h_flex().flex_none().gap(2).children(KINDS.map(kindChip)))
-          .child(chip(c, "cm-off", "Off only", { on: this.offOnly, onClick: (_e, cx) => { this.offOnly = !this.offOnly; this.at = 0; cx.notify(); } })))
-        .when(Boolean(this.status), (el) => el.child(div().text_size(SIZE.meta).text_color(/^Couldn't/.test(this.status) ? c.blocked : this.confirm ? c.working : c.dim).child(this.status)))
-        .child(v_flex().relative().w(LIST_W).flex_1().min_h(0)
-          .when(rows.length > 0, (el) => el
-            .child(v_virtual_list("cm-list", rows.length, ROW, (i) => rows[i].id,
-              (range) => rows.slice(range.start, range.end).map((x, j) => this.row(x, range.start + j === this.at, rows[range.start + j - 1])))
-              .track_scroll(this.scroll).size_full()
-              .on_item_click((name, cx) => {
-                const i = this.rows().findIndex((x) => x.id === name);
-                if (i < 0) return;
-                this.at = i;
-                this.confirm = null;
-                this.flip(this.rows()[i], cx);
-              }))
-            .child(Scrollbar.vertical("cm-list").absolute().inset_0()))
-          .when(Boolean(d) && rows.length === 0, (el) => el.child(v_flex().items_center().gap(8).pt(48)
-            .child(div().text_size(SIZE.title).text_color(c.muted).child(this.offOnly ? "Nothing is off here" : "Nothing matches"))
-            .child(div().text_size(SIZE.meta).text_color(c.dim).child("Try another word, or another kind")))))
-        .child(h_flex().flex_none().gap(12).items_center()
-          .child(kbdHint(c, "↵", "on / off"))
-          .child(kbdHint(c, "Tab", "kind"))
-          .when(this.kind === "skills" || this.kind === "agents", (el) => el.child(kbdHint(c, "⌘⌫", "Trash")))
+      .child(d.header)
+      .child(d.body
+        .child(field(c, Input.new(this.naming ? this.nameInput : this.input).w_full().h(28).text_size(SIZE.body), true))
+        .child(h_flex().gap(2).items_center()
+          .children(KINDS.map(kindChip))
           .child(div().flex_1())
-          .when(Boolean(d), (el) => el.children(KINDS.flatMap(([k, label], i) => [...(i ? [sep()] : []), this.gauge(c, k, label, d[k])])))));
+          .child(chip(c, "cm-off", "Off only", { on: this.offOnly, onClick: (_e, cx) => { this.offOnly = !this.offOnly; this.at = 0; cx.notify(); } })))
+        // profiles: the lit one is what the switches say now; ⌘1-9 applies, right-click deletes
+        .when(Boolean(data), (el) => el.child(h_flex().gap(2).items_center()
+          .child(div().flex_none().mr(6).text_size(SIZE.meta).text_color(c.dim).child("Profiles"))
+          .children(this.profiles().map((p, i) => div().flex_none()
+            .on_mouse_down("right", (_e, cx) => { this.dropProfile(p, cx); cx.stop_propagation(); })
+            .child(chip(c, `cm-profile-${i}`,
+              h_flex().gap(6).items_center().child(p.name).child(div().text_color(c.dim).child(i < 9 ? `⌘${i + 1}` : "")),
+              { on: p.active, tip: p.off ? `${p.off} off` : "Everything on", onClick: (_e, cx) => this.applyProfile(p, cx) }))))
+          .when(!this.profiles().length, (d) => d.child(div().mr(6).text_size(SIZE.meta).text_color(c.muted).child("None yet: set the switches, then save them as one")))
+          .child(div().flex_1())
+          .child(chip(c, "cm-profile-save", "Save as…", { on: this.naming, tip: "Save what is off now as a profile (⌘S)", onClick: (_e, cx) => this.name(!this.naming, cx) })))))
+      .child(v_flex().relative().w(LIST_W).mx(16).flex_1().min_h(0)
+        .when(Boolean(data) && !rows.length, (el) => el.child(div().p(12).text_color(c.dim)
+          .child(this.offOnly && !this.filter ? "Nothing is off here" : "Nothing matches")))
+        .when(rows.length > 0, (el) => el
+          .child(v_virtual_list("cm-list", rows.length, ROW, (i) => rows[i].id,
+            (range) => rows.slice(range.start, range.end).map((x, j) => this.row(x, range.start + j === this.at, rows[range.start + j - 1])))
+            .track_scroll(this.scroll).size_full()
+            .on_item_click((name, cx) => {
+              const i = this.rows().findIndex((x) => x.id === name);
+              if (i < 0) return;
+              this.at = i;
+              this.confirm = null;
+              this.flip(this.rows()[i], cx);
+            }))
+          .child(Scrollbar.vertical("cm-list").absolute().inset_0())))
+      .when(Boolean(this.status), (el) => el.child(div().px(16).pt(8).text_size(SIZE.meta)
+        .text_color(/^Couldn't/.test(this.status) ? c.blocked : this.confirm ? c.working : c.muted).child(this.status)))
+      .child(h_flex().mt(8).px(16).py(12).gap(16).items_center().border_t(1).border_color(c.border)
+        .child(kbdHint(c, "↵", "switch"))
+        .child(kbdHint(c, "↑↓", "select"))
+        .child(kbdHint(c, "Tab", "kind"))
+        .when(this.kind === "skills" || this.kind === "agents", (el) => el.child(kbdHint(c, "⌘⌫", "trash")))
+        .child(kbdHint(c, "⌘1-9", "profile"))
+        .child(kbdHint(c, "⌘S", "save profile"))
+        .child(kbdHint(c, "Esc", "close"))
+        .child(div().flex_1())
+        .child(div().text_size(SIZE.meta).text_color(c.dim).child("New Claude Code sessions pick a change up")));
   }
 }

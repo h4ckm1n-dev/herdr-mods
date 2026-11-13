@@ -21,9 +21,12 @@ Turn off what you don't need and new sessions start lighter. Turn it back on and
 
 ## What it does
 
-- **Six tabs:** Skills, Commands, Agents, MCP, Hooks, Plugins. Each has its own icon, and a gauge
-  in the footer shows how many items are on (`269/271`). The count turns amber when something is off.
-- **Click a row, or press Enter, to flip it.** Off rows dim and carry an amber `off`.
+- **Six tabs:** Skills, Commands, Agents, MCP, Hooks, Plugins. Each has its own icon and shows how many
+  items are on (`269/271`).
+- **Click a row, or press Enter, to flip it.** Off rows dim and their switch goes grey.
+- **Profiles:** a named set of what is off, across all six tabs ("lean", "infra", "everything"). Set the
+  switches, **Save as…** (⌘S), name it. A click or **⌘1**–**⌘9** applies one; the lit profile is the one the
+  switches match now. Saving under an existing name replaces it; right-click twice deletes it.
 - **Search** across names and descriptions, and hook events. **Off only** shows what you turned off.
 - **Hooks** are grouped by event (`PreToolUse`, `Stop`…). The first row, **All hooks**, is the master switch.
 - **Move to the Trash** (Skills and Agents tabs): **⌘⌫** names what will go, **⌘⌫** again moves it.

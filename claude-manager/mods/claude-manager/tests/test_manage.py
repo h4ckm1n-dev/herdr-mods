@@ -22,7 +22,7 @@ open(S, "w").write(orig)
 env = {**os.environ, "HOME": home, "CLAUDE_CONFIG_DIR": cfg}
 run = lambda *a: subprocess.run([sys.executable, "-I", os.path.join(HERE, "manage.py"), *a], env=env, capture_output=True, text=True, check=True).stdout
 L = lambda: json.loads(run("list"))
-state = lambda: {k: {x["id"]: x["on"] for x in v} for k, v in L().items() if k != "settings"}
+state = lambda: {k: {x["id"]: x["on"] for x in v} for k, v in L().items() if k not in ("settings", "profiles")}
 
 d = L()
 assert d["skills"][0]["desc"] == "A demo skill.", d["skills"][0]
@@ -65,6 +65,29 @@ assert subprocess.run([sys.executable, "-I", os.path.join(HERE, "manage.py"), "s
 s = json.load(open(S)); s.pop("hooks"); o = json.loads(orig); o.pop("hooks")
 assert s == o and json.load(open(S))["hooks"] == HOOKS
 print("ok")
+
+# profiles: a named set of what is off; applying flips only what differs, and back is byte for byte
+open(S, "w").write(orig)
+assert L()["profiles"] == []
+run("profile", "save", "full")
+for kind, name in [("skill", "demo"), ("mcp", "srv"), ("hook", hid["PreToolUse · warn"]), ("hook", hid["Stop · graft-hooks stop"])]:
+    run("set", kind, name, "off")
+run("profile", "save", "lean")
+lean = state()
+assert {p["name"]: (p["active"], p["off"]) for p in L()["profiles"]} == {"full": (False, 1), "lean": (True, 5)}, L()["profiles"]  # q@m was off from the start
+assert run("profile", "apply", "full").strip() == "4"
+assert open(S).read() == orig, open(S).read()
+assert json.load(open(os.path.join(cfg, "claude-manager", "hooks-off.json"))) == []
+assert run("profile", "apply", "full").strip() == "0"
+run("set", "agent", "helper", "off")  # lean turns this back on, and its own four off
+assert run("profile", "apply", "lean").strip() == "5"
+assert state() == lean and [p["active"] for p in L()["profiles"]] == [False, True]
+run("profile", "apply", "full"); assert open(S).read() == orig
+run("profile", "delete", "lean")
+assert [p["name"] for p in L()["profiles"]] == ["full"]
+bad = subprocess.run([sys.executable, "-I", os.path.join(HERE, "manage.py"), "profile", "apply", "nope"], env=env, capture_output=True, text=True)
+assert bad.returncode != 0 and "no profile" in bad.stderr
+print("profiles ok")
 
 # delete: trash a skill (link + the folder it points to, all files) and an agent; switch cleaned
 TRASH = os.path.join(home, "trashlog")

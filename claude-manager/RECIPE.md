@@ -8,20 +8,19 @@ A dialog that lists everything Claude Code loads from `~/.claude` (skills, comma
 
 A centered 16:9 dialog (`kind: "dialog"`, 1040×585, `popover` background, 13px text), in the quiet style of a status bar: grey by default, one coral mark, and color only where it means something.
 
-- **Header** (42px, hairline under it): a 14px Claude asterisk glyph in coral `#D97757`, `Claude Manager` (semibold), and an `Esc` keycap on the right.
+- **Shell:** the same dialog as OhMyHerdr Mods (the kit's `dialog()`): `popover` background, 8px radius, a 1px `accent` outline.
+- **Header** (42px, hairline under it): a 20px Claude asterisk glyph in coral `#D97757`, `Claude Manager` (semibold), then on the right `4 of 12 on` for the shown kind (11px, `dim`) and an `Esc` keycap.
 - **Body:** 16px padding, 12px gaps.
-  - **Top row:** a search field (32px, `Search`) that takes the free width and has focus on open. Then six chips (22px, 6px radius), each a 12px line icon plus a label: `Skills`, `Commands`, `Agents`, `MCP`, `Hooks`, `Plugins`. The active chip sits on `selected` with its icon in `foreground`, the others are `muted`. Last, an `Off only` chip.
-  - **Status line** (only when there is something to say): `dim` while loading, `blocked` for a failure, `working` (amber) for a pending Trash confirmation.
-  - **List:** a virtual list 1008px wide, 28px rows (8px radius, 8px padding, 12px gap) with a scrollbar overlaid.
-    - **Switch:** 24×14, 7px radius, an 8px knob. On: knob right in `muted`, track `border`. Off: knob left in `dim`, hollow track with an `input` hairline. A row waiting for its write is at 50% opacity.
-    - **Name:** 300px, truncated, `foreground` (`dim` when off), medium weight when selected.
-    - **Description:** 12px, `muted` (`dim` when off), truncated.
-    - **State tag:** 80px, right-aligned, 10.5px. `off` in `working` (amber), or a partial `skillOverrides` mode (`name-only`, `user-invocable-only`) in `dim`.
-    - **Hooks tab:** an extra 136px `muted` column with the event (`PreToolUse`, `Stop`…), shown only on the first row of each event, so the list reads as groups. The name column narrows to 220px. The first row, `All hooks`, is the master switch, with its name in medium weight.
-    - The selected row sits on `selected`.
-  - **Footer strip:**
-    - **Left:** keycap hints: `↵ on / off`, `Tab kind`, and `⌘⌫ Trash` on the Skills and Agents tabs only.
-    - **Right:** one gauge per kind, separated by 1×14 hairlines, as in a quota bar. Each gauge is the kind's 12px icon in `dim`, a 28×4 bar (`muted` fill on `border`) showing the share that is on, and `on/total` (11px). The count is `muted`, or `working` (amber) when something in that kind is off. The tooltip says `Skills: 269 of 271 load in new sessions`.
+  - **Search field:** full width, 28px, `Search`, focused on open.
+  - **Chip row:** six chips (22px, 6px radius), each a 12px line icon, a label and its `on/total` in `dim`: `Skills 4/12`, `Commands`, `Agents`, `MCP`, `Hooks`, `Plugins`. The active chip sits on `selected` with its icon in `foreground`, the others are `muted`. An `Off only` chip sits at the right edge.
+  - **Profiles row:** `Profiles` in `dim`, then one chip per profile with its `⌘1`…`⌘9` in `dim`; the chip is lit when the switches match it, and its tooltip says how many items it turns off. With none: `None yet: set the switches, then save them as one` in `muted`. A `Save as…` chip sits at the right edge: it swaps the search field for a `Profile name` field (Enter saves what is off now, Esc cancels).
+- **List:** a virtual list 1008px wide (16px side margins), 48px rows 1000px wide (8px radius, 12px padding, 12px gap) with a scrollbar overlaid. Empty: `Nothing matches` (or `Nothing is off here`) in `dim`, 12px padding.
+  - **Text:** the name (12px, `foreground`, `dim` when off) over the description (11px, `muted`, `dim` when off), both truncated.
+  - **Tags** (10.5px, bordered), only for what the switch can't say: a partial `skillOverrides` mode (`name-only`, `user-invocable-only`), and on the Hooks tab the event (`PreToolUse`, `Stop`…) on the first row of each event, so the list reads as groups. The first hooks row, `All hooks`, is the master switch.
+  - **Switch**, at the right edge: 28×16, 8px radius, a 12px `foreground` knob. On: knob right, track `accent`. Off: knob left, track `border`. A row waiting for its write is at 50% opacity. There is no On / Off badge.
+  - The selected row sits on `selected`.
+- **Status line** (only when there is something to say; 16px side padding, 11px): `muted` while loading, `blocked` for a failure, `working` (amber) for a pending Trash confirmation.
+- **Footer** (hairline above, 16px side and 12px vertical padding, 16px gaps): keycap hints `↵ switch`, `↑↓ select`, `Tab kind`, `⌘⌫ trash` (Skills and Agents tabs only), `⌘1-9 profile`, `⌘S save profile`, `Esc close`; on the right, `New Claude Code sessions pick a change up` in `dim`.
 - **Icons:** six lucide glyphs (24 viewBox, stroke 2, `currentColor`): book-open (skills), square-slash (commands), users (agents), plug (MCP), webhook (hooks) and puzzle (plugins).
 
 ## How it behaves
@@ -29,6 +28,9 @@ A centered 16:9 dialog (`kind: "dialog"`, 1040×585, `popover` background, 13px 
 - **Opening:** ⌘⇧K runs `mod.open:claude-manager`, and pressing it again closes the dialog. On open it runs `manage.py list` and draws the result.
 - **Search** matches the name, the description and, for hooks, the event.
 - **Moving:** ↑/↓ move by one, PgUp/PgDn by ten. Tab and ⇧Tab cycle the six kinds, and a click on a chip picks one. `Off only` hides what is on.
+- **Profiles:** `manage.py profile save|apply|delete NAME`, stored in `~/.claude/claude-manager/profiles.json` as `{NAME: {KIND: [ids off]}}`.
+  - Apply flips only what differs, in one write of `settings.json`. Ids the profile names that are gone are ignored; anything it doesn't name is turned on. A skill's partial mode counts as on and is left alone.
+  - A click on a chip or ⌘1–⌘9 applies; a right-click names the profile in the status line, a second one deletes it (no switch moves).
 - **Flipping:** Enter or a click on a row flips its switch.
   - The row changes at once (optimistic), shows busy, runs `manage.py set KIND ID on|off`, then reloads the list from the files. What is drawn is always what the files say.
   - Writes run one at a time, because each is a read-modify-write of `settings.json`. Two quick clicks on two rows both land, in order.
@@ -87,8 +89,8 @@ A centered 16:9 dialog (`kind: "dialog"`, 1040×585, `popover` background, 13px 
 ## Done when
 
 - `herdr-app check ~/.config/herdr-app/mods/claude-manager` passes, and `python3 -I tests/test_manage.py` prints `ok` and `delete ok`.
-- ⌘⇧K opens the dialog with your real counts in all six chips and gauges.
-- **Every tab, by mouse:** a click on a row turns it off: the row dims, `off` appears in amber, the gauge count turns amber, and `settings.json` gains the matching entry. A second click turns it back on and `cmp` with a copy taken before shows no difference.
+- ⌘⇧K opens the dialog with your real counts in all six chips.
+- **Every tab, by mouse:** a click on a row turns it off: the row dims, its switch goes grey, the chip's count drops, and `settings.json` gains the matching entry. A second click turns it back on and `cmp` with a copy taken before shows no difference.
 - After turning a skill off, a fresh `claude -p … --output-format stream-json --verbose` no longer lists it in `system/init` `skills`. An MCP server disappears from `mcp_servers`, and a plugin from `plugins`.
 - Two quick clicks on two different rows both land.
 - ⌘⌫ twice on a throwaway skill puts its folder in the Finder Trash, and Put Back restores it.
