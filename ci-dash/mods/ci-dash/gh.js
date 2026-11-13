@@ -33,12 +33,12 @@ export function errorHint(error) {
 // exec() resolves with a non-zero code instead of rejecting; turn that into an error.
 // `account`: run as that gh login instead of the active one (exec takes no env, so a shell
 // sets GH_TOKEN from `gh auth token` for this one call; the token never leaves it).
-async function gh(args, { cwd, on, account = null, host = "github.com" } = {}) {
+async function gh(args, { cwd, on, account = null, host = "github.com", timeout } = {}) {
   let result;
   try {
     result = account
-      ? await exec("sh", ["-c", 'GH_TOKEN="$(gh auth token -h "$1" -u "$2")" || exit 4; shift 2; GH_TOKEN="$GH_TOKEN" exec gh "$@"', "gh", host, account, ...args], { cwd, on })
-      : await exec("gh", args, { cwd, on });
+      ? await exec("sh", ["-c", 'GH_TOKEN="$(gh auth token -h "$1" -u "$2")" || exit 4; shift 2; GH_TOKEN="$GH_TOKEN" exec gh "$@"', "gh", host, account, ...args], { cwd, on, timeout })
+      : await exec("gh", args, { cwd, on, timeout });
   } catch (e) {
     throw new GhError(`Could not start gh: ${e}. Install it from https://cli.github.com and run gh auth login.`);
   }
@@ -167,9 +167,9 @@ export class Gh {
   async rerunRun(id) { await this.json(this.rp(`/actions/runs/${id}/rerun`), { method: "POST" }); }
   async openRunWeb(id) { await gh(["run", "view", String(id), "--web", "-R", `${this.repo.host}/${this.repo.slug}`], this.opts()); }
 
-  /** Downloads one artifact into `dir`. exec() allows 30 s, so very large artifacts can time out. */
+  /** Downloads one artifact into `dir`. Given exec()'s longest wait (10 min): its 30 s default cuts a big one. */
   async downloadArtifact(runId, name, dir) {
-    await gh(["run", "download", String(runId), "--name", name, "--dir", dir, "-R", `${this.repo.host}/${this.repo.slug}`], this.opts());
+    await gh(["run", "download", String(runId), "--name", name, "--dir", dir, "-R", `${this.repo.host}/${this.repo.slug}`], { ...this.opts(), timeout: 600000 });
   }
 }
 

@@ -92,7 +92,7 @@ export default class Tabs extends View {
       return iconButton(t, `panel-${id}`, icon, () => {
         if (on) run("layout.hide", { id: "panel" });
         else { run("layout.select", { stack: "panel-body", child: id }); run("layout.show", { id: "panel" }); }
-      }, { tip, on }).accessibility_label(tip.replace(/ ⌘G$/, ""));
+      }, { tip, on }).accessibility_label(tip.replace(/ [⌘⇧]+\w$/, ""));
     };
     const winBtn = (id, tip, icon, action) => iconButton(t, id, icon, action, { tip });
     return h_flex().size_full().min_w(0).px(10).pl(lightsPadding).gap(4).items_center().bg(t.chrome).border_b(1).border_color(t.border).text_size(SIZE.body)
@@ -102,12 +102,12 @@ export default class Tabs extends View {
       .child(iconButton(t, "tab-new", "plus", () => openOverlay({ mod: "new-menu-crew", kind: "popup", width: 250, height: 512 }), { tip: "New tab or agent" }))
       .child(div().w(1).h(14).flex_none().mx(4).bg(t.border))
       // code (Files, Git, CI) · cluster and spend (Ops, Cost)
-      .when(enabled.includes("files"), el => el.child(panelButton("files", "mods/files/file.svg", "Files")))
+      .when(enabled.includes("files"), el => el.child(panelButton("files", "mods/files/file.svg", "Files ⌘E")))
       .child(panelButton("graph", "mods/git/icons/graph.svg", "Git ⌘G"))
       .when(Boolean(find(root, "ci")), el => el.child(panelButton("ci", "mods/ci-dash/ci.svg", "CI runs")))
       .child(div().w(1).h(14).flex_none().mx(4).bg(t.border))
       .when(Boolean(find(root, "ops")), el => el.child(panelButton("ops", "mods/ops/ops.svg", "Ops")))
-      .when(Boolean(find(root, "cost")), el => el.child(panelButton("cost", "mods/cost/cost.svg", "Cost")))
+      .when(Boolean(find(root, "cost")), el => el.child(panelButton("cost", "mods/cost/cost.svg", "Cost ⌘⇧U")))
       .when(w?.buttons, el => el.child(div().w(1).h(14).flex_none().mx(4).bg(t.border))
         .child(winBtn("minimize", "Minimize", w.platform === "windows" ? winIcon("win-min") : ICON("minus"), () => run("window.minimize")))
         .child(winBtn("maximize", w.maximized ? "Restore" : "Maximize", w.platform === "windows" ? winIcon(w.maximized ? "win-restore" : "win-max") : ICON("square"), () => run("window.maximize")))

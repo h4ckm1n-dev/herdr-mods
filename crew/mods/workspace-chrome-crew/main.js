@@ -1,6 +1,6 @@
 import { View, div, svg } from "gpui-kit";
 import { h_flex, v_flex } from "gpui-base";
-import { theme, run, props, window, shared, setShared, updates, layout, exec, appHome, notify, readTextFile } from "herdr";
+import { theme, run, props, window, shared, setShared, updates, layout, exec, appHome, notify, readTextFile, keys } from "herdr";
 import { SIZE, dot, iconButton } from "./kit.js";
 
 function find(node, id) {
@@ -26,6 +26,9 @@ function toggleSidebar() {
 
 // This mod's own icon copies (the kit's ICON() points at the shipped workspace-chrome set).
 const OWN = (name) => `mods/workspace-chrome-crew/${name}.svg`;
+
+// The picker ⌘P opens: picker-crew once its key is bound, Herdr's own otherwise.
+const picker = () => keys().some(k => k.action === "mod.open:picker-crew") ? "picker-crew" : "picker";
 
 export default class WorkspaceChrome extends View {
   init(_props, cx) {
@@ -74,7 +77,7 @@ export default class WorkspaceChrome extends View {
     return h_flex().id("brand").size_full().bg(t.chrome).pl(collapsed ? 6 : 14).pr(10).gap(4).items_center().text_size(SIZE.title)
       .when(window()?.platform === "macos" && !window()?.fullscreen && !collapsed, el => el.pl(76))
       .when(!collapsed, el => el.child(div().flex_1()))
-      .when(!collapsed, el => el.child(iconButton(t, "search", OWN("search"), () => run("mod.open", { name: "picker" }), { tip: "Search" })))
+      .when(!collapsed, el => el.child(iconButton(t, "search", OWN("search"), () => run("mod.open", { name: picker() }), { tip: "Search" })))
       // On the macOS rail the traffic lights fill the row; the agents list's button unfolds it.
       .when(!(collapsed && window()?.platform === "macos"), el => el.child(iconButton(t, "sidebar-toggle", OWN("sidebar"), toggleSidebar, { tip: collapsed ? "Expand sidebar" : "Collapse sidebar" })));
   }

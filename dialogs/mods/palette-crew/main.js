@@ -17,12 +17,12 @@ const SHOWN = 10;
 const ROW_H = 32;
 const HEAD_H = 26;
 const LIST_H = SHOWN * ROW_H;
-const GROUPS = ["Recent", "Tab", "Pane", "Space", "Layout", "Terminal", "Agent", "Window", "App"];
+const GROUPS = ["Recent", "Tab", "Pane", "Space", "Layout", "Terminal", "Agent", "Mods", "Window", "App"];
 
 // The palette's names for commands: [command, args, group, title, keywords].
 const NAMED = [
   ["tab.new", {}, "Tab", "New tab", "tab agent new task"],
-  ["mod.open", { name: "picker" }, "Tab", "Go to space or tab…", "switch jump find"],
+  ["mod.open", { name: "picker" }, "Tab", "Go to space or tab…", "switch jump find"],  // picker-crew once its key is bound
   ["tab.rename", {}, "Tab", "Rename tab", "tab"],
   ["tab.close", {}, "Tab", "Close tab", "tab kill"],
   ["tab.next", {}, "Tab", "Next tab", "tab"],
@@ -93,14 +93,35 @@ function entries() {
     if (named.has(c.name) || HIDDEN.has(c.name) || c.args.some((a) => a.required && a.name !== "name")) continue;
     list.push({ name: c.name, args: {}, ...titleOf(c.name), words: c.about });
   }
+  // Mods' own commands aren't in commands(): the bound ones (mod.open:<mod>, <mod>.<command>) are
+  // the ones we can name, so those show, with their key.
+  const bound = active(keys());
+  const picker = bound.some((b) => b.action === "mod.open:picker-crew");
+  for (const e of list) if (picker && e.name === "mod.open" && e.args.name === "picker") e.args = { name: "picker-crew" };
+  const words = (s) => s.replace(/-crew$/, "").replace(/[-_]/g, " ");
+  const seen = new Set(list.map((e) => (e.name === "mod.open" ? `mod.open:${e.args.name}` : e.name)));
+  for (const { action } of bound) {
+    const [name, value] = action.split(":");
+    if (seen.has(action) || known.has(name) !== (name === "mod.open") || (name === "mod.open" && (!value || value === "palette-crew"))) continue;
+    seen.add(action);
+    const [mod, command] = name.split(".");
+    const title = name === "mod.open" ? `Open ${words(value)}` : `${words(mod)}: ${words(command)}`.replace(/^./, (c) => c.toUpperCase());
+    list.push({ name, args: name === "mod.open" ? { name: value } : {}, group: "Mods", title, words: "mod" });
+  }
   return list.map((e) => ({ ...e, id: `${e.name}:${JSON.stringify(e.args)}` }));
+}
+
+// The bindings that work right now: global, and the shown layout's own.
+function active(bound) {
+  const here = `layout:${shared("layout") ?? "main"}`;
+  return bound.filter((b) => b.section === "global" || b.section === here);
 }
 
 // The key bound to an entry: `name` or `name:value` in keys.json.
 function keyOf(e, bound) {
   const v = Object.values(e.args)[0];
   const want = v === undefined ? e.name : `${e.name}:${v}`;
-  const k = bound.find((b) => b.section === "global" && b.action === want);
+  const k = active(bound).find((b) => b.action === want);
   return k ? k.keys : null;
 }
 

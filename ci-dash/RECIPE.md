@@ -136,7 +136,7 @@ YAML: `yaml.js` is a minified browser bundle of the `yaml` package 2.8.1 that ex
 - It reaches the network through `gh`. Every GitHub call is a `gh` call from your machine with your login. It runs programs (`gh`, `git`, `sh`, `test`, `open` or `xdg-open`). It writes files in the repository folder, under `.ci-dash/artifacts`. It stores no credentials. Add `.ci-dash/` to the repository's `.gitignore`, or the downloads show in `git status`.
 - The panel runs `gh` against whichever folder is focused. Focusing a terminal in another repository switches the panel to that repository.
 - `Dispatch` and `Rerun` and `Cancel` change real runs on GitHub. They need a token that can write to Actions. Dispatch only starts after the final Dispatch click.
-- `exec` stops after 30 seconds. A very large artifact download can time out and shows `Retry`.
+- `exec` stops after 30 seconds unless given `timeout`; artifact downloads get its 10 minute maximum. One larger than that times out and shows `Retry`.
 - The mod runtime has no `Buffer`. Raw workflow files are fetched as text with the raw media type. Do not ask for base64 contents.
 - Read props once in `init` and keep them. `props()` called inside a later callback can answer for another copy of the mod.
 - Use `-f` for dispatch inputs, not `-F`, or `"true"` and `"12"` turn into JSON types. `exec` has no stdin, so the request body cannot be piped.

@@ -42,7 +42,7 @@ The panel is the `graph` block in the side panel (368px, min 280, max 900). It i
 
 - **Files**: `mod.json` is `{ "place": "none", "focusable": true }`; the graph handles `"focus"` from `nextCommand()`. `cursor.js` holds the keyboard's pure parts (items, follow-by-id, scroll window, keys per item, hints; node-tested). `main.js` picks a role by `props().role`: none = the graph (a panel, or a pane with `props.folder`), `menu`, `dialog`, `settings`, `branches`. `graph.js` (layout, header, divider, diff, hunks, Manygit), `changes.js` (commit box, groups, sync button and menu), `branches.js`, `menu.js`, `dialog.js`, `settings.js`, `act.js` (runs an action and toasts), `execute.js` (actions and the unmerged-files and stale-HEAD checks), `git.js` (git arguments, parsers, menus, dialog texts), `scm.js` (status groups, ahead/behind, sync plan, stashes, commit values), `hunks.js` (hunk diff args and single-hunk patches), `repos.js` (Manygit), `lanes.js`. Only `main.js`, `graph.js`, `changes.js`, `branches.js`, `menu.js`, `dialog.js`, `settings.js` and `act.js` import `"herdr"`; the rest also run under node for the tests in `tests/` (`npm test`).
 - **Art**: `icons/*.svg` (Lucide, `icons/LICENSE-lucide.txt`); `graph.svg` is the top-bar icon.
-- **Layout**: in `layouts/OhMyHerdr.json` the `panel-body` stack holds `files`, `crew` and `graph`; the `graph` block is `{ "mod": "git" }`. There is no `changes` block.
+- **Layout**: in `layouts/OhMyHerdr.json` the `panel-body` stack holds `files`, `graph` and `cost`; the `graph` block is `{ "mod": "git" }`. There is no `changes` block.
 - **Top bar** (`mods/tabs-crew/main.js`): an icon-only button `panelButton("graph", null, "mods/git/icons/graph.svg")`. The `changes` panel is filtered out of the enabled list. ⌘G is `"cmd-g": "tabs-crew.graph"` under `layout:OhMyHerdr` in `keys.json`; it toggles the stack child with id `graph`.
 - **herdr functions**: `exec`, `watchFolder`, `readTextFile`, `spaces`, `panes`, `focused`, `theme`, `settings`, `props`, `shared`, `setShared`, `openOverlay`, `closeOverlay`, `notify`, `home`, `knownAgents`, `updates`; the overlays are `openOverlay({ mod: "git", kind: "popup", props: { role } })`.
 - **Programs run** (always `exec(..., { cwd: root, on })`): `git`, and `sh -c` for applying a hunk. Read-only calls go through `READ` (`--no-optional-locks`, `-c core.fsmonitor=false`, `-c diff.autoRefreshIndex=false`). File actions use `--literal-pathspecs` and put paths after `--`; status is parsed from `-z` output.
@@ -65,7 +65,7 @@ The panel is the `graph` block in the side panel (368px, min 280, max 900). It i
 - The changes list is a plain scroll area (no scroll-from-code API): while focused, rows above the cursor's window are left out and the area takes a new id, so the cursor stays in view. The graph list uses a `VirtualListScrollHandle`.
 - Keyboard-opened menus go to the panel's window spot, learnt from the pointer crossing the panel; before that they open at the pointer.
 - Hidden mods stay alive in Herdr, so the panel must not poll; git runs only on the events listed above.
-- Herdr's `exec` has a 30 s limit: a slow `pull --rebase` (diverged sync) can be cut off mid-rebase. The header then shows Rebasing… and Abort recovers.
+- Herdr's `exec` stops a program at 30 s unless given `timeout` (10 min at most): fetch, pull and push get 5 min (`NETWORK_MS` in `execute.js`). A `pull --rebase` cut off past that leaves the header on Rebasing…, and Abort recovers.
 - A repository whose `.git/config` sets filter drivers (or other command-running config) runs them on the panel's `status`/`diff` reads, as any git prompt in that folder would. The panel adds no protection beyond `--no-ext-diff --no-textconv`.
 - Not built: line-level staging, conflict resolution (only the `!` marker and Continue/Abort), amend, blame, file history, commit search, editing files.
 - Don't edit Herdr's shipped `mods/changes`; Herdr overwrites shipped mods on start. Delete `mods/git-graph` only after `mods/git` passes its checks, and nothing else should reference it.
@@ -73,7 +73,7 @@ The panel is the `graph` block in the side panel (368px, min 280, max 900). It i
 ## Done when
 
 - `herdr-app check ~/.config/herdr-app/mods/git` and `.../mods/tabs-crew` pass; `herdr-app status` shows `"errors": []`.
-- The top bar shows Files, Crew and Git as icon-only buttons (no Changes); ⌘G opens and closes the Git panel.
+- The top bar shows Files, Git and Cost as icon-only buttons (no Changes); ⌘G opens and closes the Git panel.
 - In a scratch repo: stage, unstage and discard a file (discard asks first); stage one hunk of a two-hunk file and `git diff --cached` shows only that hunk; commit with ⌘⏎; create and switch branch; stash, list and pop, and Drop asks first.
 - Against a local bare remote: pushing and pulling updates `↑N ↓N`. On a diverged branch, sync offers rebase or merge; a clean rebase pushes; a conflicting one stops with `!` files and Abort restores the earlier state.
 - In a conflicted repo, Commit with nothing staged refuses.

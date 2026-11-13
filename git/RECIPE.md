@@ -65,7 +65,7 @@ The panel is the `graph` block in the side panel (368px, min 280, max 900). It i
 - Commit with nothing staged runs `add --all` first; it must go through the unmerged-files guard in `executeAction`.
 - Lists in Herdr 0.1.12 or later zoom themselves; the graph checks the app version (`updates()`) to know whether its row heights are layout units or pixels.
 - Hidden mods stay alive in Herdr, so the panel must not poll; git runs only on the events listed above.
-- Herdr's `exec` has a 30 s limit: a slow `pull --rebase` (diverged sync) can be cut off mid-rebase. The header then shows Rebasing… and Abort recovers.
+- Herdr's `exec` stops a program at 30 s unless given `timeout` (10 min at most): fetch, pull and push get 5 min (`NETWORK_MS` in `execute.js`). A `pull --rebase` cut off past that leaves the header on Rebasing…, and Abort recovers.
 - **The repository you are working in is read directly**, the way any git prompt in that folder would read it. A filter driver in its `.git/config` still runs on `status`. Reads set `core.fsmonitor=false` and `diff.autoRefreshIndex=false`, and diffs add `--no-ext-diff --no-textconv`. Only repos *found* in a folder go through the check above, because the person never chose to enter them.
 - Keep the check config-only: the `RISKY` pattern must be read with `git config`, never by running `status`, or the filter it is guarding against runs. `tests/trust.test.mjs` proves a planted `filter.*.clean` doesn't run.
 - Not built: line-level staging, conflict resolution (only the `!` marker and Continue/Abort), amend, blame, file history, commit search, editing files.

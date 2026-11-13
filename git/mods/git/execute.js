@@ -5,6 +5,8 @@ import { READ, commandsFor, gitError } from "./git.js";
 import { operationOf } from "./scm.js";
 
 const NETWORK = new Set(["fetch", "pull", "push"]);
+// exec stops a program at 30 s by default: a big fetch or a pull --rebase would be cut mid-way.
+const NETWORK_MS = 300000;
 const NEEDS_BRANCH = new Set(["sync", "publish", "pullRebase", "pullMerge"]);
 
 export async function executeAction(action, values, ctx, exec) {
@@ -65,7 +67,7 @@ export async function executeAction(action, values, ctx, exec) {
   for (const args of commands) {
     // Never prompt for credentials: nobody can answer in a background exec.
     const result = NETWORK.has(args[0])
-      ? await exec("env", ["GCM_INTERACTIVE=0", "GIT_TERMINAL_PROMPT=0", "GIT_ASKPASS=", "git", ...args], { cwd: ctx.root, on: ctx.on })
+      ? await exec("env", ["GCM_INTERACTIVE=0", "GIT_TERMINAL_PROMPT=0", "GIT_ASKPASS=", "git", ...args], { cwd: ctx.root, on: ctx.on, timeout: NETWORK_MS })
       : await git(args);
     if (result.code !== 0) {
       if (args[0] !== "pull") return { ok: false, message: gitError(result) };

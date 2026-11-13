@@ -17,7 +17,7 @@ export default class WorkspaceStatus extends View {
       .when(Boolean(space?.branch), el => el.child(h_flex().gap(6).items_center().child(svg(ICON("branch")).size(12).flex_none().text_color(t.dim)).child(tag(t, space.branch))))
       .child(h_flex().gap(12).items_center()
         .when(working > 0, el => el.child(h_flex().gap(6).items_center().child(spinner(t.working, 11)).child(div().text_color(t.working).child(`${working} working`))))
-        .when(needs > 0, el => el.child(h_flex().gap(6).items_center().child(dot(t.blocked)).child(div().text_color(t.blocked).child(`${needs} needs you`))))
+        .when(needs > 0, el => el.child(h_flex().gap(6).items_center().child(dot(t.blocked)).child(div().text_color(t.blocked).child(`${needs} ${needs === 1 ? "needs" : "need"} you`))))
         .when(working === 0 && needs === 0, el => el.child(div().text_color(t.dim).child(list.length ? plural(list.length, "agent") : "No agents"))))
       .child(div().flex_1());
   }
