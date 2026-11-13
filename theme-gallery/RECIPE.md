@@ -28,9 +28,9 @@ A centered 16:9 dialog (`kind: "dialog"`, 1040×585, `popover` background, 13px 
 ## How it behaves
 
 - The dialog opens on the theme showing now: `settings().theme_dark` or `theme_light`, depending on `settings().dark`.
-- **Moving** (↑/↓, PgUp/PgDn ±10, a row click, typing, a chip, Tab/⇧Tab to cycle modes) changes the selection. After 140ms without another move it previews: it writes `themes/<name>.json` if missing, then runs `app.theme {name}`, which sets the half matching the theme's lightness. A theme that's already picked for its half isn't re-applied.
+- **Moving** (↑/↓, PgUp/PgDn ±10, a row click, typing, a chip, Tab/⇧Tab to cycle modes) changes the selection. After 140ms without another move it previews: it writes `themes/<name>.json` if missing, then runs `app.theme {name}`, which sets the half matching the theme's lightness. Then, if the theme's half isn't the one on screen, it writes that half to `appearance` in `settings.json` so the theme actually shows. A theme that's already picked for its half and on screen isn't re-applied.
 - **Keeping:** Enter, a click on the already-selected row, or the Use button. If the preview hasn't landed yet, Use applies it first, then closes.
-- **Leaving without keeping** (Esc, a click outside, `overlay.close`): `close()` runs `app.theme` with the original value of every half that changed.
+- **Leaving without keeping** (Esc, a click outside, `overlay.close`): `close()` runs `app.theme` with the original value of every half that changed and puts back the original `appearance` (or removes the key if there was none).
 - **Cleanup on every close:** theme files the gallery created are deleted with `rm -f`, except the ones now picked for light or dark. Files that existed before are never touched.
 - **Mod commands:** `theme-gallery.next`, `.prev` and `.use` arrive through `nextCommand()` and act like ↓, ↑ and Enter.
 - Agent statuses don't apply; the dialog shows no agents.
@@ -62,7 +62,7 @@ A centered 16:9 dialog (`kind: "dialog"`, 1040×585, `popover` background, 13px 
 - **Rows in a `v_virtual_list` can't register handlers.** An `on_click`/`.id()` inside the item renderer throws and the list draws empty. `herdr-app check` doesn't run deferred rows, so it still passes. Use the list's `on_item_click((key, cx) => …)` with the theme name as the key.
 - **Give the overlay a set height in `mod.json`.** Without one the overlay sizes to its content and a `flex_1` body collapses to 0. A virtual list takes its width from a row, so the list and rows keep fixed widths (472 / 464).
 - **`settings().theme` isn't the user's pick.** Use `settings().theme_light` / `theme_dark`. Don't read `layouts/.state/`, which Herdr owns.
-- **`app.theme` changes only the half matching the theme's lightness.** A light theme previewed in dark mode changes nothing visible, which is why the card exists.
+- **`app.theme` changes only the half matching the theme's lightness.** A light theme in dark mode changes nothing visible until `appearance` in `settings.json` switches to light (the app reloads that file live). Returning to the half the dialog opened on restores the original `appearance`, so someone following the system keeps following it. Keeping a theme of the other half leaves `appearance` written: a toast says the system is no longer followed.
 - **Don't keep a `cx`.** Pass each callback's `cx` into `moved`/`use`/`step`.
 - **Name your own close method anything but `close`.** `close()` is Herdr's cleanup hook; it has 250ms, so it only runs `app.theme` and one `rm`.
 - **Hot-reloading `main.js` while the dialog is open** skips the old copy's `close()`, so a preview and its file can be left behind.

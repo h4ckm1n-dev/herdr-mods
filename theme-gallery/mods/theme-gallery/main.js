@@ -8,7 +8,7 @@
 import { View, div, svg } from "gpui-kit";
 import { v_flex, h_flex, InputState, Input, v_virtual_list, VirtualListScrollHandle, Scrollbar } from "gpui-base";
 import { header, field, kbd, button, SIZE, chip as kitChip } from "./kit.js";
-import { theme, themes, settings, run, exec, appHome, readTextFile, writeTextFile, props, closeOverlay, nextCommand } from "herdr";
+import { theme, themes, settings, run, exec, appHome, readTextFile, writeTextFile, props, closeOverlay, nextCommand, notify } from "herdr";
 
 const ROW = 28;
 // ponytail: fixed list width (dialog 820 - padding 32 - card 300 - gap 16); a virtual list takes its width from a row.
@@ -68,6 +68,9 @@ export default class ThemeGallery extends View {
     const st = settings();
     this.orig = { light: st.theme_light ?? "paper", dark: st.theme_dark ?? "graphite" };
     this.picked = { ...this.orig };
+    this.shown = st.dark ? "dark" : "light"; // the half on screen
+    this.shown0 = this.shown;
+    this.appearance0 = undefined; // settings.json's `appearance` before we touched it (undefined: untouched)
     cx.spawn(async (cx) => {
       try {
         const r = await exec("python3", ["-I", `${appHome()}/mods/theme-gallery/scan.py`]);
@@ -123,11 +126,12 @@ export default class ThemeGallery extends View {
   }
 
   async preview(t, cx) {
-    if (!t || this.picked[half(t)] === t.name) return;
+    if (!t || (this.picked[half(t)] === t.name && this.shown === half(t))) return;
     try {
       await this.ensureFile(t);
       run("app.theme", { name: t.name });
       this.picked[half(t)] = t.name;
+      await this.show(half(t));
     } catch (e) {
       this.status = `Couldn't preview ${t.name}: ${e.message ?? e}`;
     }
@@ -138,17 +142,42 @@ export default class ThemeGallery extends View {
     const t = this.rows()[this.at];
     if (!t) return;
     this.applied = true;
+    // Kept on the half that wasn't on screen: `appearance` stays written, so say the system is no longer followed.
+    const keep = async () => {
+      await this.show(half(t));
+      if (half(t) !== this.shown0 && this.appearance0 && [undefined, "system"].includes(this.appearance0.v))
+        notify({ title: `Appearance set to ${half(t)}`, body: "Herdr no longer follows the system. Remove \"appearance\" from settings.json to follow it again.", timeout: 8000 });
+      this.dismiss();
+    };
     // Enter before the preview settled: apply now; close() keeps the file.
     if (this.picked[half(t)] !== t.name) {
       this.picked[half(t)] = t.name;
-      cx.spawn(async () => { await this.ensureFile(t); run("app.theme", { name: t.name }); this.dismiss(); });
-    } else this.dismiss();
+      cx.spawn(async () => { await this.ensureFile(t); run("app.theme", { name: t.name }); await keep(); });
+    } else cx.spawn(keep);
+  }
+
+  // app.theme only fills the theme's half (a light theme in dark mode changes nothing on screen), so put
+  // that half on screen through settings.json's `appearance`. Back on the half we opened on, the original
+  // `appearance` returns, so a person following the system keeps following it.
+  async show(h) {
+    if (this.shown === h) return;
+    const path = `${appHome()}/settings.json`;
+    const text = await readTextFile(path);
+    let s = {};
+    // A settings.json we can't parse stays as it is (and close() still gets to tidy up).
+    try { if (text) s = JSON.parse(text); } catch { return; }
+    if (this.appearance0 === undefined) this.appearance0 = { v: s.appearance };
+    if (h === this.shown0 && this.appearance0.v === undefined) delete s.appearance;
+    else s.appearance = h === this.shown0 ? this.appearance0.v : h;
+    await writeTextFile(path, JSON.stringify(s, null, 2) + "\n", text);
+    this.shown = h;
   }
 
   async close() {
     if (!this.applied) {
       for (const h of ["light", "dark"]) if (this.picked[h] !== this.orig[h]) run("app.theme", { name: this.orig[h] });
       this.picked = { ...this.orig };
+      await this.show(this.shown0);
     }
     const keep = new Set(Object.values(this.picked).map((n) => `${appHome()}/themes/${n}.json`));
     const gone = [...this.created].filter((p) => !keep.has(p));

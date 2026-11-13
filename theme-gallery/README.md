@@ -30,7 +30,8 @@ Arrow through 824 themes and every pane, panel and terminal repaints as you go. 
 - **Enter**, the **Use** button, or a click on the selected row keeps it. **Esc** or a click outside
   restores what you had.
 - A theme sets the half that matches it: a dark theme becomes your dark theme, a light one your
-  light theme.
+  light theme. If that half isn't the one on screen, the app switches to it (settings.json's
+  `appearance`), so a light theme shows even when macOS is dark. Esc puts the appearance back.
 
 <p>
 <img src="docs/dark.png" width="49%" alt="Theme Gallery on a dark theme">
