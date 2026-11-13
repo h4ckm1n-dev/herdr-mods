@@ -11,6 +11,8 @@ Turn off what you don't need and new sessions start lighter. Turn it back on and
 ./install.sh claude-manager
 ```
 
+<a href="https://github.com/Kai-Finds"><img alt="Maintained by Kai Finds" src="https://img.shields.io/badge/maintained%20by-Kai%20Finds-00E5FF?style=flat-square&labelColor=0B0F14"></a>
+
 <sub><a href="../README.md">All modules</a> · <a href="RECIPE.md">Recipe, to rebuild it with your agent</a></sub>
 
 </div>
@@ -59,6 +61,16 @@ Every write is atomic: a temporary file, then a rename. The previous file is kep
 - **Secrets stay out.** MCP rows show only the transport and the command's name or the URL's host,
   never `env`, headers or arguments.
 
+## Worth it, or skip it?
+
+**✅ Worth it if**
+- Claude Code loads dozens of skills, MCP servers or plugins and you want new sessions to start lighter
+- you want to switch things off without deleting them: back on, the settings file is byte for byte what it was
+
+**❌ Skip it if**
+- you rely on partial skill modes (`name-only`, `user-invocable-only`): an off and on brings them back plain
+- most of your skills come from plugins: they ignore `skillOverrides`, so you switch the plugin instead
+
 ## Install
 
 ```sh
@@ -87,3 +99,7 @@ python3 -I mods/claude-manager/tests/test_manage.py
 
 It switches every kind off and on in a throwaway `HOME` and checks the settings file comes back byte
 for byte, including hooks put back in a different order and a trashed linked skill.
+
+---
+
+<sub><b>Kai Finds</b> · Do more with AI · <a href="https://github.com/Kai-Finds">github.com/Kai-Finds</a> · <a href="https://kaifinds.sabaidev.la">kaifinds.sabaidev.la</a></sub>

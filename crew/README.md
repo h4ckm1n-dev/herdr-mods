@@ -11,6 +11,8 @@ Agents and spaces on the left, Files, Git and Cost on the right, quotas along th
 ./install.sh --all
 ```
 
+<a href="https://github.com/Kai-Finds"><img alt="Maintained by Kai Finds" src="https://img.shields.io/badge/maintained%20by-Kai%20Finds-00E5FF?style=flat-square&labelColor=0B0F14"></a>
+
 <sub><a href="../README.md">All modules</a> · <a href="RECIPE.md">Recipe, to rebuild it with your agent</a></sub>
 
 </div>
@@ -39,7 +41,7 @@ Agents and spaces on the left, Files, Git and Cost on the right, quotas along th
 | Spaces | `spaces-crew` | the other half |
 | Tab bar | `tabs-crew` | 42px |
 | Pane headers | `pane-crew` | 30px |
-| Side panel stack | `files-crew` · `git` · `cost` | 368px, 280–900, resizable |
+| Side panel stack | `files-crew` · `git` · `cost` | 368px, 280 to 900, resizable |
 | Bottom bar | `workspace-status-crew` · `claude-usage` | 28px |
 | Menus and dialogs | `menu-crew` · `new-menu-crew` · `worktree-crew` · `picker-crew` | overlays |
 
@@ -172,6 +174,16 @@ shortcuts drawn as keycaps.
 
 Coral is kept for a live Claude, so it always means "Claude is working right now".
 
+## Worth it, or skip it?
+
+**✅ Worth it if**
+- you run several Claude Code or Codex sessions and want them sorted by what they need from you
+- you want Files, Git and Cost one key away, and quotas always on screen
+
+**❌ Skip it if**
+- you prefer Herdr's default layout: the standalone modules work there too
+- you don't run Claude Code or Codex: the agent rows, Cost and the quota bar stay empty
+
 ## Install
 
 ```sh
@@ -206,3 +218,7 @@ while the Crew layout shows. ⌘J and ⌘P are global.
 - For Claude's quota meters: a Pro or Max plan, and the statusline wrapper the installer offers.
 - Neovim, to edit files from the Files panel (previews work without it).
 - `git` for the Git panel.
+
+---
+
+<sub><b>Kai Finds</b> · Do more with AI · <a href="https://github.com/Kai-Finds">github.com/Kai-Finds</a> · <a href="https://kaifinds.sabaidev.la">kaifinds.sabaidev.la</a></sub>

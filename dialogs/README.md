@@ -1,5 +1,7 @@
 # Centered Herdr dialogs, without rebuilding
 
+[![Maintained by Kai Finds](https://img.shields.io/badge/maintained%20by-Kai%20Finds-00E5FF?style=flat-square&labelColor=0B0F14)](https://github.com/Kai-Finds)
+
 Personal copies of the original Herdr 0.1.13 Settings, command palette,
 Add a machine and text prompt. The UI and actions are retained; each opens
 as a centered 1040×585 dialog (16:9) with a theme-accent outline.
@@ -16,6 +18,15 @@ personal dialogs and preserves requested Settings sections.
 The existing OhMyHerdr picker, Git action dialogs and worktree dialogs use
 the same geometry; the vendored kit gives its dialogs the accent outline.
 The original context menus retain their pointer placement.
+
+## Worth it, or skip it?
+
+**✅ Worth it if**
+- you want Herdr's Settings, palette, Add machine and prompt centered, without rebuilding Herdr
+
+**❌ Skip it if**
+- you run a Herdr newer than 0.1.13 and want its latest screens: these are copies of 0.1.13
+- you work in small windows or at high zoom: 1040×585 can clip
 
 ## Coverage boundary
 
@@ -42,3 +53,7 @@ Apache-2.0 license; see LICENSE. Test palette routing with:
 ```sh
 node dialogs/tests/palette.test.mjs
 ```
+
+---
+
+<sub><b>Kai Finds</b> · Do more with AI · <a href="https://github.com/Kai-Finds">github.com/Kai-Finds</a> · <a href="https://kaifinds.sabaidev.la">kaifinds.sabaidev.la</a></sub>

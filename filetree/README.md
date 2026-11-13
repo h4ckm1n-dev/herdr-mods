@@ -1,9 +1,21 @@
 # filetree
 
+[![Packaged by Kai Finds](https://img.shields.io/badge/packaged%20by-Kai%20Finds-00E5FF?style=flat-square&labelColor=0B0F14)](https://github.com/Kai-Finds)
+
 By [cybertron288](https://github.com/cybertron288/herdr-mods) (MIT, `mods/filetree/LICENSE`); a lightly modified copy.
 
 A file tree for the side panel of any Herdr layout. It follows the focused terminal's
 folder and shows git state and what Claude Code and Codex are reading and writing.
+
+## Worth it, or skip it?
+
+**✅ Worth it if**
+- you want to see which files Claude Code and Codex read and write, live in the tree
+- you want a file tree in any layout, not only Crew
+
+**❌ Skip it if**
+- you'd rather not add agent hooks: the activity view needs them and Bun (the rest works without)
+- Crew's Files panel already covers what you need
 
 ## Install
 
@@ -105,3 +117,7 @@ Review and trust the exact new definitions in Codex's `/hooks`, then start a new
   `view` is `tree` or `recent`).
 - Any mod can ask for a preview with the shared key `filetree.preview`
   (`{ root, rel, n }`).
+
+---
+
+<sub><b>Kai Finds</b> · Do more with AI · <a href="https://github.com/Kai-Finds">github.com/Kai-Finds</a> · <a href="https://kaifinds.sabaidev.la">kaifinds.sabaidev.la</a></sub>

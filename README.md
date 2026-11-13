@@ -6,11 +6,12 @@
 See every agent at once, jump to the one waiting on you, and know what today costs before the bill does.
 
 <p>
-<a href="LICENSE"><img alt="MIT licence" src="https://img.shields.io/badge/licence-MIT-3b82f6?style=flat-square"></a>
-<img alt="For the Herdr desktop app" src="https://img.shields.io/badge/Herdr-desktop%20app-111827?style=flat-square">
-<img alt="Claude Code" src="https://img.shields.io/badge/Claude%20Code-supported-D97757?style=flat-square">
-<img alt="Codex" src="https://img.shields.io/badge/Codex-supported-10a37f?style=flat-square">
-<img alt="Local only" src="https://img.shields.io/badge/data-local%20only-6b7280?style=flat-square">
+<a href="https://github.com/Kai-Finds"><img alt="Maintained by Kai Finds" src="https://img.shields.io/badge/maintained%20by-Kai%20Finds-00E5FF?style=flat-square&labelColor=0B0F14"></a>
+<a href="LICENSE"><img alt="MIT licence" src="https://img.shields.io/badge/licence-MIT-0891B2?style=flat-square&labelColor=0B0F14"></a>
+<img alt="For the Herdr desktop app" src="https://img.shields.io/badge/Herdr-desktop%20app-1F2A37?style=flat-square&labelColor=0B0F14">
+<img alt="Claude Code" src="https://img.shields.io/badge/Claude%20Code-supported-1F2A37?style=flat-square&labelColor=0B0F14">
+<img alt="Codex" src="https://img.shields.io/badge/Codex-supported-1F2A37?style=flat-square&labelColor=0B0F14">
+<img alt="Local only" src="https://img.shields.io/badge/data-local%20only-1F2A37?style=flat-square&labelColor=0B0F14">
 </p>
 
 <img src="docs/hero.png" width="100%" alt="The Herdr window in the Crew layout. On the left, the Agents list grouped into Needs you, Done and Working, and the Spaces list with a worktree nested under its checkout. In the middle, a Claude Code terminal working through a todo list. On the right, the Cost panel with today's spend against a budget, the last 7 days and the cost by model. Along the bottom, 2 working, 1 needs you, and the Codex and Claude 5h and 7d quotas.">
@@ -22,6 +23,7 @@ git clone https://github.com/Kai-Finds/OhMyHerdr && cd OhMyHerdr && ./install.sh
 <sub>One layout · 23 mods · one installer · MIT · nothing leaves your machine but what you ask `gh` for</sub>
 
 <p>
+<a href="#worth-it-or-skip-it">Worth it?</a> ·
 <a href="#whats-new">What's new</a> ·
 <a href="#the-tour">Tour</a> ·
 <a href="#install">Install</a> ·
@@ -36,10 +38,10 @@ git clone https://github.com/Kai-Finds/OhMyHerdr && cd OhMyHerdr && ./install.sh
 
 <br>
 
-## Why you want it
+## The problem
 
-Running several agents in plain terminals goes wrong in the same three ways. OhMyHerdr fixes each
-one in the window you already work in.
+Run several agents in plain terminals and the same three things break.
+OhMyHerdr fixes each one, in the window you already work in.
 
 | Without OhMyHerdr | With OhMyHerdr |
 |---|---|
@@ -47,22 +49,34 @@ one in the window you already work in.
 | You learn what a day of agents cost when the invoice lands. | The **Cost** panel prices every Claude Code and Codex session live: today, the last hour, 7 days, by model and by project. |
 | The 5-hour quota runs out halfway through a refactor. | The Codex and Claude **5h and 7d quotas** sit in the bottom bar: grey until 50%, amber after, red past 90%. |
 
+## Worth it, or skip it?
+
+**✅ Worth it if**
+- you run Claude Code and Codex side by side in the Herdr desktop app
+- you want the day's spend and your 5h / 7d quotas in sight, not in an invoice
+- you like keyboard-first panels: every panel and list has its own key
+
+**❌ Skip it if**
+- you don't use Herdr: every piece here is a Herdr mod
+- your agents run inside tmux: they may not report their status to Herdr
+- you want Claude quotas without a Pro or Max plan: Claude Code only exposes them on those plans
+
 <br>
 
 ## What's new
 
-**[Find files](fuzzy-files/)** — **⌘⇧F** searches filenames and paths in the
+**[Find files](fuzzy-files/)**: **⌘⇧F** searches filenames and paths in the
 active tab's folder with fuzzy matching, the matched letters lit and each file
 with its Files-panel icon. Enter opens the selection in a new Neovim tab in the
 same space, and `:q` closes that tab. PNG and JPEG open in an image tab instead.
 Install with `./install.sh fuzzy-files`.
 
-**[OhMyHerdr Mods](mod-manager/)** — press **⌘⇧M** for a centered dialog to
+**[OhMyHerdr Mods](mod-manager/)**: press **⌘⇧M** for a centered dialog to
 switch installed mods on or off, live. A mod turned off keeps its files; Crew
 mods fall back to Herdr's built-in equivalents when available.
 Install it with `./install.sh mod-manager`.
 
-**Images in a tab** — from Files or Find files, a PNG or JPEG opens in a Herdr
+**Images in a tab**: from Files or Find files, a PNG or JPEG opens in a Herdr
 tab drawn with kitty graphics, centered and never upscaled. `:q`, `q` or Esc
 closes the tab. JPEG goes through macOS `sips`.
 
@@ -582,8 +596,18 @@ one copy, then copy it to the others.
 
 <div align="center">
 
-If OhMyHerdr keeps your agents in sight, a ⭐ helps other Herdr users find it.
+Bookmark this one. A ⭐ also helps other Herdr users find it.
 
 <sub>MIT © 2026 <a href="https://github.com/h4ckm1n-dev">h4ckm1n-dev</a>, except <code>dialogs/</code> and <code>native/</code> (Apache-2.0, derived from Herdr) · the Git module builds on <a href="https://github.com/rabeeh-ta/herdr-git-graph">herdr-git-graph</a> by Rabeeh T A · file icons from <a href="https://github.com/cybertron288/herdr-mods">cybertron288/herdr-mods</a> and Material Icon Theme · line icons from Lucide · window opacity from cunderw's <a href="https://github.com/herdrdev/herdr-app/pull/191">herdr-app #191</a> · screenshots use demo projects · not affiliated with Herdr</sub>
+
+</div>
+
+---
+
+<div align="center">
+
+<sub><b>Kai Finds</b> · Do more with AI · The AI tools that turn one person into a team.<br>
+Sourced. No hype. Every claim here points to something you can check.<br>
+<a href="https://kaifinds.sabaidev.la">kaifinds.sabaidev.la</a> · <a href="https://www.threads.com/@kaifinds.ai">Threads</a> · <a href="https://www.facebook.com/122105394627540019">Facebook</a> · <a href="https://github.com/Kai-Finds">All repos</a></sub>
 
 </div>

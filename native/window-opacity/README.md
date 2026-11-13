@@ -1,7 +1,18 @@
 # Build Herdr with window opacity and blur
 
+[![Maintained by Kai Finds](https://img.shields.io/badge/maintained%20by-Kai%20Finds-00E5FF?style=flat-square&labelColor=0B0F14)](https://github.com/Kai-Finds)
+
 The patch is based on cunderw's [herdr-app #191](https://github.com/herdrdev/herdr-app/pull/191)
 (`window_opacity` / `window_blur`), Apache-2.0 like Herdr; it changes Herdr's files.
+
+## Worth it, or skip it?
+
+**✅ Worth it if**
+- you want a translucent, blurred Herdr window and don't mind building it yourself
+
+**❌ Skip it if**
+- you want the official signed, notarized Herdr that updates itself
+- you don't have Rust, Zig 0.16.0, the Xcode Command Line Tools and some spare disk space and time
 
 Run this on your own Mac from the OhMyHerdr checkout:
 
@@ -67,3 +78,7 @@ Builder smoke tests (mocked compilation and signing):
 ```sh
 python3 -m unittest discover -s native/window-opacity/tests
 ```
+
+---
+
+<sub><b>Kai Finds</b> · Do more with AI · <a href="https://github.com/Kai-Finds">github.com/Kai-Finds</a> · <a href="https://kaifinds.sabaidev.la">kaifinds.sabaidev.la</a></sub>

@@ -11,6 +11,8 @@ Stage files or single hunks, commit, pull and push, switch branches and stash, w
 ./install.sh git
 ```
 
+<a href="https://github.com/Kai-Finds"><img alt="Maintained by Kai Finds" src="https://img.shields.io/badge/maintained%20by-Kai%20Finds-00E5FF?style=flat-square&labelColor=0B0F14"></a>
+
 <sub><a href="../README.md">All modules</a> · <a href="RECIPE.md">Recipe, to rebuild it with your agent</a></sub>
 
 </div>
@@ -49,6 +51,16 @@ Stage files or single hunks, commit, pull and push, switch branches and stash, w
 - **No polling.** It reads git when the repo changes on disk, when you change focus, space or tab,
   and after its own actions.
 
+## Worth it, or skip it?
+
+**✅ Worth it if**
+- your loop is stage, commit, sync, repeat, and you want it next to the terminal
+- you keep a folder of repos and want their sync state in one list
+
+**❌ Skip it if**
+- you need line-level staging, amend, blame or file history: not built yet
+- you resolve conflicts in a dedicated tool: here it stops at Continue and Abort
+
 ## Install
 
 ```sh
@@ -79,3 +91,7 @@ commit search.
 
 Forked from [rabeeh-ta/herdr-git-graph](https://github.com/rabeeh-ta/herdr-git-graph) (MIT). Icons
 from [Lucide](https://lucide.dev) (ISC).
+
+---
+
+<sub><b>Kai Finds</b> · Do more with AI · <a href="https://github.com/Kai-Finds">github.com/Kai-Finds</a> · <a href="https://kaifinds.sabaidev.la">kaifinds.sabaidev.la</a></sub>

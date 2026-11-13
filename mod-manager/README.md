@@ -1,6 +1,17 @@
 # OhMyHerdr Mods
 
+[![Maintained by Kai Finds](https://img.shields.io/badge/maintained%20by-Kai%20Finds-00E5FF?style=flat-square&labelColor=0B0F14)](https://github.com/Kai-Finds)
+
 A centered native dialog to enable or disable installed OhMyHerdr mods.
+
+## Worth it, or skip it?
+
+**✅ Worth it if**
+- you want to switch mods off and on live, without uninstalling them
+
+**❌ Skip it if**
+- you want to install mods from a dialog: this one doesn't install
+- you tend to reinstall a mod while it's off: the manager then refuses to swap it back until you sort out the two copies
 
 Install with `./install.sh mod-manager`, then open with **⌘⇧M** or
 `herdr-app do mod.open '{"name":"mod-manager"}'`.
@@ -25,3 +36,7 @@ Mods already open may keep their current view until Herdr reloads it.
 
 Checks: `python3 -m unittest discover -s mod-manager/mods/mod-manager/tests`
 and `herdr-app check mod-manager/mods/mod-manager`.
+
+---
+
+<sub><b>Kai Finds</b> · Do more with AI · <a href="https://github.com/Kai-Finds">github.com/Kai-Finds</a> · <a href="https://kaifinds.sabaidev.la">kaifinds.sabaidev.la</a></sub>
