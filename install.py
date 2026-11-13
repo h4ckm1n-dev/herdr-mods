@@ -63,6 +63,11 @@ if "--list" in args:
 
 if "--all" in args:
     chosen, want_layout = list(ALL), True
+elif "--update" in args:
+    # only what is already here (a disabled mod counts: it is skipped below, with a word)
+    chosen = [n for n in NAMES if any(os.path.isdir(os.path.join(APP, d, n)) for d in ("mods", "disabled-mods"))]
+    if not chosen: sys.exit("Nothing from OhMyHerdr is installed yet: run ./install.sh to pick")
+    want_layout = any(os.path.exists(os.path.join(APP, "layouts", f"{n}.json")) for n in (LAYOUT_NAME, OLD_LAYOUT))
 elif args:
     bad = [a for a in args if a not in NAMES]
     if bad: sys.exit(f"Unknown mod: {', '.join(bad)} (see --list)")
@@ -92,9 +97,11 @@ if want_layout:
     if extra: print(f"The {LAYOUT_NAME} layout also needs: {', '.join(extra)}"); chosen += extra
 
 # ---- copy mods ----------------------------------------------------------------------
+# A disabled mod's folder is a stand-in (the original waits in disabled-mods): leave both alone.
 disabled = [m for m in chosen if os.path.exists(os.path.join(APP, "disabled-mods", m))]
 if disabled:
-    sys.exit(f"Enable disabled mods in OhMyHerdr Mods before updating them: {', '.join(disabled)}")
+    print(f"  ! skipped, disabled in OhMyHerdr Mods (enable them, then run again): {', '.join(disabled)}")
+    chosen = [m for m in chosen if m not in disabled]
 ign = shutil.ignore_patterns("__pycache__", "*.pyc", ".DS_Store")
 for m in chosen:
     src, dst = SRC[m], os.path.join(APP, "mods", m)
@@ -186,5 +193,7 @@ if "claude-usage" in chosen and os.path.isdir(CLAUDE):
 if shutil.which("herdr-app"):
     bad = [m for m in chosen if subprocess.run(["herdr-app", "check", os.path.join(APP, "mods", m)], capture_output=True).returncode]
     print(f"\nherdr-app check: {'failed for ' + ', '.join(bad) if bad else 'all passed'}")
+else: bad = []
 if os.path.isdir(BACKUP): print(f"Replaced files saved in {BACKUP}")
+if bad: sys.exit(f"Installed, but herdr-app check failed for {', '.join(bad)}: run `herdr-app check <home>/mods/<mod>` to see why")
 print("Done. Herdr reloads mods live.")

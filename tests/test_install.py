@@ -40,6 +40,17 @@ class Migration(unittest.TestCase):
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
         return r.stdout
 
+    def test_update_touches_only_what_is_installed_and_skips_disabled(self):
+        self.install("help-crew", "picker-crew")
+        (self.home / "disabled-mods/picker-crew").mkdir(parents=True)  # as OhMyHerdr Mods leaves it
+        (self.home / "mods/help-crew/main.js").write_text("stale")
+        (self.home / "mods/picker-crew/main.js").write_text("stand-in")
+        out = self.install("--update")
+        self.assertIn("~ help-crew", out)
+        self.assertIn("skipped", out)
+        self.assertEqual((self.home / "mods/picker-crew/main.js").read_text(), "stand-in")
+        self.assertEqual(sorted(p.name for p in (self.home / "mods").iterdir()), ["help-crew", "picker-crew"])
+
     def read(self, name):
         return json.loads((self.home / name).read_text())
 

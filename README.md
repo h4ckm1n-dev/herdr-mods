@@ -269,7 +269,7 @@ Every Claude Code **skill, command, agent, MCP server, hook and plugin** in one 
 - Turn any of them off with a click, and back on: the file returns byte for byte to what it was.
 - It writes only Claude Code's own switches (`skillOverrides`, `permissions.deny`, `enabledPlugins`
   and the like), atomically and with a backup.
-- <kbd>⌘</kbd><kbd>⌫</kbd> twice moves a skill, command or agent to the Trash.
+- <kbd>⌘</kbd><kbd>⌫</kbd> twice moves a skill or agent to the Trash.
 
 The full guide is in **[claude-manager/](claude-manager/)**.
 
@@ -319,6 +319,7 @@ existing installer; replacing the installed app bundle remains a manual step.
 | `./install.sh` | Pick from a numbered list |
 | `./install.sh git claude-manager` | Install just these |
 | `./install.sh --all` | Everything but the opt-in dialogs, with the Crew layout |
+| `./install.sh --update` | Update what you already installed, nothing new |
 | `./install.sh --list` | What's available |
 | `-y` | Answer yes to every question |
 
@@ -329,9 +330,10 @@ The installer:
 3. merges the keybinds, and **asks before rebinding a key you already use**;
 4. offers to wire [Claude quotas](#claude-quotas) into your Claude Code statusline;
 5. **backs up whatever it replaces** to `~/.config/herdr-app/backup/<time>/`;
-6. checks every mod it installed with `herdr-app check`.
+6. checks every mod it installed with `herdr-app check`, and exits non-zero when one fails.
 
-**Update:** `git pull && ./install.sh`. Mods that haven't changed are left alone.
+**Update:** `git pull && ./install.sh --update`. Only the mods you already have are touched, and those that
+haven't changed are left alone. A mod you turned off in OhMyHerdr Mods is skipped: turn it on, then update.
 
 **Remove:** delete the mod's folder from `~/.config/herdr-app/mods/`, or restore it from `backup/`.
 If you remove `claude-usage` after wiring Claude quotas, put back the `settings.json.bak-<time>` the
