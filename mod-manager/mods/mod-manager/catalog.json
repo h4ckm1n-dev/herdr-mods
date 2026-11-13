@@ -26,7 +26,8 @@
   },
   {
     "id": "claude-usage",
-    "desc": "Bottom bar: Codex and Claude Code 5h / 7d quotas, side by side"
+    "desc": "Bottom bar: Codex and Claude Code 5h / 7d quotas, side by side",
+    "keep": ["statusline.py"]
   },
   {
     "id": "pane-crew",

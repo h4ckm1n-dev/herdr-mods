@@ -11,7 +11,9 @@ Disabling moves the original folder to `<Herdr home>/disabled-mods/<name>`.
 Crew replacements use a copy of the installed native Herdr equivalent;
 other mods show a disabled placeholder that opens this manager.
 This stops the original mod from loading without changing layouts, shortcuts,
-settings or terminal sessions. Enabling restores the original folder.
+settings or terminal sessions. Files another program runs from the folder stay
+in place (catalog `keep`): with claude-usage off, Claude Code's statusline still
+works. Enabling restores the original folder.
 The list covers the installer catalog plus Filetree and CI Dash; uninstalled
 mods are shown but cannot be switched. This dialog does not install mods.
 

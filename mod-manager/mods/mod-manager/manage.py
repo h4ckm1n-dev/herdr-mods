@@ -82,6 +82,11 @@ def toggle(home, catalog, name, enabled):
                 '.accessibility_label("Mod disabled. Open OhMyHerdr Mods")'
                 '.on_click(() => run("mod.open", {name:"mod-manager"}))'
                 '.child("Mod disabled · OhMyHerdr Mods"); } }\n')
+        # "keep": files something outside Herdr runs from the mod's folder (Claude Code's statusline
+        # wrapper), so they stay in place while the mod is off
+        for f in entry.get("keep", []):
+            if (target / f).is_file():
+                shutil.copy2(target / f, stage / f)
         (stage / MARK).write_text(json.dumps(digest(stage)))
         target.rename(saved)
         try:

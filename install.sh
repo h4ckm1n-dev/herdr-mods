@@ -2,7 +2,7 @@
 # Install Herdr mods from this repo into your Herdr home.
 #   ./install.sh                 pick interactively
 #   ./install.sh git help-crew   install these
-#   ./install.sh --all           everything, with the crew layout
+#   ./install.sh --all           everything but the opt-in dialogs, with the crew layout
 #   ./install.sh --list          list the mods
 #   -y                           answer yes to every question
 # Mods are COPIED, not symlinked: Herdr hot-reloads only files under its own home

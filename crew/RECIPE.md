@@ -43,7 +43,8 @@ A row filling the window, with no system title bar (traffic lights at 12,16) on 
      keycap, 30px menu items with shortcuts drawn as keycaps. This covers the tab and terminal
      context menus, the new tab menu, the worktree dialogs, and the ⌘P go-to-tab picker (16:9,
      1040×585). Dialog outlines use the theme accent color. Crew’s Settings and Add machine
-     menu entries use `settings-crew` and `machine-add-crew` from the `dialogs` pack.
+     footer entries open `settings-crew` and `machine-add-crew` from the opt-in `dialogs` pack when
+     they are installed and on, and Herdr’s own `app.settings` / `machine-add` otherwise.
 
 ## How it behaves
 

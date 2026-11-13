@@ -103,7 +103,7 @@ about 200 ms and the other list takes the room. Agents folds up, Spaces folds do
 
 ## The tour
 
-OhMyHerdr is two things. **[Crew](crew/)** is the window itself: one layout and 13 mods for the
+OhMyHerdr is two things. **[Crew](crew/)** is the window itself: one layout and 14 mods for the
 sidebar, tab bar, pane headers, side panels, bottom bar, menus and dialogs. **Standalone
 modules** ([Claude Manager](claude-manager/), [Git](git/), [Theme Gallery](theme-gallery/),
 [Keybinds](help-crew/), [Find files](fuzzy-files/), [OhMyHerdr Mods](mod-manager/) and the
@@ -277,8 +277,17 @@ See **[help-crew/](help-crew/)**.
 
 ```sh
 git clone https://github.com/Kai-Finds/OhMyHerdr && cd OhMyHerdr
-./install.sh --all                    # everything, with the Crew layout
+./install.sh --all                    # everything but the opt-in dialogs, with the Crew layout
 ```
+
+`--all` leaves out the [centered dialogs](dialogs/): they replace Herdr's own Settings,
+command palette, Add machine and prompt with copies of Herdr 0.1.13, so they're opt-in.
+Add them by name: `./install.sh settings-crew palette-crew machine-add-crew prompt-crew`.
+
+**Upgrading from the first release:** `--all` used to install those dialogs. To give Herdr its
+own screens back, delete `settings-crew`, `palette-crew`, `machine-add-crew` and `prompt-crew`
+from `~/.config/herdr-app/mods/` and the `cmd-,` / `cmd-shift-p` lines from `keys.json`. If
+claude-usage was off in OhMyHerdr Mods, turn it on and off once so your statusline works again.
 
 Then pick **crew** in **Settings › Layout**.
 
@@ -292,7 +301,7 @@ existing installer; replacing the installed app bundle remains a manual step.
 |---|---|
 | `./install.sh` | Pick from a numbered list |
 | `./install.sh git claude-manager` | Install just these |
-| `./install.sh --all` | Everything, with the Crew layout |
+| `./install.sh --all` | Everything but the opt-in dialogs, with the Crew layout |
 | `./install.sh --list` | What's available |
 | `-y` | Answer yes to every question |
 
@@ -393,7 +402,7 @@ old one is kept in `backup/`.
 | Crew | ✓ | ✓ | for the Git panel | for agents, Cost, quotas | Neovim, to edit files from the Files panel; macOS `sips` for JPEG |
 | Find files | ✓ | ✓ | to respect Git ignore rules | | Neovim; Crew's Files panel for file icons; macOS `sips` for JPEG |
 | OhMyHerdr Mods | ✓ | ✓ | | | |
-| Centered dialogs | ✓ | | | | copies of Herdr 0.1.13's own Settings and palette: may lag a newer Herdr |
+| Centered dialogs | ✓ | | | | opt-in, not in `--all`: copies of Herdr 0.1.13's own screens, may lag a newer Herdr |
 | CI runs | ✓ | | | | GitHub CLI, logged in (`gh auth login`) |
 | filetree | ✓ | | for git state | | cybertron288's file-icons mod |
 | Claude Manager | ✓ | ✓ | | Claude Code | `/usr/bin/trash` (recent macOS) for Move to Trash |
@@ -540,7 +549,7 @@ OhMyHerdr/
 ├── install.sh           the installer (runs install.py)
 ├── mods.tsv             the catalogue the installer lists
 ├── docs/                images for this page
-├── crew/                the Crew layout and its 13 mods
+├── crew/                the Crew layout and its 14 mods
 ├── claude-manager/      README.md · RECIPE.md · keys.json · mods/claude-manager
 ├── git/                 README.md · RECIPE.md · docs/ · mods/git
 ├── theme-gallery/       README.md · RECIPE.md · keys.json · mods/theme-gallery

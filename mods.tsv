@@ -17,8 +17,8 @@ theme-gallery	-	Every Ghostty theme with live preview, cmd-shift-T
 help-crew	-	Keybinds dialog in two columns with keycaps, cmd-/
 claude-manager	-	Claude Code skills, commands, agents, MCP servers, hooks and plugins on or off, cmd-shift-K
 mod-manager	-	OhMyHerdr mods on or off in a centered dialog, cmd-shift-M
-settings-crew	-	Original Herdr Settings in a centered 16:9 dialog
-palette-crew	-	Original Herdr command palette in a centered 16:9 dialog
-machine-add-crew	-	Original Add a machine in a centered 16:9 dialog
-prompt-crew	-	Original text prompt in a centered 16:9 dialog
+settings-crew	opt-in	Original Herdr Settings in a centered 16:9 dialog
+palette-crew	opt-in	Original Herdr command palette in a centered 16:9 dialog
+machine-add-crew	opt-in	Original Add a machine in a centered 16:9 dialog
+prompt-crew	opt-in	Original text prompt in a centered 16:9 dialog
 fuzzy-files	-	Fuzzy file finder in the active tab folder, open in a new Neovim tab, cmd-shift-F

@@ -52,12 +52,15 @@ def same_tree(a, b):
     return ok(c)
 
 # ---- what to install --------------------------------------------------------------
+# opt-in: copies of Herdr's own screens (Settings, palette...) that take over its keys; never part of "all"
+ALL = [n for n, needs, _ in CAT if needs != "opt-in"]
+NOTE = {"layout": "  (crew layout)", "opt-in": "  (opt-in: replaces Herdr's own)"}
 if "--list" in args:
-    for name, needs, desc in CAT: print(f"  {name:<22} {desc}{'  (crew layout)' if needs == 'layout' else ''}")
+    for name, needs, desc in CAT: print(f"  {name:<22} {desc}{NOTE.get(needs, '')}")
     sys.exit(0)
 
 if "--all" in args:
-    chosen, want_layout = list(NAMES), True
+    chosen, want_layout = list(ALL), True
 elif args:
     bad = [a for a in args if a not in NAMES]
     if bad: sys.exit(f"Unknown mod: {', '.join(bad)} (see --list)")
@@ -65,11 +68,11 @@ elif args:
 else:
     print(f"Herdr mods -> {APP}\n")
     for i, (name, needs, desc) in enumerate(CAT, 1):
-        print(f"  {i:>2}  {name:<22} {desc}{'  (crew layout)' if needs == 'layout' else ''}")
-    print("\nNumbers or names separated by spaces, 'all', or Enter for all.")
+        print(f"  {i:>2}  {name:<22} {desc}{NOTE.get(needs, '')}")
+    print("\nNumbers or names separated by spaces, 'all', or Enter for all (opt-in ones only by name or number).")
     raw = input("Install: ").strip() if sys.stdin.isatty() else "all"
     if raw in ("", "all"):
-        chosen, want_layout = list(NAMES), None
+        chosen, want_layout = list(ALL), None
     else:
         chosen = []
         for tok in raw.replace(",", " ").split():

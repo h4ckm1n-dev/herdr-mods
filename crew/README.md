@@ -4,7 +4,7 @@
 
 <br>
 
-**One layout and 13 mods that rebuild the Herdr window around your coding agents.**<br>
+**One layout and 14 mods that rebuild the Herdr window around your coding agents.**<br>
 Agents and spaces on the left, Files, Git and Cost on the right, quotas along the bottom. Each piece also works alone.
 
 ```sh

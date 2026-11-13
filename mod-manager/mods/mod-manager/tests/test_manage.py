@@ -56,6 +56,20 @@ class SwitchTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             manage.toggle(self.home, CAT, "cost", False)
 
+    def test_kept_files_stay_runnable_while_off(self):
+        cat = CAT + [{"id": "claude-usage", "desc": "Quotas", "keep": ["statusline.py"]}]
+        folder = self.home / "mods/claude-usage"
+        folder.mkdir()
+        (folder / "main.js").write_text("usage")
+        (folder / "statusline.py").write_text("print('wrapped')")
+        manage.toggle(self.home, cat, "claude-usage", False)
+        self.assertIn("class Disabled", (folder / "main.js").read_text())
+        out = subprocess.run([sys.executable, "-I", str(folder / "statusline.py")], capture_output=True, text=True)
+        self.assertEqual(out.stdout.strip(), "wrapped")  # Claude Code's statusline keeps working
+        manage.toggle(self.home, cat, "claude-usage", True)
+        self.assertEqual((folder / "main.js").read_text(), "usage")
+        self.assertFalse((folder / manage.MARK).exists())
+
     def test_failed_swap_restores_original(self):
         rename = Path.rename
 

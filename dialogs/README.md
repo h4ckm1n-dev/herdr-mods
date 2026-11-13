@@ -5,8 +5,10 @@ Add a machine and text prompt. The UI and actions are retained; each opens
 as a centered 1040×585 dialog (16:9) with a theme-accent outline.
 Settings and the palette scroll within the fixed height.
 
-Install `settings-crew palette-crew machine-add-crew prompt-crew` using the
-repository installer. With Crew installed, its menu opens these copies;
+Install `settings-crew palette-crew machine-add-crew prompt-crew` by name with the
+repository installer: `--all` leaves them out, since they take over Herdr's own
+screens and keys. Once installed and on, Crew's sidebar footer opens these copies
+(Herdr's own otherwise);
 ⌘, opens Settings and ⌘⇧P opens the palette. The installer asks before
 replacing conflicting keybindings. The palette routes Settings/Help to the
 personal dialogs and preserves requested Settings sections.
