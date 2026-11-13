@@ -3,7 +3,7 @@ agents-crew	layout	Agents sidebar: Claude and Codex sessions, sub-agents, progre
 spaces-crew	layout	Spaces sidebar: colored avatars, worktrees under their checkout
 workspace-chrome-crew	layout	Sidebar brand row and footer (Settings, Add machine)
 tabs-crew	layout	Tab bar with panel buttons (Files, Graph, Cost) and the waiting-agent key
-workspace-status-crew	layout	Bottom bar: machine, branch, working agents, Commands key
+workspace-status-crew	layout	Bottom bar: machine, branch, working agents
 claude-usage	layout	Bottom bar: Codex and Claude Code 5h / 7d quotas, side by side
 pane-crew	layout	Pane header for the crew layout
 files-crew	layout	Files panel: lazy browser of the focused pane's folder, read-only previews
@@ -16,3 +16,9 @@ picker-crew	-	Go-to-tab picker, cmd-P
 theme-gallery	-	Every Ghostty theme with live preview, cmd-shift-T
 help-crew	-	Keybinds dialog in two columns with keycaps, cmd-/
 claude-manager	-	Claude Code skills, commands, agents, MCP servers, hooks and plugins on or off, cmd-shift-K
+mod-manager	-	OhMyHerdr mods on or off in a centered dialog, cmd-shift-M
+settings-crew	-	Original Herdr Settings in a centered 16:9 dialog
+palette-crew	-	Original Herdr command palette in a centered 16:9 dialog
+machine-add-crew	-	Original Add a machine in a centered 16:9 dialog
+prompt-crew	-	Original text prompt in a centered 16:9 dialog
+fuzzy-files	-	Fuzzy file finder in the active tab folder, open in a new Neovim tab, cmd-shift-F

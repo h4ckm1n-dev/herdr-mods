@@ -34,7 +34,6 @@ A row filling the window, with no system title bar (traffic lights at 12,16) on 
    - **Bottom bar**, 28px, `chrome`, 1px top border, 11px `muted` type:
      - On the left: a monitor or server icon with the machine, the branch as a tag, then
        `n working` with a spinner and `n needs you` with a `blocked` dot, or just `n agents`.
-       After that, a `Commands ⌘⇧P` button.
      - On the right, a 420px block of quotas, right-aligned: for each tool with data, `5h` and a
        28px bar with the percent, then `7d` the same. With one tool, the time to reset follows each
        percent. With Codex and Claude both, Codex first, each group starts with a 12px line glyph in the tool's color
@@ -43,7 +42,8 @@ A row filling the window, with no system title bar (traffic lights at 12,16) on 
    - **Dialogs and menus** share one look: `popover` background, a 42px header with an `Esc`
      keycap, 30px menu items with shortcuts drawn as keycaps. This covers the tab and terminal
      context menus, the new tab menu, the worktree dialogs, and the ⌘P go-to-tab picker (16:9,
-     1040×585).
+     1040×585). Dialog outlines use the theme accent color. Crew’s Settings and Add machine
+     menu entries use `settings-crew` and `machine-add-crew` from the `dialogs` pack.
 
 ## How it behaves
 
@@ -93,6 +93,8 @@ A row filling the window, with no system title bar (traffic lights at 12,16) on 
   drift.
 - **Drop typings:** `gpui-kit.d.ts` is editor typing only; leave it out of copies.
 - **Ops slot:** tabs-crew shows an Ops button only when the layout has an `ops` block (none here).
+- **CI slot:** tabs-crew shows a CI runs button beside Git when the layout has a `ci` block pointing to `ci-dash` with `panel: true` (install separately).
+- **File icons:** files-crew bundles the `file-icons` mod's Material Icon Theme assets and generated lookup tables. Keep its MIT licence; use full-color images, light variants, open-folder icons and longest-extension matching. Preserve Crew's keyboard and Neovim actions.
 
 ## Done when
 
@@ -102,3 +104,22 @@ A row filling the window, with no system title bar (traffic lights at 12,16) on 
   `1 working`.
 - ⌘G opens the git graph in the side panel, and ⌘G again closes it.
 - `herdr-app shot` shows the bottom bar's 5h / 7d meters when the statusline cache exists.
+
+### Codex reader checks
+
+Session readers honor `CODEX_SESSIONS`, then `$CODEX_HOME/sessions`, then `~/.codex/sessions`
+([OpenAI configuration](https://developers.openai.com/codex/config-advanced)).
+Agent matching must never mark a subagent/approval-review rollout as an exact terminal match.
+Subagent `MESSAGE` records refresh activity; only `FINAL_ANSWER` records mark completion.
+Map Codex `update_plan` snapshots to the same `usage.todos` shape as Claude's todos, so
+the shared renderer supplies the fold, counts, task glyphs and overall progress bar.
+Keep plan updates out of the activity line. Recover plans before the 512KB tail within
+the existing 8MB lookback; older plans beyond that bound are unavailable.
+Use recorded tool titles/descriptions for readable activity labels, including CUA `js` calls.
+Read model names from `turn_context` as well as `thread_settings_applied`, including before long tails.
+Recognize textual and JSON exit codes. Exclude `guardian_review` sessions from estimated spend.
+Quota selection uses report timestamps across five recently touched rollouts; missing windows stay hidden.
+
+Run `python3 -I crew/mods/agents-crew/tests/test_codex.py`,
+`python3 -I crew/mods/claude-usage/tests/test_limits.py`, and
+`python3 -I crew/mods/cost/tests/test_cost.py` from the repository root.

@@ -1,6 +1,6 @@
-import { View, div, image, svg } from "gpui-kit";
+import { View, div, svg } from "gpui-kit";
 import { h_flex, v_flex } from "gpui-base";
-import { theme, run, props, window, shared, setShared, updates, layout } from "herdr";
+import { theme, run, props, window, shared, setShared, updates, layout, exec, appHome, notify } from "herdr";
 import { SIZE, dot, iconButton } from "./kit.js";
 
 function find(node, id) {
@@ -28,6 +28,19 @@ function toggleSidebar() {
 const OWN = (name) => `mods/workspace-chrome-crew/${name}.svg`;
 
 export default class WorkspaceChrome extends View {
+  init(_props, cx) {
+    this.outlines = Boolean(props()?.footer);
+    if (this.outlines) setShared("ohmyherdr.peek", null);
+    if (this.outlines) cx.spawn(async () => {
+      const r = await exec("python3", [appHome() + "/mods/workspace-chrome-crew/dialog_outlines.py", appHome()]);
+      if (r.code !== 0) notify({ title: "Dialog outlines could not be applied", body: r.stderr, level: "error" });
+    });
+  }
+
+  close() {
+    if (this.outlines) return exec("python3", [appHome() + "/mods/workspace-chrome-crew/dialog_outlines.py", appHome(), "restore"]);
+  }
+
   render() {
     const t = theme();
     const collapsed = narrow();
@@ -44,16 +57,14 @@ export default class WorkspaceChrome extends View {
       const ready = Boolean(updates().app.ready);
       return v_flex().id("sidebar-footer").size_full().bg(t.chrome).border_t(1).border_color(t.border).px(8).pt(4).pb(8).text_size(SIZE.title)
         // An update waiting: the accent dot, explained on hover.
-        .child(row("settings", "settings", "Settings", false, () => run("app.settings"))
+        .child(row("settings", "settings", "Settings", false, () => run("mod.open", { name: "settings-crew" }))
           .when(ready, el => el.child(div().id("update-ready").flex_none().tooltip("Update ready").child(dot(t.accent, 6)))))
-        .child(row("machine", "plus", "Add machine", true, () => run("mod.open", { name: "machine-add" })));
+        .child(row("machine", "plus", "Add machine", true, () => run("mod.open", { name: "machine-add-crew" })));
     }
-    // Brand bar: logo + 13px semibold name, then the kit's 26px icon buttons (tooltips included).
+    // Brand bar: no logo or name, just the kit's 26px icon buttons (tooltips included).
     return h_flex().id("brand").size_full().bg(t.chrome).pl(collapsed ? 6 : 14).pr(10).gap(4).items_center().text_size(SIZE.title)
       .when(window()?.platform === "macos" && !window()?.fullscreen && !collapsed, el => el.pl(76))
-      .when(!collapsed, el => el.child(h_flex().flex_1().min_w(0).gap(8).items_center()
-        .child(image("frame/welcome/herdr.png").size(20).rounded(4))
-        .child(div().font_semibold().text_color(t.foreground).child("Herdr"))))
+      .when(!collapsed, el => el.child(div().flex_1()))
       .when(!collapsed, el => el.child(iconButton(t, "search", OWN("search"), () => run("mod.open", { name: "picker" }), { tip: "Search" })))
       // On the macOS rail the traffic lights fill the row; the agents list's button unfolds it.
       .when(!(collapsed && window()?.platform === "macos"), el => el.child(iconButton(t, "sidebar-toggle", OWN("sidebar"), toggleSidebar, { tip: collapsed ? "Expand sidebar" : "Collapse sidebar" })));

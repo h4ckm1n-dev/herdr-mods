@@ -12,13 +12,19 @@
 //   footer   px 12, py 8, border-top
 import { div, svg } from "gpui-kit";
 import { v_flex, h_flex } from "gpui-base";
-import { focused, run, shared, setShared } from "herdr";
+import { focused, run, shared, setShared, layout } from "herdr";
 
 export const CORAL = "#D97757"; // Claude's brand: live Claude states only, never decoration
 export const ICON = (name) => `mods/workspace-chrome/${name}.svg`; // shipped icon set, kept by Herdr
 
 // Type scale and spacing. Nothing else: 4/8/12/16 rhythm, 13/12/11/10.5 text.
 export const SIZE = { title: 13, body: 12, meta: 11, micro: 10.5 };
+// A bottom-bar band's width, so bands sit 12 px either side of their hairline instead of in leftover space.
+// figs: ["text"] or [label, value]. Anatomy: pl 12, 12 px glyph, each figure after an 8 gap, 8 + 4 then the 1 px hairline.
+// ponytail: assumes a monospace UI font (0.6 em advance, Cousine); a proportional one leaves a few px of slack.
+export const bandPx = (figs) => Math.ceil(12 + 12 + 13 + figs.reduce((w, f) => w + 8 + (Array.isArray(f)
+  ? String(f[0]).length * 0.6 * SIZE.micro + 4 + String(f[1]).length * 0.6 * SIZE.meta
+  : String(f).length * 0.6 * SIZE.meta), 0));
 
 // ---- status ---------------------------------------------------------------------------------
 /** The dot color for an agent / tab / space status (working draws a spinner instead). */
@@ -45,17 +51,54 @@ export const surfaceless = (t, id) => v_flex().id(id).size_full().min_h(0).bg(t.
  * Panel header: [glyph] Title [count] ............ [status].
  * glyph: an element (mascot, svg) or null; count: string for the bordered pill; status: element or string.
  */
-export function header(t, { glyph, title, count, status, actions = [], rule = true, dense = false }) {
+export function header(t, { glyph, title, count, status, actions = [], rule = true, dense = false, onClick }) {
   // rule: false on chrome sidebars (the list is the edge; a rule per list would stripe it).
   // dense: gap 6 and pr 10 under a trailing 26px icon button, so ~220px sidebars still fit.
-  return h_flex().h(42).flex_none().pl(16).pr(dense && actions.length ? 10 : 16).gap(dense ? 6 : 8).items_center()
+  // onClick: the whole header but its actions is the target (a sidebar section folds this way).
+  const gap = dense ? 6 : 8;
+  return h_flex().h(42).flex_none().pl(16).pr(dense && actions.length ? 10 : 16).gap(gap).items_center()
     .when(rule, (el) => el.border_b(1).border_color(t.border))
-    .when(Boolean(glyph), (el) => el.child(glyph))
-    .child(div().flex_none().font_semibold().child(title))
-    .when(count != null && count !== "", (el) => el.child(tag(t, count)))
-    .child(div().flex_1().min_w(0))
-    .when(Boolean(status), (el) => el.child(typeof status === "string" ? div().flex_none().text_size(SIZE.meta).text_color(t.dim).child(status) : status))
+    .child(h_flex().flex_1().min_w(0).h_full().gap(gap).items_center()
+      .when(Boolean(onClick), (el) => el.id(`hdr-${title}`).cursor_pointer().on_click(onClick))
+      .when(Boolean(glyph), (el) => el.child(glyph))
+      .child(div().flex_none().font_semibold().child(title))
+      .when(count != null && count !== "", (el) => el.child(tag(t, count)))
+      .child(div().flex_1().min_w(0))
+      .when(Boolean(status), (el) => el.child(typeof status === "string" ? div().flex_none().text_size(SIZE.meta).text_color(t.dim).child(status) : status)))
     .children(actions);
+}
+
+// ---- foldable sections -------------------------------------------------------------------------
+// A layout block (Crew's agents / spaces) folds down to its 42px header: px 42 folded, its weight open.
+// The layout is the state (it persists with the window); the block's `min` must be <= 42.
+// Both shut: `gap`, an empty hidden node between them, is shown and takes the room so each header stays
+// at its own edge. Hidden the rest of the time, so it adds no drag handle between the lists.
+const node = (n, id) => n?.id === id ? n : (n?.children ?? []).reduce((f, c) => f ?? node(c, id), null);
+export const isFolded = (id) => node(layout(), id)?.size?.px != null;
+/** The header's onClick that folds block `id`, or null where the layout has no such block. */
+export const foldOnClick = (id, other, gap) => node(layout(), id) ? (_e, cx) => toggleFold(cx, id, other, gap) : null;
+/** Folds or opens block `id` with an eased resize; `other` keeps its state, and so does a split you dragged. */
+export function toggleFold(cx, id, other, gap) {
+  // one fold at a time across every mod (each has its own copy of this kit): shared, not module state
+  if (Date.now() - (shared("sidebar.folding") ?? 0) < 400) return;
+  setShared("sidebar.folding", Date.now());
+  const shut = !isFolded(id);
+  const w = shut ? (node(layout(), id)?.size?.weight ?? 1) : (shared(`sidebar.fold.${id}`) ?? 1);
+  if (shut) setShared(`sidebar.fold.${id}`, w);
+  const both = Boolean(other && gap && isFolded(other) && node(layout(), gap));
+  if (both && shut) { run("layout.resize", { id: gap, weight: 0 }); run("layout.show", { id: gap }); }
+  // ponytail: ~12 layout.resize calls at 60 fps from JS; a native size transition would be smoother if Herdr grows one
+  cx.spawn(async (cx) => {
+    const N = 12;
+    for (let i = 1; i <= N; i++) {
+      const k = 1 - (1 - i / N) ** 3; // ease-out cubic; weight 0 sits at the block's min (the header)
+      run("layout.resize", { id, weight: w * (shut ? 1 - k : k) });
+      if (both) run("layout.resize", { id: gap, weight: shut ? k : 1 - k });
+      await cx.sleep(16);
+    }
+    if (shut) run("layout.resize", { id, px: 42 });
+    if (both && !shut) run("layout.hide", { id: gap });
+  });
 }
 
 /** Live status for a header's right side: spinner + "n working" in the live color. */
@@ -97,15 +140,28 @@ export function row(t, id, { status, color, icon, title, sub, subColor, right = 
     .when(Boolean(sub), (el) => el.child(div().pl(24).truncate().text_size(SIZE.meta).text_color(subColor ?? t.dim).child(sub)));
 }
 
+// Section folding, opt-in per mod (`folds.on = true`): a chevron after the count folds the section to its header.
+// Sections with their own `open` toggle fold with that instead and never stay in `folds`.
+// ponytail: fold state lives in memory (resets on reload); persist if wanted
+export const folds = Object.assign(new Set(), { on: false });
+export const folded = (id) => folds.on && folds.has(id);
+
 /** A group label inside a list: 11px muted words, count on the right. Sentence case, never tracked caps. */
-export const section = (t, id, label, count, { onClick, open, icon } = {}) => h_flex().id(id).px(8).pt(8).pb(4).gap(8).items_center()
+export const section = (t, id, label, count, { onClick, open, icon } = {}) => {
+  if (open != null) folds.delete(id); // a section that gained its own toggle can't stay stuck folded
+  return h_flex().id(id).px(8).pt(8).pb(4).gap(8).items_center()
   .text_size(SIZE.meta).text_color(t.muted)
   .when(Boolean(onClick), (el) => el.cursor_pointer().rounded(6).hover((s) => s.text_color(t.foreground)).on_click(onClick))
   // icon (optional): a 12px line glyph in the label's color, for sections that name a kind of thing
   .when(Boolean(icon), (el) => el.child(svg(icon.includes("/") ? icon : ICON(icon)).size(12).flex_none()))
   .child(div().flex_1().min_w(0).truncate().child(label))
   .when(count != null, (el) => el.child(div().flex_none().text_color(t.dim).child(String(count))))
-  .when(open != null, (el) => el.child(svg(ICON(open ? "chevron-down" : "chevron-right")).size(12).flex_none().text_color(t.dim)));
+  .when(open != null, (el) => el.child(svg(ICON(open ? "chevron-down" : "chevron-right")).size(12).flex_none().text_color(t.dim)))
+  .when(open == null && folds.on, (el) => el.child(div().id(`${id}-fold`).flex_none().cursor_pointer().tooltip(folds.has(id) ? "Unfold" : "Fold")
+    .on_mouse_down("left", (_e, cx) => cx.stop_propagation())
+    .on_click((_e, cx) => { folds.has(id) ? folds.delete(id) : folds.add(id); cx.notify(); })
+    .child(svg(ICON(folds.has(id) ? "chevron-right" : "chevron-down")).size(12).text_color(t.dim))));
+};
 
 /** Footer band: border-top, px 12, py 8. */
 export const footer = (t, id) => v_flex().id(id).flex_none().px(12).py(8).gap(8).border_t(1).border_color(t.border);
@@ -211,7 +267,7 @@ export const agentColor = (t, key) => ({ claude: CORAL, codex: t.ansi6, pi: t.an
 
 /** A dialog: popover background, the panel header anatomy, then the body (p 16, gap 12). */
 export const dialog = (t, id, { title, glyph, status }) => ({
-  root: v_flex().id(id).w_full().min_h(0).bg(t.popover).text_color(t.foreground).text_size(SIZE.title),
+  root: v_flex().id(id).w_full().min_h(0).rounded(8).border_1().border_color(t.accent).bg(t.popover).text_color(t.foreground).text_size(SIZE.title),
   header: header(t, { glyph, title, status: status ?? kbd(t, "Esc") }),
   body: v_flex().p(16).gap(12),
   actions: h_flex().px(16).pb(16).gap(8).justify_end(),

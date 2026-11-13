@@ -1,8 +1,9 @@
 // A lazy file browser for the focused pane's folder, with bounded read-only previews.
-import { View, div, svg } from "gpui-kit";
+import { View, div, svg, image } from "gpui-kit";
 import { v_flex, h_flex, Editor, EditorState } from "gpui-base";
 import { panel, header, footer, empty, errorBand, tag, iconButton, plural, SIZE, navKey, trackTerminal, keyHints, terminalFocus, panelFocusAsked } from "./kit.js";
-import { spaces, panes, focused, exec, readTextFile, watchFolder, theme, settings, window, nextCommand, run, terminals } from "herdr";
+import { spaces, panes, focused, exec, readTextFile, appHome, watchFolder, theme, settings, window, nextCommand, run, terminals } from "herdr";
+import { fileIcon } from "./file-icon.js";
 
 function location() {
   // terminalFocus: while this panel holds the keyboard, keep the folder the terminal gave it
@@ -13,6 +14,8 @@ function location() {
 }
 const key = () => JSON.stringify(location());
 const LANG = { ts: "js", tsx: "js", mts: "js", cts: "js", jsx: "js", mjs: "js", toml: "yaml", jsonc: "json", svelte: "html", vue: "html" };
+// PNG / JPEG open in a tab running imgview.py (kitty graphics); :q quits and closes it, like the nvim tabs
+const IMAGE = /\.(png|jpe?g)$/i;
 const PER_FOLDER = 500, TOTAL = 5000;
 /** One nvim server per machine + project folder: its socket path. */
 // Killing from inside VimLeave hits nvim with SIGHUP ("Caught deadly signal"): a detached job waits until nvim
@@ -156,9 +159,17 @@ export default class Files extends View {
     });
   }
 
-  /** Opens the file in this project's nvim (a tab running `nvim --listen`), starting it when none answers. */
+  /** Opens an image in a viewer tab, any other file in this project's nvim (a tab running `nvim --listen`), starting it when none answers. */
   edit(path, cx) {
     const { root, on } = this, file = `${root}/${path}`, sock = nvimSocket(on, root);
+    if (IMAGE.test(path)) {
+      cx.spawn(async cx => {
+        const script = await readTextFile(`${appHome()}/mods/files-crew/imgview.py`).catch(() => null);
+        if (!script) { this.error = "Image viewer script is missing; reinstall files-crew"; cx.notify(); return; }
+        run("terminal.open", { argv: ["python3", "-I", "-c", script, file], folder: root, place: "tab" });
+      });
+      return;
+    }
     cx.spawn(async cx => {
       // --remote-expr fails (code 2) without a server; plain --remote would edit locally and hang
       const r = await exec("nvim", ["--server", sock, "--remote-expr", `execute('drop ' .. fnameescape('${file.replace(/'/g, "''")}'))`], { on }).catch(() => null);
@@ -219,6 +230,7 @@ export default class Files extends View {
   }
 
   rows(flat, cursor, t) {
+    const dark = Boolean(settings().dark);
     return flat.map((r, n) => {
       const { path, dir, depth, name } = r, open = this.folders.has(path), mark = this.marks[`${this.root}/${path}`], here = n === cursor;
       const markColor = mark === "A" ? t.ansi2 : mark === "D" || mark === "U" ? t.ansi1 : t.blocked;
@@ -227,7 +239,7 @@ export default class Files extends View {
         .when(here, el => el.bg(t.selected)).hover(s => s.bg(here ? t.selected : t.hover))
         .text_size(SIZE.body).on_click((_e, cx) => dir ? this.toggle(path, cx) : this.edit(path, cx))
         .child(dir ? svg(`mods/files-crew/chevron-${open ? "down" : "right"}.svg`).size(12).flex_none().text_color(t.dim) : div().w(12).flex_none())
-        .child(svg(`mods/files-crew/${dir ? "folder" : "file"}.svg`).size(14).flex_none().text_color(dir ? t.muted : t.dim))
+        .child(image(fileIcon(path, dir, open, dark)).size(16).flex_none())
         .child(div().flex_1().min_w(0).truncate().text_color(dir ? t.foreground : t.muted).child(name))
         .when(Boolean(mark), el => el.child(div().flex_none().w(16).flex().justify_center().text_size(SIZE.micro).font_semibold().text_color(markColor).child(mark)));
     });
@@ -245,6 +257,7 @@ export default class Files extends View {
       status: this.loading && !top ? "Loading…" : top ? plural(top, "item") : null });
     const viewer = this.file && h_flex().h(42).flex_none().px(16).gap(8).items_center().border_b(1).border_color(t.border)
       .child(iconButton(t, "files-back", "chevron-left", (_e, cx) => { this.show(null); cx.notify(); }, { tip: "Back to files" }))
+      .child(image(fileIcon(this.file, false, false, Boolean(settings().dark))).size(14).flex_none())
       .child(div().flex_none().min_w(0).truncate().font_semibold().child(name))
       .child(div().flex_1().min_w(0))
       .when(Boolean(dir), el => el.child(div().min_w(0).truncate().text_size(SIZE.meta).text_color(t.dim).child(dir)))

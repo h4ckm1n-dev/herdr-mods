@@ -19,9 +19,6 @@ function nextBlocked() {
   run("agent.focus", { terminal: b[(b.findIndex((a) => a.focused) + 1) % b.length].address });
 }
 
-// Which mod each side panel shows: a key on a panel button sends it "focus".
-const PANEL_MOD = { files: "files-crew", graph: "git", ops: "ops", cost: "cost" };
-
 export default class Tabs extends View {
   init(_props, cx) {
     this.pressed = null;
@@ -33,7 +30,7 @@ export default class Tabs extends View {
         // tabs-crew is always shown, so the blocked-inbox key lives here (claude-crew's only works while its panel is open)
         if (id === "next-blocked") { nextBlocked(); continue; }
         // the panel takes the keyboard on its next render (kit askPanelFocus), loaded or still loading
-        if (this.togglePanel(id) && PANEL_MOD[id]) askPanelFocus(PANEL_MOD[id]);
+        if (this.togglePanel(id)) askPanelFocus(find(layout(), id).content.mod);
         cx.notify();
       }
     });
@@ -104,9 +101,10 @@ export default class Tabs extends View {
       .child(h_flex().id("tab-scroll").flex_1().min_w(0).h_full().items_center().gap(4).overflow_x_scrollbar().children(shown.map(item)))
       .child(iconButton(t, "tab-new", "plus", () => openOverlay({ mod: "new-menu-crew", kind: "popup", width: 250, height: 512 }), { tip: "New tab or agent" }))
       .child(div().w(1).h(14).flex_none().mx(4).bg(t.border))
-      // code (Files, Git) · cluster and spend (Ops, Cost)
+      // code (Files, Git, CI) · cluster and spend (Ops, Cost)
       .when(enabled.includes("files"), el => el.child(panelButton("files", "mods/files/file.svg", "Files")))
       .child(panelButton("graph", "mods/git/icons/graph.svg", "Git ⌘G"))
+      .when(Boolean(find(root, "ci")), el => el.child(panelButton("ci", "mods/ci-dash/ci.svg", "CI runs")))
       .child(div().w(1).h(14).flex_none().mx(4).bg(t.border))
       .when(Boolean(find(root, "ops")), el => el.child(panelButton("ops", "mods/ops/ops.svg", "Ops")))
       .when(Boolean(find(root, "cost")), el => el.child(panelButton("cost", "mods/cost/cost.svg", "Cost")))

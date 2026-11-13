@@ -2,9 +2,7 @@
   "place": "none",
   "title": "Picker",
   "overlay": {
-    "kind": "popup",
-    "at": "top",
-    "offset": 40,
+    "kind": "dialog",
     "width": 1040,
     "height": 585
   },

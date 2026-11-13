@@ -160,7 +160,7 @@ def report(files, cache, today, now=None):
     out["firstToday"] = first_today
     return out
 
-CODEX = os.path.join(HOME, ".codex", "sessions")
+CODEX = os.environ.get("CODEX_SESSIONS") or os.path.join(os.environ.get("CODEX_HOME") or os.path.join(HOME, ".codex"), "sessions")
 
 # Codex models, $/MTok: (input, cached input, output) for <=272K input, then >272K. Source: OpenAI's
 # pricing page (developers.openai.com/api/docs/pricing, read 2026-11-07); gpt-5.6-sol is promotional
@@ -195,6 +195,10 @@ def codex(today, since, root=CODEX, now=None):
         try:
             with open(path, encoding="utf-8", errors="replace") as f:
                 for line in f:
+                    if '"session_meta"' in line:
+                        try: meta = json.loads(line)
+                        except ValueError: continue
+                        if meta.get("type") == "session_meta" and (meta.get("payload") or {}).get("thread_source") == "guardian_review": break
                     if '"turn_context"' in line:
                         try: model = (json.loads(line).get("payload") or {}).get("model") or model
                         except ValueError: pass

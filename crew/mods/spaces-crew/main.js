@@ -6,7 +6,7 @@
 import { View, div, svg } from "gpui-kit";
 import { v_flex, h_flex } from "gpui-base";
 import { spaces, machines, panes, agents, run, openOverlay, exec, hc, theme, shared, setShared, watchFolder, window, layout, nextCommand } from "herdr";
-import { ICON, SIZE, dot, spinner, iconButton, surfaceless, tag, header, navKey, trackTerminal, keyHints } from "./kit.js";
+import { ICON, SIZE, dot, spinner, iconButton, surfaceless, tag, header, foldOnClick, navKey, trackTerminal, keyHints } from "./kit.js";
 
 function find(node, id) {
   if (node?.id === id) return node;
@@ -586,7 +586,7 @@ export default class Spaces extends View {
       }))
       .child(collapsed
         ? h_flex().h(42).flex_none().items_center().justify_center().child(newSpace)
-        : header(t, { rule: false, dense: true, status: spacesStatus(t), glyph: svg(ICON("folder")).size(14).flex_none().text_color(t.muted), title: "Spaces", count: sp.length ? String(sp.length) : null, actions: [newSpace] }))
+        : header(t, { rule: false, dense: true, status: spacesStatus(t), glyph: svg(ICON("folder")).size(14).flex_none().text_color(t.muted), title: "Spaces", onClick: foldOnClick("spaces", "agents", "sidebar-gap"), count: sp.length ? String(sp.length) : null, actions: [newSpace] }))
       .child(v_flex().id("space-list").flex_1().min_h(0).px(collapsed ? 0 : 8).pb(8).gap(2).overflow_y_scrollbar().mode("always")
         .on_mouse_up("left", (_e, cx) => { this.pressed = null; cx.notify(); })
         .children(entries.map((e) => e.make(kb && e.id === curItem?.id))))

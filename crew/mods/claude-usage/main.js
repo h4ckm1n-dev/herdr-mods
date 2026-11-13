@@ -41,6 +41,7 @@ export default class AgentUsage extends View {
   }
 
   meter(t, key, label, w, showReset) {
+    if (w?.utilization == null) return null;
     const p = Math.max(0, Math.min(100, Math.round(w?.utilization ?? 0)));
     const color = p >= 90 ? t.blocked : p >= 50 ? t.working : t.muted; // color only when it means something
     const reset = resetIn(w?.resets_at);

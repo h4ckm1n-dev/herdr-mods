@@ -69,7 +69,7 @@ export class Dialog {
         cx.stop_propagation();
       })
       .child(d.header)
-      .child(d.body
+      .child(d.body.id("git-dialog-body").flex_1().min_h(0).overflow_y_scroll()
         .when(Boolean(s.detail), (el) => el.child(div().text_size(K.SIZE.body).text_color(t.muted).child(s.detail)))
         .children(this.inputs.map(({ field, state }, i) => v_flex().gap(8)
           .child(label(field.label))
@@ -93,7 +93,6 @@ export class Dialog {
             .child(div().text_size(K.SIZE.body).text_color(t.foreground).child(c.label));
         }))
         .when(Boolean(this.error), (el) => el.child(div().text_size(K.SIZE.body).text_color(t.blocked).child(this.error))))
-      .child(div().flex_1())
       .child(d.actions
         .when(!s.buttons, (e) => e
           .child(button("gd-cancel", "Cancel", false, () => closeOverlay(props().overlay)))

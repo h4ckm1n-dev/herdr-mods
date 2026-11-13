@@ -52,8 +52,22 @@ def iso(sec):
 
 def describe(name, inp):
     first = (inp or "").strip().split("\n")[0] if isinstance(inp, str) else ""
+    try: args = json.loads(inp or "{}")
+    except (ValueError, TypeError): args = {}
+    if not isinstance(args, dict): args = {}
+    title = args.get("title") or args.get("description")
+    if isinstance(title, str) and title.strip(): return title.strip().split("\n")[0]
+    if name in ("exec_command", "shell_command"):
+        try: first = (args.get("cmd") or args.get("command") or "").strip().split("\n")[0]
+        except (ValueError, AttributeError): pass
+        first = re.sub(r"^rtk\s+", "", first)
+        return "$ " + first.replace(HOME, "~")
     if name == "exec":
         # Codex wraps calls in JS orchestration: text(await tools.exec_command({cmd:"..."}))
+        label = re.search(r'\b(?:description|title)\s*:\s*("(?:[^"\\]|\\.)*")', inp or "")
+        if label:
+            try: return json.loads(label.group(1)).strip().split("\n")[0]
+            except ValueError: pass
         m = re.search(r'\bcmd\s*:\s*("(?:[^"\\]|\\.)*")', inp or "")
         if m:
             try: first = json.loads(m.group(1)).strip().split("\n")[0]
@@ -68,22 +82,30 @@ def describe(name, inp):
         return "edit " + os.path.basename(m.group(1).strip()) if m else "edit"
     return name or "?"
 
+def plan_tasks(inp):
+    """Codex update_plan snapshots use the same task rows as Claude's TodoWrite."""
+    plan = inp.get("plan")
+    if not isinstance(plan, list): return []
+    return [{"id": str(i + 1), "title": t["step"].strip(), "doing": "",
+             "status": t.get("status") if t.get("status") in ("pending", "in_progress", "completed") else "pending"}
+            for i, t in enumerate(plan) if isinstance(t, dict) and isinstance(t.get("step"), str) and t["step"].strip()]
+
 def output_text(p):
     o = p.get("output")
     if isinstance(o, list): return "\n".join(x.get("text", "") for x in o if isinstance(x, dict))
     return o if isinstance(o, str) else ""
 
 def failed(text):
-    m = re.search(r"exit code (\d+)", text)
-    return bool(m and m.group(1) != "0") or "error" in text.strip().split("\n")[0].lower()
+    codes = re.findall(r'(?i)(?:exit(?:ed with)? code\s+|"exit_code"\s*:\s*)(-?\d+)', text)
+    return any(int(code) != 0 for code in codes) or "error" in text.strip().split("\n")[0].lower()
 
 def parse(records, meta, now, seen=None):
     """seen: {task_name: last activity epoch} of sub-agents, from Codex's thread index (else their start counts)."""
-    seen = seen or {}
+    seen = dict(seen or {})
     calls, results, agents, answered = [], {}, [], {}
     turn = {"start": None, "end": None}
     usage = {"in": 0, "out": 0, "read": 0, "write": 0, "turns": 0, "ctx": 0, "window": 0,
-             "model": "", "calls": 0, "errors": 0, "active": 0, "ts": None}
+             "model": "", "calls": 0, "errors": 0, "active": 0, "ts": None, "todos": []}
     limits, lim_id, done_at, last_at = None, None, None, None
     for d in records:
         p, ts = d.get("payload") or {}, d.get("timestamp")
@@ -111,9 +133,16 @@ def parse(records, meta, now, seen=None):
                 rid = rl.get("limit_id")
                 if (rl.get("primary") or rl.get("secondary")) and (lim_id != "codex" or rid in (None, "codex")):
                     limits, lim_id = {"five_hour": win(rl.get("primary")), "seven_day": win(rl.get("secondary"))}, rid
+        elif d.get("type") == "turn_context":
+            usage["model"] = model_label(p.get("model")) or usage["model"]
         elif d.get("type") == "response_item":
             if kind in ("custom_tool_call", "function_call"):
                 name = p.get("name") or "?"
+                if name == "update_plan":
+                    try: inp = json.loads(p.get("arguments") or p.get("input") or "{}")
+                    except (ValueError, TypeError): continue
+                    if isinstance(inp, dict): usage["todos"] = plan_tasks(inp)
+                    continue  # plans fill the task list, rather than replacing the activity line
                 if name == "spawn_agent":
                     try: a = json.loads(p.get("arguments") or "{}")
                     except ValueError: a = {}
@@ -128,7 +157,12 @@ def parse(records, meta, now, seen=None):
             elif kind in ("custom_tool_call_output", "function_call_output"):
                 results[p.get("call_id")] = failed(output_text(p))
             elif kind == "agent_message":
-                answered.setdefault((p.get("author") or "").rsplit("/", 1)[-1], []).append(epoch(ts))
+                name = (p.get("author") or "").rsplit("/", 1)[-1]
+                content = p.get("content") or ""
+                text = content if isinstance(content, str) else "\n".join(x.get("text", "") for x in content if isinstance(x, dict))
+                seen[name] = max(seen.get(name) or 0, epoch(ts))
+                if text.split("\n", 1)[0] == "Message Type: FINAL_ANSWER":
+                    answered.setdefault(name, []).append(epoch(ts))
     # epoch seconds like scan.py's turn_span; still running: the last record so far
     if turn["start"]: turn["end"] = done_at or last_at
     if usage["ts"] and not usage["turns"]: usage["turns"] = 1  # a turn began before what we read
@@ -142,7 +176,7 @@ def parse(records, meta, now, seen=None):
         at = next((t for t in answered.get(a["name"], []) if t >= a["started"]), None)
         lost = at is None and now - max(a["started"], seen.get(a["name"]) or 0) > STALE_S
         task = a.pop("task")
-        crew.append({**a, "finished": at is not None or lost, "lost": lost, "updated": at or a["updated"],
+        crew.append({**a, "finished": at is not None or lost, "lost": lost, "updated": at or max(a["updated"], seen.get(a["name"]) or 0),
                      "count": 0, "errors": 0, "files": [], "step": None, "typical": None,
                      "recent": [{"line": task, "state": "ok" if at else "err" if lost else "run", "at": None}],
                      "usage": None if at or lost else {"active": max(1.0, now - a["started"])}})
@@ -151,32 +185,38 @@ def parse(records, meta, now, seen=None):
             "main": {"count": len(acts), "errors": errors, "files": [], "recent": acts[-6:], "step": None, "usage": usage}}
 
 BACK = 8 * 1024 * 1024  # how far before the tail to look for the model and the current turn's start
-WANT = ('"thread_settings_applied"', '"task_started"')
+WANT = ('"thread_settings_applied"', '"turn_context"', '"task_started"', '"update_plan"')
 
-def before_tail(path):
-    """The last settings and task_started records before the tail, for sessions longer than TAIL."""
+def before_tail(path, wanted=WANT):
+    """Recover the latest model, turn and plan before the tail, bounded by BACK bytes."""
     try:
         size = os.path.getsize(path)
         if size <= TAIL: return []
         found, end = {}, size - TAIL
         with open(path, "rb") as f:
-            while end > 0 and len(found) < len(WANT) and size - TAIL - end < BACK:
+            while end > 0 and len(found) < len(wanted) and size - TAIL - end < BACK:
                 start = max(0, end - 256 * 1024)
                 f.seek(start); chunk = f.read(end - start + 4096).decode("utf-8", "replace")  # overlap: lines cut at chunk edges
                 for line in reversed(chunk.split("\n")[1 if start else 0:]):
-                    for w in WANT:
+                    for w in wanted:
                         if w not in found and w in line:
-                            try: found[w] = json.loads(line)
+                            try: record = json.loads(line)
                             except ValueError: pass
+                            else:
+                                p = record.get("payload") or {}
+                                if w.strip('"') in (record.get("type"), p.get("type"), p.get("name")):
+                                    found[w] = record
                 end = start
     except OSError:
         return []
-    return [found[w] for w in WANT if w in found]  # file order: settings come before the turn
+    return sorted(found.values(), key=lambda d: d.get("timestamp") or "")
 
 def read_session(path, now, seen=None):
     recs = tail_records(path)
-    kinds = {(d.get("payload") or {}).get("type") for d in recs if isinstance(d.get("payload"), dict)}
-    if not {"thread_settings_applied", "task_started"} <= kinds: recs = before_tail(path) + recs
+    kinds = {k for d in recs if isinstance(d.get("payload"), dict)
+             for k in (d.get("type"), d["payload"].get("type"), d["payload"].get("name"))}
+    wanted = [w for w in WANT if w.strip('"') not in kinds]
+    if wanted: recs = before_tail(path, wanted) + recs
     return parse(recs, first_meta(path) or {}, now, seen)
 
 def descendants(pid):
@@ -206,7 +246,7 @@ def open_rollout(pids, root):
     hits = [os.path.realpath(l[1:]) for l in out.split("\n") if l.startswith("n") and ROLLOUT.search(l[1:])]
     hits = [h for h in hits if h.startswith(base)]
     # codex may hold its sub-agents' files too: the terminal's own session is the cli one without a parent
-    return next((h for h in hits if terminal_session(first_meta(h) or {})), hits[0] if hits else None)
+    return next((h for h in hits if terminal_session(first_meta(h) or {})), None)
 
 def terminal_session(m):
     """A person's terminal session: the TUI (originator codex-tui; older versions: source cli, no originator),

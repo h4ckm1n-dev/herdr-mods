@@ -3,6 +3,20 @@ __pycache__/
 node_modules/
 gpui-kit.d.ts
 .DS_Store
+/.build/
 
 # graft's local graph cache — regenerable, not committed (run `graft build`).
 /graft/
+
+# Local-only: logs, personal Claude settings, third-party clones kept beside the repo
+nvim.log
+.claude/settings.local.json
+/unslop/
+# Personal: a config snapshot and agent tooling setup, kept on disk, not published
+/local-config/
+/AGENTS.md
+/opencode.json
+/.claude/
+/.ignore
+/.trail/*
+!/.trail/learnings/

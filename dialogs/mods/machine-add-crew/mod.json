@@ -1,0 +1,14 @@
+{
+  "place": "none",
+  "title": "Add a machine",
+  "overlay": {
+    "kind": "dialog",
+    "frame": "none",
+    "width": 1040,
+    "height": 585
+  },
+  "cloned_from": {
+    "name": "machine-add",
+    "version": "0.1.13"
+  }
+}

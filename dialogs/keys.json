@@ -1,0 +1,6 @@
+{
+  "global": {
+    "cmd-,": "mod.open:settings-crew",
+    "cmd-shift-p": "mod.open:palette-crew"
+  }
+}

@@ -1,5 +1,5 @@
 import { exec, notify, setShared, openOverlay } from "herdr";
-import { dialogFor, dialogHeight, doneText } from "./git.js";
+import { dialogFor, doneText } from "./git.js";
 import { executeAction } from "./execute.js";
 
 // Runs an action's git commands in order, stopping at the first failure. Every
@@ -28,6 +28,6 @@ export async function perform(action, values, ctx, { toast = true } = {}) {
 export function openDialog(action, ctx) {
   const spec = dialogFor(action, ctx);
   if (!spec) return false;
-  openOverlay({ mod: "git", kind: "dialog", width: 420, height: dialogHeight(spec), props: { role: "dialog", action, ctx } });
+  openOverlay({ mod: "git", kind: "dialog", width: 1040, height: 585, props: { role: "dialog", action, ctx } });
   return true;
 }

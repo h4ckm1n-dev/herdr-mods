@@ -1,0 +1,34 @@
+# Find files
+
+**⌘⇧F** opens a centered fuzzy file finder in the active tab's working folder.
+Type a partial filename or path; matches need not be consecutive.
+Use ↑/↓, Ctrl-N/Ctrl-P or Page Up/Down, then Enter (or click) to open a file
+in a **new Neovim tab in the original space**; PNG and JPEG files open in an
+image tab instead (kitty graphics; JPEG needs macOS `sips`), `:q` closes it.
+Escape closes the finder.
+
+Rows show FileTree's file-type icons when `files-crew` is installed (its icon
+set is reused, not copied), a plain file glyph otherwise.
+
+Install: `./install.sh fuzzy-files`. Requires Python 3 and Neovim on the
+target machine; Git is used when available. No fzf or ripgrep dependency.
+
+The focused pane's folder is preferred, then another terminal in the same tab,
+then the space's folder. The folder and space are captured when opening the
+finder, so changing focus cannot send a file to another project or machine.
+Remote spaces run the scan and Neovim remotely using the same context.
+
+Git folders include tracked and untracked files, respect Git ignore rules and
+exclude deleted files. Plain folders include hidden files but skip `.git`,
+`.hg`, `.svn`, `node_modules`, `.venv`, `venv` and `__pycache__` directories.
+Directory symlinks are not followed. At most 50,000 files are searchable;
+the footer states when that limit is reached. Reopen to refresh the file list.
+Neovim opens in its own tab; quitting it (`:q`) closes the tab.
+
+Checks:
+
+```sh
+python3 -m unittest discover -s fuzzy-files/mods/fuzzy-files/tests
+node fuzzy-files/mods/fuzzy-files/tests/search.test.mjs
+herdr-app check fuzzy-files/mods/fuzzy-files
+```

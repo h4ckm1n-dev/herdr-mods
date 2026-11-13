@@ -1,6 +1,7 @@
 import json, os, sys, tempfile, unittest
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 import cost
+from unittest.mock import patch
 
 def line(id, ts, out, model="claude-opus-5-5", **u):
     usage = {"input_tokens": 10, "output_tokens": out, "cache_read_input_tokens": 0, "cache_creation_input_tokens": 0, **u}
@@ -73,6 +74,19 @@ class Cost(unittest.TestCase):
             self.assertAlmostEqual(cost.codex_cost("gpt-6.1-sol-2026", 1e6, 0, 0), 2.0)   # prefix match
             self.assertAlmostEqual(cost.codex_cost("mystery", 1e6, 0, 0), 2.0)            # unknown: Codex default
 
+    def test_codex_auto_review_is_not_user_spend(self):
+        with tempfile.TemporaryDirectory() as d:
+            p = os.path.join(d, "2026", "11", "06"); os.makedirs(p)
+            records = [
+                {"type": "session_meta", "payload": {"thread_source": "guardian_review"}},
+                {"timestamp": "2026-11-06T12:00:00Z", "type": "event_msg", "payload": {"type": "token_count", "info": {
+                    "total_token_usage": {"total_tokens": 1000, "input_tokens": 900, "output_tokens": 100}}}},
+            ]
+            with open(os.path.join(p, "rollout-review.jsonl"), "w") as f:
+                f.write("\n".join(map(json.dumps, records)) + "\n")
+            r = cost.codex(cost.local_day("2026-11-06T12:00:00Z"), 0, root=d)
+            self.assertEqual((r["today"], r["usdToday"]), (0, 0))
+
     def test_last_hour_and_rate(self):
         with tempfile.TemporaryDirectory() as d:
             f = os.path.join(d, "s.jsonl")
@@ -81,7 +95,8 @@ class Cost(unittest.TestCase):
             open(f, "w").write(line("a", "2026-11-06T09:30:00Z", 50_000) + line("b", "2026-11-06T12:10:00Z", 10_000)
                                + line("b", "2026-11-06T12:10:00Z", 100_000))
             day = cost.local_day("2026-11-06T12:30:00Z")
-            r = cost.report([(f, "p", False)], {}, day, now=now)
+            with patch.object(cost.time, "time", return_value=now):
+                r = cost.report([(f, "p", False)], {}, day, now=now)
             b = cost.cost("claude-opus-5-5", [10, 100_000, 0, 0, 0])
             self.assertAlmostEqual(r["lastHour"], b, places=4)   # only b, counted once with its final usage
             self.assertGreater(r["perHour"], 0)

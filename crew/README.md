@@ -44,6 +44,8 @@ Agents and spaces on the left, Files, Git and Cost on the right, quotas along th
 | Menus and dialogs | `menu-crew` · `new-menu-crew` · `worktree-crew` · `picker-crew` | overlays |
 
 The sidebar is 268px. Drag its edge, or use the brand row's toggle, to fold it to a 44px rail.
+Click the **Agents** or **Spaces** header to fold that list to its header (Agents up, Spaces down); the other
+list takes the room. Both folded, each header stays at its own edge.
 
 ## Components
 
@@ -56,8 +58,9 @@ Every Claude Code and Codex session, in four groups: **Working**, **Needs you**,
 
 - A row shows a spinner while the agent works, its icon (Claude in coral, Codex in cyan), its name,
   and the time since its last state change.
-- Under it: the last thing the agent did, its context fill as a 4px bar, and its running
-  sub-agents with progress bars.
+- Under it: the last activity and context percentage. Expand the row for the session's task
+  list, completion count, overall progress bar, and delegated agents. Claude's todos and
+  Codex's `update_plan` use the same rows; tasks appear only when recorded by the agent.
 - A thin bar on the left edge carries the color of the agent's space.
 - Click a row to jump to that agent's terminal, in any space. **⌘⇧A** gives the list the keyboard
   (arrows, Enter).
@@ -79,7 +82,7 @@ It reads your own transcripts on disk with `scan.py` and `codex_scan.py`: `~/.cl
 
 ### Brand row and footer · `workspace-chrome-crew`
 
-The Herdr mark, search, and the sidebar toggle at the top. Settings and Add machine at the bottom.
+Search and the sidebar toggle at the top. Settings and Add machine at the bottom.
 The brand row drags the window.
 
 ### Tab bar · `tabs-crew`
@@ -98,6 +101,9 @@ and close.
 <img src="files.png" align="right" width="220" alt="Files panel">
 
 The focused pane's folder as a lazy tree, with read-only previews. It follows the terminal you are in.
+File and folder icons use Material Icon Theme, including light variants and open folders.
+The icons and lookup tables are bundled from [file-icons](https://github.com/cybertron288/herdr-mods/tree/main/file-icons), with its MIT licence. Keyboard navigation, Neovim actions and previews stay in `files-crew`.
+
 
 <br clear="right">
 
@@ -118,7 +124,8 @@ What your sessions would cost at API prices, from the same transcripts:
 - **By model**, with the share of input read from cache. Low means full-price re-reads.
 - **Sub-agents'** share and **top projects**.
 
-Codex is priced at OpenAI's API rates, even if you run it on a ChatGPT plan. `cost.py` does the
+Codex is estimated at the configured API rates, even if you run it on a ChatGPT plan.
+Automatic approval-review threads are excluded; delegated work remains included. `cost.py` does the
 reading; the panel refreshes every minute while it is visible.
 
 <br clear="right">
@@ -127,12 +134,16 @@ reading; the panel refreshes every minute while it is visible.
 
 ![Bottom bar](bottom-bar.png)
 
-- **Left:** the machine, the branch, `n working` with a spinner, `n needs you`, and a `Commands ⌘⇧P` button.
+- **Left:** the machine, the branch, `n working` with a spinner, and `n needs you`.
 - **Right:** your Codex and Claude Code 5h and 7d quotas side by side. Grey until 50%, amber after, red past 90%, with the time to reset in the tooltip.
 
 `limits.py` reads them every 30 seconds:
-- **Claude:** from the cache your Claude Code statusline writes (`/tmp/claude/statusline-usage-cache.json`).
-- **Codex:** from the latest rate limits it logged in `~/.codex/sessions`.
+- **Claude:** from `/tmp/claude/statusline-usage-cache.json`, which `claude-usage/statusline.py` writes from
+  what Claude Code hands its statusline. The installer wraps your statusline with it (yours still shows);
+  by hand: `"command": "python3 -I ~/.config/herdr-app/mods/claude-usage/statusline.py '<your command>'"`.
+- **Codex:** from the newest timestamped rate-limit report in five recently touched sessions.
+  Session readers honor `CODEX_SESSIONS`, then `$CODEX_HOME/sessions`, then `~/.codex/sessions`.
+  A missing quota window stays hidden.
 
 With neither, the block stays empty.
 
@@ -192,5 +203,6 @@ while the Crew layout shows. ⌘J and ⌘P are global.
 
 - The Herdr desktop app and `python3`.
 - Claude Code and/or Codex for the agent rows, Cost and the quota bar.
-- For Claude's quota meters: a Claude Code statusline that writes `/tmp/claude/statusline-usage-cache.json`.
+- For Claude's quota meters: a Pro or Max plan, and the statusline wrapper the installer offers.
+- Neovim, to edit files from the Files panel (previews work without it).
 - `git` for the Git panel.

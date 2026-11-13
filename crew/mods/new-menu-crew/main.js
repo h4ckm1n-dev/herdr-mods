@@ -59,7 +59,7 @@ export default class NewMenu extends View {
         .when(this.agents.length === 0, el => el.child(div().px(8).py(6).text_size(SIZE.meta).text_color(t.dim).child(this.failed ? "Could not load agents" : "Checking installed agents…"))))
       .child(menuSeparator(t))
       .child(this.row("space", glyph("plus"), "New space", () => run("space.new"), shortcut("space.new")))
-      .child(this.row("worktree", glyph("git-branch"), "New worktree…", () => openOverlay({ mod: "worktree-crew", kind: "dialog", width: 460, height: 280, props: { space: space?.id, folder: panes().find(p => p.focused)?.cwd, action: "new" } }), "", Boolean(space)))
-      .child(this.row("worktree-open", glyph("git-branch"), "Open worktree…", () => openOverlay({ mod: "worktree-crew", kind: "dialog", width: 560, height: 480, props: { space: space?.id, folder: panes().find(p => p.focused)?.cwd, action: "open" } }), "", Boolean(space)));
+      .child(this.row("worktree", glyph("git-branch"), "New worktree…", () => openOverlay({ mod: "worktree-crew", kind: "dialog", width: 1040, height: 585, props: { space: space?.id, folder: panes().find(p => p.focused)?.cwd, action: "new" } }), "", Boolean(space)))
+      .child(this.row("worktree-open", glyph("git-branch"), "Open worktree…", () => openOverlay({ mod: "worktree-crew", kind: "dialog", width: 1040, height: 585, props: { space: space?.id, folder: panes().find(p => p.focused)?.cwd, action: "open" } }), "", Boolean(space)));
   }
 }

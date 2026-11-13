@@ -1,0 +1,114 @@
+[
+  {
+    "id": "agents-crew",
+    "desc": "Agents sidebar: Claude and Codex sessions, sub-agents, progress",
+    "fallback": "agents"
+  },
+  {
+    "id": "spaces-crew",
+    "desc": "Spaces sidebar: colored avatars, worktrees under their checkout",
+    "fallback": "spaces"
+  },
+  {
+    "id": "workspace-chrome-crew",
+    "desc": "Sidebar brand row and footer (Settings, Add machine)",
+    "fallback": "workspace-chrome"
+  },
+  {
+    "id": "tabs-crew",
+    "desc": "Tab bar with panel buttons (Files, Graph, Cost) and the waiting-agent key",
+    "fallback": "tabs"
+  },
+  {
+    "id": "workspace-status-crew",
+    "desc": "Bottom bar: machine, branch, working agents",
+    "fallback": "workspace-status"
+  },
+  {
+    "id": "claude-usage",
+    "desc": "Bottom bar: Codex and Claude Code 5h / 7d quotas, side by side"
+  },
+  {
+    "id": "pane-crew",
+    "desc": "Pane header for the crew layout",
+    "fallback": "pane"
+  },
+  {
+    "id": "files-crew",
+    "desc": "Files panel: lazy browser of the focused pane's folder, read-only previews",
+    "fallback": "files"
+  },
+  {
+    "id": "git",
+    "desc": "Git panel: graph, changes, stage/discard, branches, stash, commit, pull/push"
+  },
+  {
+    "id": "cost",
+    "desc": "Claude Code and Codex spend at API prices: today, last hour, 7 days, by model, priciest session"
+  },
+  {
+    "id": "menu-crew",
+    "desc": "Context menus (tab, space, terminal) in the crew style",
+    "fallback": "menu"
+  },
+  {
+    "id": "new-menu-crew",
+    "desc": "New tab / agent menu",
+    "fallback": "new-menu"
+  },
+  {
+    "id": "worktree-crew",
+    "desc": "New / open / remove worktree dialogs",
+    "fallback": "worktree"
+  },
+  {
+    "id": "picker-crew",
+    "desc": "Go-to-tab picker, cmd-P",
+    "fallback": "picker"
+  },
+  {
+    "id": "theme-gallery",
+    "desc": "Every Ghostty theme with live preview, cmd-shift-T"
+  },
+  {
+    "id": "help-crew",
+    "desc": "Keybinds dialog in two columns with keycaps, cmd-/",
+    "fallback": "help"
+  },
+  {
+    "id": "claude-manager",
+    "desc": "Claude Code skills, commands, agents, MCP servers, hooks and plugins on or off, cmd-shift-K"
+  },
+  {
+    "id": "filetree",
+    "desc": "File tree and previews"
+  },
+  {
+    "id": "ci-dash",
+    "desc": "GitHub Actions dashboard"
+  },
+  {
+    "id": "mod-manager",
+    "desc": "Enable or disable OhMyHerdr mods"
+  },
+  {
+    "id": "settings-crew",
+    "desc": "Original Herdr Settings in a centered 16:9 dialog"
+  },
+  {
+    "id": "palette-crew",
+    "desc": "Original Herdr command palette in a centered 16:9 dialog"
+  },
+  {
+    "id": "machine-add-crew",
+    "desc": "Original Add a machine in a centered 16:9 dialog"
+  },
+  {
+    "id": "prompt-crew",
+    "desc": "Original text prompt in a centered 16:9 dialog"
+  },
+  {
+    "id": "fuzzy-files",
+    "desc": "Fuzzy file finder in the active tab folder, open in a new Neovim tab, cmd-shift-F"
+  }
+]

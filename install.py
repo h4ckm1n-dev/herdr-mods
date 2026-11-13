@@ -1,5 +1,5 @@
 # The installer proper; run it through install.sh.
-import glob, json, os, shutil, subprocess, sys, time, filecmp
+import glob, json, os, shlex, shutil, subprocess, sys, time, filecmp
 
 APP, args = sys.argv[1], sys.argv[2:]
 YES = "-y" in args
@@ -87,6 +87,9 @@ if want_layout:
     if extra: print(f"The crew layout also needs: {', '.join(extra)}"); chosen += extra
 
 # ---- copy mods ----------------------------------------------------------------------
+disabled = [m for m in chosen if os.path.exists(os.path.join(APP, "disabled-mods", m))]
+if disabled:
+    sys.exit(f"Enable disabled mods in OhMyHerdr Mods before updating them: {', '.join(disabled)}")
 ign = shutil.ignore_patterns("__pycache__", "*.pyc", ".DS_Store")
 for m in chosen:
     src, dst = SRC[m], os.path.join(APP, "mods", m)
@@ -121,6 +124,27 @@ for m in chosen:
 if changed:
     backup(kpath)
     with open(kpath, "w") as fh: json.dump(keys, fh, indent=2); fh.write("\n")
+
+# ---- Claude quotas: Claude Code hands its rate limits only to the statusline, so wrap yours (kept as is) ----
+# Only an existing statusline is wrapped (one where there was none would hide Claude Code's footer hints),
+# and only on a yes typed at a terminal or -y: the file belongs to Claude Code.
+CLAUDE = os.environ.get("CLAUDE_CONFIG_DIR") or os.path.expanduser("~/.claude")
+if "claude-usage" in chosen and os.path.isdir(CLAUDE):
+    sp = os.path.realpath(os.path.join(CLAUDE, "settings.json"))  # a dotfiles symlink stays a symlink
+    wrapper = os.path.join(APP, "mods", "claude-usage", "statusline.py")
+    try: cs = json.load(open(sp)) if os.path.exists(sp) else {}
+    except ValueError: cs = None
+    line = cs.get("statusLine") if isinstance(cs, dict) else None
+    cmd = line.get("command") if isinstance(line, dict) else None
+    if not isinstance(cs, dict): print(f"  ! {sp} is not a JSON object: Claude quotas not wired (crew/README.md says how)")
+    elif not isinstance(cmd, str) or not cmd.strip(): print("  · no Claude Code statusline to wrap: Claude quotas stay hidden (crew/README.md says how)")
+    elif "claude-usage/statusline.py" not in cmd and ask(
+            f"Claude's 5h/7d quotas come through Claude Code's statusline. Wrap yours in {sp} (it still shows)?", default=False):
+        shutil.copy2(sp, f"{sp}.bak-{STAMP}")
+        cs["statusLine"] = {**line, "command": f"python3 -I {shlex.quote(wrapper)} {shlex.quote(cmd)}"}
+        with open(sp + ".tmp", "w") as fh: json.dump(cs, fh, indent=2, ensure_ascii=False); fh.write("\n")
+        os.replace(sp + ".tmp", sp)
+        print(f"  + statusLine wrapped, the old file is {os.path.basename(sp)}.bak-{STAMP}")
 
 # ---- check ----------------------------------------------------------------------------
 if shutil.which("herdr-app"):

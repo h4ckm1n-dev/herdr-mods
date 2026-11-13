@@ -4,7 +4,7 @@
 import { View, div, image, svg } from "gpui-kit";
 import { v_flex, h_flex } from "gpui-base";
 import { agents, terminals, panes, focused, spaces, run, theme, shared, setShared, setAgentOrder, openOverlay, closeOverlay, props, window, layout, nextCommand } from "herdr";
-import { ICON, SIZE, dot, empty, gutter, iconButton, menuItem, plural, section, spinner, statusColor, surfaceless, tag, header as panelHeader, navKey, trackTerminal, keyHints } from "./kit.js";
+import { ICON, SIZE, dot, empty, gutter, iconButton, menuItem, plural, section, spinner, statusColor, surfaceless, tag, header as panelHeader, foldOnClick, navKey, trackTerminal, keyHints } from "./kit.js";
 import { startCrew, crewLines, conflictBand, nextBlocked, hasTasks } from "./crew.js";
 
 function find(node, id) {
@@ -60,7 +60,8 @@ const SORTS = [
 ];
 const sortOf = () => SORTS.find((s) => s.id === shared("agents.sort")) ?? SORTS[0];
 const SECTION = { 4: "Needs you", 3: "Done", 2: "Working", 1: "Idle" };
-const SECTION_STATUS = { 4: "blocked", 3: "done", 2: "working" };
+const SECTION_STATUS = { 4: "blocked", 3: "done", 2: "working", 1: "idle" };
+const SECTION_ICON = { done: "check", idle: "minus" };
 
 
 function duration(ms) {
@@ -425,6 +426,11 @@ export default class Agents extends View {
       const open = !this.folded.has(g.id);
       const top = g.members.reduce((m, a) => ((RANK[a.status] ?? 0) > (RANK[m] ?? 0) ? a.status : m), null);
       const label = h_flex().gap(6).items_center()
+        .when(Boolean(g.status), (el) => el.child(g.status === "working"
+          ? spinner(t.working, 10)
+          : div().size(10).flex_none().flex().items_center().justify_center().child(g.status === "blocked"
+            ? dot(t.blocked, 5)
+            : svg(ICON(SECTION_ICON[g.status])).size(10).text_color(t[g.status] ?? t.muted))))
         .child(div().min_w(0).truncate().when(Boolean(g.status), (el) => el.text_color(t[g.status] ?? t.muted)).child(g.label))
         .when(!open && !byPriority && Boolean(top) && top !== "idle", (el) =>
           el.child(top === "working" ? spinner(t.working, 10) : dot(statusColor(t, top), 6)));
@@ -507,6 +513,7 @@ export default class Agents extends View {
       .when(!collapsed, (el) => el.child(panelHeader(t, { rule: false, dense: true, 
         glyph: svg(ICON("terminal")).size(14).flex_none().text_color(t.muted),
         title: "Agents",
+        onClick: foldOnClick("agents", "spaces", "sidebar-gap"),
         count: list.length ? String(list.length) : null,
         status,
         actions: [iconButton(t, "ag-sort", ICON(sort.icon), () => openOverlay({ mod: "agents-crew", kind: "popup", width: 200, height: 140, props: { sortMenu: true } }), { tip: `Sort agents: ${sort.label}` })],

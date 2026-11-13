@@ -1,0 +1,14 @@
+{
+  "place": "none",
+  "title": "Settings",
+  "overlay": {
+    "kind": "dialog",
+    "frame": "none",
+    "width": 1040,
+    "height": 585
+  },
+  "cloned_from": {
+    "name": "frame-settings",
+    "version": "0.1.13"
+  }
+}

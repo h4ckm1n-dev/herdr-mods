@@ -34,7 +34,16 @@
               "size": {
                 "weight": 1
               },
-              "min": 90
+              "min": 42
+            },
+            {
+              "id": "sidebar-gap",
+              "type": "column",
+              "children": [],
+              "size": {
+                "weight": 0
+              },
+              "hidden": true
             },
             {
               "id": "spaces",
@@ -45,7 +54,7 @@
               "size": {
                 "weight": 1
               },
-              "min": 90
+              "min": 42
             }
           ]
         },

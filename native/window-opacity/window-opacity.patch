@@ -1,0 +1,966 @@
+diff --git a/defaults/AGENTS.md b/defaults/AGENTS.md
+index 9cd5799..64e37e8 100644
+--- a/defaults/AGENTS.md
++++ b/defaults/AGENTS.md
+@@ -734,6 +734,22 @@ What's about the user, never a look:
+   background; this is a threshold, not a guaranteed resulting ratio.
+   Box/block, Powerline and sprite glyph colors are never adjusted.
+   Changes apply immediately, including text already on screen.
++- `window_opacity` (0..1): below 1 the desktop shows through the window, at
++  that opacity. Terminals, cards and bars become see-through together, and
++  `terminal_opacity` stops applying. On macOS dialogs and menus (`popover`)
++  show the desktop at that opacity but hide the window's content under them;
++  elsewhere they stay solid. Cells a
++  program colors stay solid too. A default background a program sets (OSC 11)
++  shows at `window_opacity` instead of the window's; over a solid surface it
++  sits on top of that surface. Literal colors in a layout or mod stay as
++  written. The theme's `background`, `surface`, `canvas` and `chrome` stop
++  being separate surfaces: all four show the one `background` color, painted
++  at the window root, so a layout or theme that tells them apart loses that
++  difference. `raised` paints as a white (dark theme) or black (light theme)
++  tint of the same color, like `hover`, so raised areas stay as see-through
++  as what they sit on. 1 (default) is an ordinary window.
++- `window_blur`: `true` blurs what shows through, on systems that can (macOS,
++  Windows, some Linux compositors); it needs `window_opacity` below 1.
+ - `clipboard_write`: `false` blocks terminal programs from writing the local
+   clipboard (default `true`, including remote terminals attached in this window).
+   OSC 52 accepts base64 UTF-8 text up to 1 MiB: `c` writes the system clipboard,
+diff --git a/defaults/frame/settings/main.js b/defaults/frame/settings/main.js
+index 0627a99..0c59fe9 100644
+--- a/defaults/frame/settings/main.js
++++ b/defaults/frame/settings/main.js
+@@ -208,7 +208,7 @@ export default class Settings extends View {
+       .rounded(10)
+       .p(2)
+       .cursor_pointer()
+-      .bg(on ? t.accent : t.hover)
++      .bg(on ? t.accent : t.input)
+       .flex()
+       .when(on, (el) => el.justify_end())
+       .on_click(onClick)
+@@ -472,6 +472,10 @@ export default class Settings extends View {
+     const p = this.person;
+     const own = (key, composed, def) => (p[key] ?? def) !== composed;
+     const size = (key, value, d, cx) => this.change((q) => (q[key] = Math.max(8, Math.min(32, (q[key] ?? value) + d))), cx);
++    const opacity = Math.max(0, Math.min(1, p.window_opacity ?? 1));
++    const blur = p.window_blur === true;
++    // Rounded to whole percents so 5% steps don't drift into 0.7999….
++    const step = (d, cx) => this.change((q) => (q.window_opacity = Math.round(Math.max(0, Math.min(1, (q.window_opacity ?? 1) + d)) * 100) / 100), cx);
+     const fontRow = (which, sizeKey, title, family, def, sizeNow) =>
+       v_flex()
+         .w_full()
+@@ -515,7 +519,25 @@ export default class Settings extends View {
+         ),
+       )
+       .child(fontRow("font", "font_size", "Terminal font", s.font_family, DEFAULT_FONT, s.font_size))
+-      .child(fontRow("ui_font", null, "Interface font", s.ui_font_family, DEFAULT_UI_FONT));
++      .child(fontRow("ui_font", null, "Interface font", s.ui_font_family, DEFAULT_UI_FONT))
++      .child(div().h(18))
++      .child(this.heading(t, "Window"))
++      .child(
++        this.row(
++          t,
++          "Opacity",
++          "Below 100% the desktop shows through.",
++          this.stepper(t, "st-window-opacity", `${Math.round(opacity * 100)}%`, (_e, cx) => step(-0.05, cx), (_e, cx) => step(0.05, cx)),
++        ),
++      )
++      .child(
++        this.row(
++          t,
++          "Blur",
++          "Blurs what shows through. Only while opacity is below 100%.",
++          this.toggle(t, "st-window-blur", blur, (_e, cx) => this.change((q) => (q.window_blur = !blur), cx)),
++        ),
++      );
+   }
+ 
+   keyboard(t) {
+diff --git a/src/mods.rs b/src/mods.rs
+index bb74a3f..0b17a75 100644
+--- a/src/mods.rs
++++ b/src/mods.rs
+@@ -1116,18 +1116,7 @@ pub fn init(cx: &mut App) {
+ /// Maps the theme onto the tokens mods read through `cx.theme().colors`.
+ pub fn apply_theme(cx: &mut App) {
+     let t = crate::settings::theme();
+-    let g = |k: &str| t.get(k).cloned().unwrap_or_default();
+-    let palette = json!({
+-        "background": g("background"), "foreground": g("foreground"),
+-        "surface": g("surface"), "surface_foreground": g("foreground"),
+-        "primary": g("accent"), "primary_foreground": g("accent_foreground"),
+-        "secondary": g("raised"), "secondary_foreground": g("foreground"),
+-        "muted": g("raised"), "muted_foreground": g("muted"),
+-        "accent": g("hover"), "accent_foreground": g("foreground"),
+-        "destructive": g("blocked"), "destructive_foreground": g("background"),
+-        "border": g("border"), "input": g("input"), "ring": g("ring"),
+-        "selection": g("selection"),
+-    });
++    let palette = kit_palette(&t, crate::settings::get().window_opacity < 1.0);
+     match serde_json::from_value::<gpui_base::ColorTokens>(palette) {
+         Ok(colors) => {
+             let theme = gpui_base::Theme::global_mut(cx);
+@@ -1138,6 +1127,27 @@ pub fn apply_theme(cx: &mut App) {
+     }
+ }
+ 
++/// The theme as the kit's tokens. A see-through window clears `background` and
++/// `surface` from the theme, but the kit paints its own boxes (tooltips,
++/// dialogs, toasts) with `surface` and danger text with `destructive_foreground`:
++/// boxes take `popover` (on macOS see-through, it replaces what's below),
++/// danger text stays solid.
++fn kit_palette(t: &crate::settings::Theme, see_through: bool) -> Value {
++    let g = |k: &str| t.get(k).cloned().unwrap_or_default();
++    let (surface, destructive_foreground) = if see_through { (g("popover"), crate::settings::opaque(&g("background"))) } else { (g("surface"), g("background")) };
++    json!({
++        "background": g("background"), "foreground": g("foreground"),
++        "surface": surface, "surface_foreground": g("foreground"),
++        "primary": g("accent"), "primary_foreground": g("accent_foreground"),
++        "secondary": g("raised"), "secondary_foreground": g("foreground"),
++        "muted": g("raised"), "muted_foreground": g("muted"),
++        "accent": g("hover"), "accent_foreground": g("foreground"),
++        "destructive": g("blocked"), "destructive_foreground": destructive_foreground,
++        "border": g("border"), "input": g("input"), "ring": g("ring"),
++        "selection": g("selection"),
++    })
++}
++
+ fn capabilities() -> Capabilities {
+     Capabilities::new()
+         .read_roots([home()])
+@@ -1201,6 +1211,23 @@ pub fn prepare_load(inst: &Instance) -> u64 {
+ mod tests {
+     use super::*;
+ 
++    #[test]
++    fn the_kits_boxes_take_popover_and_danger_text_stays_solid_in_a_see_through_window() {
++        let mut t = (*crate::settings::theme()).clone();
++        for (name, value) in [("background", "#11223300"), ("surface", "#44556600"), ("popover", "#778899")] {
++            t.insert(name.to_owned(), value.to_owned());
++        }
++        let clear = kit_palette(&t, true);
++        assert_eq!((clear["surface"].as_str(), clear["destructive_foreground"].as_str()), (Some("#778899"), Some("#112233")));
++        let colors = serde_json::from_value::<gpui_base::ColorTokens>(clear).unwrap();
++        assert_eq!((colors.surface.a, colors.destructive_foreground.a), (1.0, 1.0));
++        let window = kit_palette(&t, false);
++        assert_eq!((window["surface"].as_str(), window["destructive_foreground"].as_str()), (Some("#44556600"), Some("#11223300")));
++        // The test's own colors would show the same if the parser dropped alpha.
++        let as_written = serde_json::from_value::<gpui_base::ColorTokens>(window).unwrap();
++        assert_eq!((as_written.surface.a, as_written.destructive_foreground.a), (0.0, 0.0));
++    }
++
+     #[test]
+     fn exec_timeout_defaults_caps_and_rejects_invalid_values() {
+         assert_eq!(exec_limit(None).unwrap(), EXEC_LIMIT);
+diff --git a/src/settings.rs b/src/settings.rs
+index 05fe16a..7287ef6 100644
+--- a/src/settings.rs
++++ b/src/settings.rs
+@@ -394,6 +394,12 @@ pub struct Person {
+     pub pane_scrollbars: bool,
+     /// Minimum terminal text contrast ratio; 1 leaves program colors unchanged.
+     pub minimum_contrast: f32,
++    /// 0..1: below 1, the desktop shows through the window.
++    #[serde(skip_serializing_if = "is_one")]
++    pub window_opacity: f32,
++    /// Blur what shows through the window (where the system can).
++    #[serde(skip_serializing_if = "std::ops::Not::not")]
++    pub window_blur: bool,
+     /// macOS Option sends Alt shortcuts, or follows the keyboard layout.
+     #[serde(skip_serializing_if = "OptionAsAlt::is_auto")]
+     pub option_as_alt: OptionAsAlt,
+@@ -438,6 +444,10 @@ impl OptionAsAlt {
+     }
+ }
+ 
++fn is_one(v: &f32) -> bool {
++    *v == 1.0
++}
++
+ fn is_true(b: &bool) -> bool {
+     *b
+ }
+@@ -456,6 +466,8 @@ impl Default for Person {
+             clipboard_write: true,
+             pane_scrollbars: true,
+             minimum_contrast: 1.0,
++            window_opacity: 1.0,
++            window_blur: false,
+             option_as_alt: OptionAsAlt::Auto,
+             appearance: Appearance::System,
+             theme: None,
+@@ -491,6 +503,9 @@ pub struct Settings {
+     pub terminal_padding: [f32; 2],
+     /// 0..1: below 1, what's behind a terminal shows through.
+     pub terminal_opacity: f32,
++    /// 0..1: below 1, the desktop shows through the window.
++    pub window_opacity: f32,
++    pub window_blur: bool,
+     pub clipboard_write: bool,
+     pub minimum_contrast: f32,
+     pub option_as_alt: OptionAsAlt,
+@@ -533,6 +548,8 @@ impl Default for Settings {
+             pane_scrollbars: true,
+             terminal_padding: [10.0, 6.0],
+             terminal_opacity: 1.0,
++            window_opacity: 1.0,
++            window_blur: false,
+             clipboard_write: true,
+             minimum_contrast: 1.0,
+             option_as_alt: OptionAsAlt::Auto,
+@@ -570,7 +587,10 @@ impl Settings {
+             colors,
+             pane_scrollbars: person.pane_scrollbars,
+             terminal_padding: look.terminal_padding.unwrap_or(d.terminal_padding),
+-            terminal_opacity: look.terminal_opacity.unwrap_or(1.0).clamp(0.0, 1.0),
++            // A see-through window is painted once, at its root (see_through).
++            terminal_opacity: if person.window_opacity < 1.0 { 0.0 } else { look.terminal_opacity.unwrap_or(1.0).clamp(0.0, 1.0) },
++            window_opacity: person.window_opacity,
++            window_blur: person.window_blur,
+             sounds: person.sounds.clone(),
+             clipboard_write: person.clipboard_write,
+             minimum_contrast: person.minimum_contrast,
+@@ -579,14 +599,19 @@ impl Settings {
+     }
+ }
+ 
+-pub fn parse_hex(s: &str) -> Option<Hsla> {
++/// A `#rrggbb[aa]` value as its color and alpha.
++fn hex_parts(s: &str) -> Option<(u32, u32)> {
+     let h = s.trim().trim_start_matches('#');
+     let v = u32::from_str_radix(h, 16).ok()?;
+-    let (rgb, a) = match h.len() {
+-        6 => (v, 255),
+-        8 => (v >> 8, v & 255),
+-        _ => return None,
+-    };
++    match h.len() {
++        6 => Some((v, 255)),
++        8 => Some((v >> 8, v & 255)),
++        _ => None,
++    }
++}
++
++pub fn parse_hex(s: &str) -> Option<Hsla> {
++    let (rgb, a) = hex_parts(s)?;
+     Some(
+         Rgba {
+             r: ((rgb >> 16) & 255) as f32 / 255.0,
+@@ -598,9 +623,14 @@ pub fn parse_hex(s: &str) -> Option<Hsla> {
+     )
+ }
+ 
++/// A theme value without its alpha; one that is no color stays as written.
++pub fn opaque(v: &str) -> String {
++    hex_parts(v).map_or_else(|| v.to_owned(), |(rgb, _)| format!("#{rgb:06x}"))
++}
++
+ pub fn rgb(s: &str) -> Rgb {
+     let h = s.trim().trim_start_matches('#');
+-    let v = u32::from_str_radix(&h[..h.len().min(6)], 16).unwrap_or(0xff00ff);
++    let v = h.get(..h.len().min(6)).and_then(|h| u32::from_str_radix(h, 16).ok()).unwrap_or(0xff00ff);
+     Rgb((v >> 16) as u8, (v >> 8) as u8, v as u8)
+ }
+ 
+@@ -622,11 +652,20 @@ impl Settings {
+         if !(1.0..=21.0).contains(&self.minimum_contrast) {
+             out.push(format!("minimum_contrast {} is outside 1..21", self.minimum_contrast));
+         }
++        if !(0.0..=1.0).contains(&self.window_opacity) {
++            out.push(format!("window_opacity {} is outside 0..1", self.window_opacity));
++        }
+         if !(6.0..=72.0).contains(&self.font_size) {
+             out.push(format!("font_size {} is outside 6..72", self.font_size));
+         }
+         out
+     }
++
++    /// What the window applies once `problems` are reported: an opacity out of range at its nearest end.
++    pub fn in_range(mut self) -> Self {
++        self.window_opacity = self.window_opacity.clamp(0.0, 1.0);
++        self
++    }
+ }
+ 
+ pub fn path() -> std::path::PathBuf {
+@@ -655,6 +694,11 @@ pub fn color(name: &str) -> Hsla {
+     theme().get(name).and_then(|v| parse_hex(v)).unwrap_or(gpui::hsla(0.83, 1.0, 0.5, 1.0))
+ }
+ 
++/// A theme color without its alpha, for what must stay readable in a see-through window.
++pub fn solid(name: &str) -> Hsla {
++    Hsla { a: 1.0, ..color(name) }
++}
++
+ /// A theme color name, or a literal `#rrggbb[aa]`.
+ pub fn color_or_literal(v: &str) -> Hsla {
+     parse_hex(v).unwrap_or_else(|| color(v))
+@@ -690,6 +734,55 @@ pub fn write_person(person: &Person) -> std::io::Result<()> {
+     crate::persist::write_atomic(&path(), serde_json::to_string_pretty(person).unwrap_or_default() + "\n")
+ }
+ 
++/// The window's root paints the one background of a see-through window: these
++/// layers stack on it (cards on canvas on the root), and alpha at each would
++/// add up to nearly opaque. The color stays beside its zero alpha for what
++/// reads it as a color. A value that is no color stays as written: `problems`
++/// reports it.
++///
++/// Overlays (`popover`) take the window's opacity where the renderer can make
++/// them replace what's below (`REPLACES_BELOW`): they show the desktop, never
++/// the window's own text under them. Elsewhere they stay solid.
++///
++/// `raised` becomes the lift it paints as a tint (white on a dark theme, black
++/// on a light one), like `hover` and `selected`: a solid one would be the one
++/// opaque patch in a see-through dialog or card.
++fn see_through(theme: &mut Theme, opacity: f32) {
++    if let (Some((bg, _)), Some((raised, 255))) = (theme.get("background").and_then(|v| hex_parts(v)), theme.get("raised").and_then(|v| hex_parts(v))) {
++        theme.insert("raised".to_owned(), tint(bg, raised));
++    }
++    for name in ["background", "surface", "canvas", "chrome"] {
++        if let Some(v) = theme.get_mut(name) {
++            if let Some((rgb, _)) = hex_parts(v) {
++                *v = format!("#{rgb:06x}00");
++            }
++        }
++    }
++    if REPLACES_BELOW {
++        if let Some(v) = theme.get_mut("popover") {
++            if let Some((rgb, _)) = hex_parts(v) {
++                *v = format!("#{rgb:06x}{:02x}", (opacity.clamp(0.0, 1.0) * 255.0).round() as u32);
++            }
++        }
++    }
++}
++
++/// `over` painted on `bg`, as white or black at the alpha that gives the same color.
++fn tint(bg: u32, over: u32) -> String {
++    let target = if is_light(bg) { 0 } else { 0xffffff };
++    let a = (0..3)
++        .map(|i| {
++            let [b, o, t] = [bg, over, target].map(|c| ((c >> (8 * i)) & 255) as f32);
++            if t == b { 0.0 } else { (o - b) / (t - b) }
++        })
++        .fold(0.0f32, f32::max)
++        .clamp(0.0, 1.0);
++    format!("#{target:06x}{:02x}", (a * 255.0).round() as u32)
++}
++
++/// Whether the renderer draws a `popover` quad over cleared pixels (Metal only).
++const REPLACES_BELOW: bool = cfg!(target_os = "macos");
++
+ /// Installs new settings; returns whether anything changed.
+ pub fn set(s: Settings) -> bool {
+     #[cfg(target_os = "macos")]
+@@ -705,10 +798,15 @@ pub fn set(s: Settings) -> bool {
+         // have new colors under the same name.
+         let (p, mut colors) = palette(&s.theme).unwrap_or_else(|_| (GRAPHITE.clone(), BTreeMap::new()));
+         colors.extend(s.colors.clone());
+-        let theme = resolve(&p, &colors);
++        let mut theme = resolve(&p, &colors);
++        if s.window_opacity < 1.0 {
++            see_through(&mut theme, s.window_opacity);
++        }
+         if *c.borrow().0 == s && *c.borrow().1 == theme {
+             return false;
+         }
++        let replacing = (REPLACES_BELOW && s.window_opacity < 1.0).then(|| theme.get("popover").and_then(|v| parse_hex(v))).flatten().filter(|c| c.a >= 1.0 / 255.0);
++        gpui::set_replacing_color(replacing);
+         gpui_shell::set_pixel_scale(s.zoom);
+         *c.borrow_mut() = (Rc::new(s), Rc::new(theme));
+         true
+@@ -937,11 +1035,86 @@ mod tests {
+         assert_eq!(Settings::compose(&person, &win98.look, true).theme, "ink");
+     }
+ 
++    #[test]
++    fn a_window_opacity_out_of_range_is_reported_then_applied_at_its_nearest_end() {
++        for (asked, applied) in [(-0.5, 0.0), (1.5, 1.0), (0.4, 0.4)] {
++            let s = Settings::compose(&Person { window_opacity: asked, ..Person::default() }, &crate::layout::Look::default(), true);
++            assert_eq!(s.problems().iter().any(|p| p.starts_with("window_opacity")), asked != applied, "{asked}");
++            assert_eq!(s.in_range().window_opacity, applied);
++        }
++    }
++
++    #[test]
++    fn a_see_through_window_paints_its_background_once() {
++        let person = Person { window_opacity: 0.8, ..Person::default() };
++        let s = Settings::compose(&person, &crate::layout::Look::default(), true);
++        assert_eq!(s.terminal_opacity, 0.0);
++        let opaque = resolve(&GRAPHITE, &BTreeMap::new());
++        let mut theme = opaque.clone();
++        see_through(&mut theme, 0.8);
++        for name in ["background", "surface", "canvas", "chrome"] {
++            assert_eq!(parse_hex(&theme[name]).unwrap().a, 0.0, "{name}");
++            assert_eq!(rgb(&theme[name]), rgb(&opaque[name]), "{name}");
++        }
++        // Raised is a tint that paints the same color on the background.
++        assert_eq!(theme["raised"], "#ffffff17");
++        assert_eq!(tint(0xf0f0f0, mix(0xf0f0f0, 0, 0.035)), "#00000009");
++        // Overlays take the window's opacity only where the renderer clears what's below them.
++        let popover = parse_hex(&theme["popover"]).unwrap().a;
++        assert!((popover - if REPLACES_BELOW { 0.8 } else { 1.0 }).abs() < 0.01, "{popover}");
++        assert_eq!(rgb(&theme["popover"]), rgb(&opaque["popover"]));
++    }
++
++    #[test]
++    fn see_through_leaves_a_value_that_is_no_color_as_written() {
++        let colors = [("background".to_owned(), "日本語x".to_owned())].into();
++        let mut theme = resolve(&GRAPHITE, &colors);
++        see_through(&mut theme, 0.8);
++        assert_eq!(theme["background"], "日本語x");
++    }
++
++    #[test]
++    fn see_through_clears_every_form_of_color_that_paints() {
++        let forms = ["12345678", " #123456", "#123456", "#12345678"];
++        let cleared = forms.map(|v| {
++            let colors = [("background".to_owned(), v.to_owned())].into();
++            let mut theme = resolve(&GRAPHITE, &colors);
++            see_through(&mut theme, 0.8);
++            theme["background"].clone()
++        });
++        assert_eq!(cleared, ["#12345600"; 4]);
++        for v in &cleared {
++            assert_eq!(parse_hex(v).unwrap().a, 0.0);
++            assert_eq!(rgb(v), Rgb(0x12, 0x34, 0x56));
++        }
++    }
++
++    #[test]
++    fn setting_the_same_see_through_settings_again_changes_nothing() {
++        let (before, person) = (get(), Person { window_opacity: 0.8, ..Person::default() });
++        let s = Settings::compose(&person, &crate::layout::Look::default(), true);
++        set(s.clone());
++        let again = set(s);
++        set((*before).clone());
++        assert!(!again);
++    }
++
++    #[test]
++    fn rgb_shows_magenta_for_text_cut_inside_a_character() {
++        assert_eq!(rgb("ab日本"), Rgb(0xff, 0x00, 0xff));
++    }
++
++    #[test]
++    fn an_opaque_window_keeps_the_layouts_terminal_opacity() {
++        let look = crate::layout::Look { terminal_opacity: Some(0.85), ..Default::default() };
++        assert_eq!(Settings::compose(&Person::default(), &look, true).terminal_opacity, 0.85);
++    }
++
+     /// The guide agents read (written to the home folder) explains every
+     /// settings.json key.
+     #[test]
+     fn the_guide_explains_every_setting() {
+-        let all = Person { core: Some(String::new()), font: Some(String::new()), font_size: Some(1.0), ui_font: Some(String::new()), telemetry: false, clipboard_write: false, appearance: Appearance::Light, theme: Some(crate::layout::ThemeChoice::One(String::new())), colors: [("text".into(), String::new())].into(), ..Person::default() };
++        let all = Person { core: Some(String::new()), font: Some(String::new()), font_size: Some(1.0), ui_font: Some(String::new()), telemetry: false, clipboard_write: false, window_opacity: 0.5, window_blur: true, appearance: Appearance::Light, theme: Some(crate::layout::ThemeChoice::One(String::new())), colors: [("text".into(), String::new())].into(), ..Person::default() };
+         let keys: Vec<String> = serde_json::to_value(&all).unwrap().as_object().unwrap().keys().cloned().collect();
+         let guide = include_str!("../defaults/AGENTS.md");
+         let section = guide.split("## The person").nth(1).and_then(|s| s.split("\n## ").next()).unwrap_or_default();
+diff --git a/src/terminal.rs b/src/terminal.rs
+index b707ea2..f442b28 100644
+--- a/src/terminal.rs
++++ b/src/terminal.rs
+@@ -59,6 +59,52 @@ pub fn hsla(c: Rgb) -> Hsla {
+     Rgba { r: c.0 as f32 / 255.0, g: c.1 as f32 / 255.0, b: c.2 as f32 / 255.0, a: 1.0 }.into()
+ }
+ 
++/// `rect` without `hole`, as up to four rectangles.
++fn without(rect: Bounds<Pixels>, hole: Bounds<Pixels>) -> Vec<Bounds<Pixels>> {
++    let h = rect.intersect(&hole);
++    if h.is_empty() {
++        return vec![rect];
++    }
++    let (left, top) = (rect.origin.x, rect.origin.y);
++    let (right, bottom) = (left + rect.size.width, top + rect.size.height);
++    let (h_right, h_bottom) = (h.origin.x + h.size.width, h.origin.y + h.size.height);
++    let at = |x0: Pixels, y0: Pixels, x1: Pixels, y1: Pixels| Bounds::new(point(x0, y0), size(x1 - x0, y1 - y0));
++    [at(left, top, right, h.origin.y), at(left, h_bottom, right, bottom), at(left, h.origin.y, h.origin.x, h_bottom), at(h_right, h.origin.y, right, h_bottom)]
++        .into_iter()
++        .filter(|r| !r.is_empty())
++        .collect()
++}
++
++/// The window minus the terminals that paint their own background.
++fn background_rects(window: Bounds<Pixels>, holes: Vec<Bounds<Pixels>>) -> Vec<Bounds<Pixels>> {
++    holes.into_iter().fold(vec![window], |rects, hole| rects.into_iter().flat_map(|r| without(r, hole)).collect())
++}
++
++/// How solid a terminal paints its default background. A see-through window
++/// painted the theme's at its root, and left a hole for one a program set
++/// (OSC 11), so that one goes here at the window's opacity, not stacked on it.
++/// Painting it here, not at the root, keeps it above a layout's solid surfaces.
++fn default_bg_opacity(own: bool, terminal_opacity: f32, window_opacity: f32) -> f32 {
++    if own { window_opacity } else { terminal_opacity }
++}
++
++/// A see-through window's background, as the root's first child: it paints after
++/// every terminal's prepaint, so it knows where they all are this frame.
++pub fn window_background(views: Vec<Entity<TerminalView>>) -> impl IntoElement {
++    canvas(
++        |_, _, _| {},
++        move |bounds, _, window, cx| {
++            let color = hsla(vt::theme().bg).opacity(crate::settings::get().window_opacity);
++            let holes = views.iter().filter_map(|v| v.read(cx).background_hole()).collect();
++            for rect in background_rects(bounds, holes) {
++                window.paint_quad(fill(rect, color));
++            }
++        },
++    )
++    .absolute()
++    .size_full()
++}
++
+ #[derive(Clone, Debug, PartialEq)]
+ enum LinkTarget {
+     External(links::Target),
+@@ -89,6 +135,12 @@ struct Grid {
+     vt_cell: (u32, u32),
+     /// The colors and device-pixel cell size the core was last told.
+     told_display: Option<DisplayFacts>,
++    /// Where it's drawn, clipped. A cached terminal keeps this, and its bounds
++    /// changing redraws it.
++    drawn_at: Option<Bounds<Pixels>>,
++    /// In a see-through window, it paints a background a program set. Read when
++    /// it's drawn, so the window's hole and this paint can't disagree.
++    own_background: bool,
+     /// Top-left of the cell grid in window coordinates, from the last paint.
+     origin: Point<Pixels>,
+     buttons_down: Vec<MouseButton>,
+@@ -280,6 +332,8 @@ impl TerminalView {
+                 scale: 1.0,
+                 vt_cell: (9, 18),
+                 told_display: None,
++                drawn_at: None,
++                own_background: false,
+                 origin: Point::default(),
+                 buttons_down: Vec::new(),
+                 images: HashMap::new(),
+@@ -607,6 +661,12 @@ impl TerminalView {
+         self.shown_in.set(FRAME.load(Ordering::Relaxed));
+     }
+ 
++    /// Where the window's background must leave room for this terminal's own.
++    fn background_hole(&self) -> Option<Bounds<Pixels>> {
++        let g = self.grid.borrow();
++        g.drawn_at.filter(|_| g.own_background && self.on_screen_this_frame())
++    }
++
+     /// A hidden pane cannot render its focus loss.
+     pub fn blur(&mut self) {
+         if self.was_focused {
+@@ -1850,7 +1910,9 @@ fn paint_grid(bounds: Bounds<Pixels>, grid: &Rc<RefCell<Grid>>, focused: bool, w
+     let marked = g.marked.clone();
+     drop(g);
+ 
+-    window.paint_quad(fill(bounds, hsla(frame.bg).opacity(crate::settings::get().terminal_opacity)));
++    let s = crate::settings::get();
++    let opacity = default_bg_opacity(grid.borrow().own_background, s.terminal_opacity, s.window_opacity);
++    window.paint_quad(fill(bounds, hsla(frame.bg).opacity(opacity)));
+     let at = |x: usize, y: usize| origin + point(cell.width * x as f32, cell.height * y as f32);
+     // Edges round to device pixels, so cells side by side meet without seams.
+     let snap_box = |b: Bounds<Pixels>| {
+@@ -2256,7 +2318,10 @@ impl Render for TerminalView {
+                 canvas(
+                     move |bounds, window, _cx| {
+                         let (cols, rows) = grid_size(bounds.size, cell);
+-                        grid.borrow_mut().fit(cols, rows, cell, window.scale_factor());
++                        let mut g = grid.borrow_mut();
++                        g.fit(cols, rows, cell, window.scale_factor());
++                        g.drawn_at = Some(bounds.intersect(&window.content_mask().bounds));
++                        g.own_background = crate::settings::get().window_opacity < 1.0 && g.vt.background() != vt::theme().bg;
+                     },
+                     move |bounds, _, window, cx| {
+                         paint_grid(bounds, &grid_paint, focused, window, cx);
+@@ -3035,6 +3100,48 @@ mod tests {
+         assert!(cx.debug_bounds("find-bar").is_some());
+     }
+ 
++    #[test]
++    fn background_is_the_one_a_program_set_until_it_resets_it() {
++        use super::*;
++        let mut vt = Vt::new(10, 2);
++        let theme_bg = vt.background();
++        vt.write(b"\x1b]11;#24283b\x1b\\");
++        assert_eq!(vt.background(), Rgb(0x24, 0x28, 0x3b));
++        vt.write(b"\x1b]111\x1b\\");
++        assert_eq!(vt.background(), theme_bg);
++    }
++
++    #[test]
++    fn a_see_through_background_leaves_a_hole_for_each_own_background() {
++        use super::*;
++        let rect = |x: f32, y: f32, w: f32, h: f32| Bounds::new(point(px(x), px(y)), size(px(w), px(h)));
++        let window = rect(0.0, 0.0, 100.0, 80.0);
++        let inside = |r: Bounds<Pixels>, x: f32, y: f32| r.contains(&point(px(x), px(y)));
++        // Each sampled point is painted once, or not at all inside a hole.
++        let check = |holes: Vec<Bounds<Pixels>>| {
++            let rects = background_rects(window, holes.clone());
++            for x in (0..100).step_by(5).map(|x| x as f32 + 0.5) {
++                for y in (0..80).step_by(5).map(|y| y as f32 + 0.5) {
++                    let painted = rects.iter().filter(|r| inside(**r, x, y)).count();
++                    assert_eq!(painted, usize::from(!holes.iter().any(|h| inside(*h, x, y))), "at {x},{y}");
++                }
++            }
++        };
++        assert_eq!(background_rects(window, Vec::new()), [window]);
++        check(vec![rect(0.0, 0.0, 40.0, 80.0), rect(40.0, 20.0, 30.0, 30.0)]); // touching, and on an edge
++        check(vec![rect(10.0, 10.0, 60.0, 60.0), rect(50.0, 30.0, 40.0, 20.0)]); // overlapping
++        check(vec![rect(90.0, 70.0, 50.0, 50.0)]); // hanging off the window
++        assert_eq!(background_rects(window, vec![rect(200.0, 0.0, 10.0, 10.0)]), [window]);
++    }
++
++    #[test]
++    fn a_background_a_program_set_paints_at_the_windows_opacity() {
++        use super::*;
++        assert_eq!(default_bg_opacity(true, 0.0, 0.9), 0.9);
++        assert_eq!(default_bg_opacity(false, 0.0, 0.9), 0.0, "the window already painted the theme's");
++        assert_eq!(default_bg_opacity(false, 0.85, 1.0), 0.85, "an opaque window keeps the layout's terminal_opacity");
++    }
++
+     #[test]
+     fn mouse_buttons_only_follow_the_pane_that_took_each_press() {
+         use super::*;
+diff --git a/src/vt.rs b/src/vt.rs
+index 30c68c9..f188888 100644
+--- a/src/vt.rs
++++ b/src/vt.rs
+@@ -746,6 +746,15 @@ impl Vt {
+         }
+     }
+ 
++    /// The default background now: the one a program set (OSC 11), else the theme's.
++    pub fn background(&self) -> Rgb {
++        let mut bg = GhosttyColorRgb::default();
++        unsafe {
++            ghostty_terminal_get(self.term, GHOSTTY_TERMINAL_DATA_COLOR_BACKGROUND, &mut bg as *mut _ as *mut c_void);
++        }
++        Rgb::from(bg)
++    }
++
+     /// Switches colors live (settings.json changed).
+     pub fn set_theme(&mut self, theme: Theme) {
+         if self.theme != theme {
+diff --git a/src/window.rs b/src/window.rs
+index 08a4370..2ddb3ba 100644
+--- a/src/window.rs
++++ b/src/window.rs
+@@ -858,7 +858,14 @@ impl AppWindow {
+         if !problems.is_empty() {
+             self.report_layout(&problems.join("; "));
+         }
++        let s = s.in_range();
++        let background = match (s.window_opacity < 1.0, s.window_blur) {
++            (false, _) => WindowBackgroundAppearance::Opaque,
++            (true, false) => WindowBackgroundAppearance::Transparent,
++            (true, true) => WindowBackgroundAppearance::Blurred,
++        };
+         if settings::set(s) {
++            window.set_background_appearance(background);
+             for term in self.terms.values() {
+                 term.view.read(cx).refresh_theme();
+             }
+@@ -4373,7 +4380,9 @@ impl AppWindow {
+                     div()
+                         .absolute()
+                         .inset_0()
+-                        .bg(hsla(0.0, 0.0, 0.0, 0.35))
++                        // A see-through window keeps its look behind a dialog:
++                        // only the dialog appears, nothing dims the rest.
++                        .when(settings::get().window_opacity >= 1.0, |d| d.bg(hsla(0.0, 0.0, 0.0, 0.35)))
+                         .occlude()
+                         .flex()
+                         .items_center()
+@@ -4921,6 +4930,8 @@ impl Render for AppWindow {
+         let tracker = self.float_tracker(cx);
+         let win_tracker = self.window_tracker(cx);
+         let pane_drag = self.pane_drag_layer(cx);
++        let see_through = settings::get().window_opacity < 1.0;
++        let terminals: Vec<_> = self.terms.values().map(|t| t.view.clone()).collect();
+         div()
+             .id("herdr")
+             .track_focus(&self.focus)
+@@ -4928,7 +4939,8 @@ impl Render for AppWindow {
+             .key_context(format!("Herdr layout = {}", self.layout_name).as_str())
+             .size_full()
+             .relative()
+-            .bg(c("background"))
++            .when(!see_through, |root| root.bg(settings::solid("background")))
++            .when(see_through, |root| root.child(crate::terminal::window_background(terminals)))
+             .text_color(c("foreground"))
+             .font_family(settings::get().ui_font_family.clone())
+             .on_action(cx.listener(|this, a: &ShellAction, w, cx| {
+diff --git a/src/window/pane_drag.rs b/src/window/pane_drag.rs
+index 23584b7..d1a82d1 100644
+--- a/src/window/pane_drag.rs
++++ b/src/window/pane_drag.rs
+@@ -56,7 +56,7 @@ impl AppWindow {
+         Some(div().id(SharedString::from(format!("grip-{pane}")))
+             .absolute().top(settings::z((row - 18.) / 2.)).left(relative(0.5)).ml(-settings::z(14.))
+             .w(settings::z(28.)).h(settings::z(18.)).rounded(settings::z(4.))
+-            .bg(c("background").opacity(0.85))
++            .bg(settings::solid("background").opacity(0.85))
+             .hover(|s| s.bg(c("hover")))
+             .flex().flex_col().items_center().justify_center().gap(settings::z(3.)).occlude()
+             .group("pane-grip")
+diff --git a/vendor/gpui-pre-apple/src/metal_renderer.rs b/vendor/gpui-pre-apple/src/metal_renderer.rs
+index 842d7b1..90d7e69 100644
+--- a/vendor/gpui-pre-apple/src/metal_renderer.rs
++++ b/vendor/gpui-pre-apple/src/metal_renderer.rs
+@@ -119,6 +119,8 @@ pub struct MetalRenderer {
+     path_sprites_pipeline_state: metal::RenderPipelineState,
+     shadows_pipeline_state: metal::RenderPipelineState,
+     quads_pipeline_state: metal::RenderPipelineState,
++    // HERDR: clears what's below a replacing quad (see `Background::replaces_below`).
++    quads_erase_pipeline_state: metal::RenderPipelineState,
+     underlines_pipeline_state: metal::RenderPipelineState,
+     monochrome_sprites_pipeline_state: metal::RenderPipelineState,
+     polychrome_sprites_pipeline_state: metal::RenderPipelineState,
+@@ -326,6 +328,14 @@ impl MetalRenderer {
+             "quad_fragment",
+             MTLPixelFormat::BGRA8Unorm,
+         );
++        let quads_erase_pipeline_state = build_erase_pipeline_state(
++            &device,
++            &library,
++            "quads_erase",
++            "quad_vertex",
++            "quad_erase_fragment",
++            MTLPixelFormat::BGRA8Unorm,
++        );
+         let underlines_pipeline_state = build_pipeline_state(
+             &device,
+             &library,
+@@ -377,6 +387,7 @@ impl MetalRenderer {
+             path_sprites_pipeline_state,
+             shadows_pipeline_state,
+             quads_pipeline_state,
++            quads_erase_pipeline_state,
+             underlines_pipeline_state,
+             monochrome_sprites_pipeline_state,
+             polychrome_sprites_pipeline_state,
+@@ -709,7 +720,23 @@ impl MetalRenderer {
+                     self.draw_shadows(range, instance_bindings, viewport_size, command_encoder)
+                 }
+                 PrimitiveBatch::Quads(range) => {
+-                    self.draw_quads(range, instance_bindings, viewport_size, command_encoder)
++                    // HERDR: a replacing quad clears what's below it, then
++                    // draws; each on its own so one nested in another works.
++                    let mut start = range.start;
++                    while start < range.end {
++                        if scene.quads[start].background.replaces_below() {
++                            let one = start..start + 1;
++                            self.draw_quads(one.clone(), &self.quads_erase_pipeline_state, instance_bindings, viewport_size, command_encoder);
++                            self.draw_quads(one, &self.quads_pipeline_state, instance_bindings, viewport_size, command_encoder);
++                            start += 1;
++                        } else {
++                            let end = (start..range.end)
++                                .find(|&i| scene.quads[i].background.replaces_below())
++                                .unwrap_or(range.end);
++                            self.draw_quads(start..end, &self.quads_pipeline_state, instance_bindings, viewport_size, command_encoder);
++                            start = end;
++                        }
++                    }
+                 }
+                 PrimitiveBatch::Paths(range) => {
+                     let paths = &scene.paths[range];
+@@ -891,6 +918,7 @@ impl MetalRenderer {
+     fn draw_quads(
+         &self,
+         quads: Range<usize>,
++        pipeline: &metal::RenderPipelineStateRef,
+         instance_bindings: &InstanceBindings,
+         viewport_size: Size<DevicePixels>,
+         command_encoder: &metal::RenderCommandEncoderRef,
+@@ -899,7 +927,7 @@ impl MetalRenderer {
+             return;
+         }
+ 
+-        command_encoder.set_render_pipeline_state(&self.quads_pipeline_state);
++        command_encoder.set_render_pipeline_state(pipeline);
+         command_encoder.set_vertex_buffer(
+             QuadInputIndex::Vertices as u64,
+             Some(&self.unit_vertices),
+@@ -1333,7 +1361,45 @@ fn build_pipeline_state(
+     color_attachment.set_source_rgb_blend_factor(metal::MTLBlendFactor::SourceAlpha);
+     color_attachment.set_source_alpha_blend_factor(metal::MTLBlendFactor::One);
+     color_attachment.set_destination_rgb_blend_factor(metal::MTLBlendFactor::OneMinusSourceAlpha);
+-    color_attachment.set_destination_alpha_blend_factor(metal::MTLBlendFactor::One);
++    // HERDR: "over" for alpha too. `One` added alpha up, so in a see-through
++    // window any translucent layer (a hover, a dialog's backdrop) went opaque.
++    color_attachment.set_destination_alpha_blend_factor(metal::MTLBlendFactor::OneMinusSourceAlpha);
++
++    device
++        .new_render_pipeline_state(&descriptor)
++        .expect("could not create render pipeline state")
++}
++
++// HERDR: multiplies what's below by one minus the quad's coverage (color and
++// alpha), so the quad drawn next replaces it rather than blending over it.
++fn build_erase_pipeline_state(
++    device: &metal::DeviceRef,
++    library: &metal::LibraryRef,
++    label: &str,
++    vertex_fn_name: &str,
++    fragment_fn_name: &str,
++    pixel_format: metal::MTLPixelFormat,
++) -> metal::RenderPipelineState {
++    let vertex_fn = library
++        .get_function(vertex_fn_name, None)
++        .expect("error locating vertex function");
++    let fragment_fn = library
++        .get_function(fragment_fn_name, None)
++        .expect("error locating fragment function");
++
++    let descriptor = metal::RenderPipelineDescriptor::new();
++    descriptor.set_label(label);
++    descriptor.set_vertex_function(Some(vertex_fn.as_ref()));
++    descriptor.set_fragment_function(Some(fragment_fn.as_ref()));
++    let color_attachment = descriptor.color_attachments().object_at(0).unwrap();
++    color_attachment.set_pixel_format(pixel_format);
++    color_attachment.set_blending_enabled(true);
++    color_attachment.set_rgb_blend_operation(metal::MTLBlendOperation::Add);
++    color_attachment.set_alpha_blend_operation(metal::MTLBlendOperation::Add);
++    color_attachment.set_source_rgb_blend_factor(metal::MTLBlendFactor::Zero);
++    color_attachment.set_source_alpha_blend_factor(metal::MTLBlendFactor::Zero);
++    color_attachment.set_destination_rgb_blend_factor(metal::MTLBlendFactor::OneMinusSourceAlpha);
++    color_attachment.set_destination_alpha_blend_factor(metal::MTLBlendFactor::OneMinusSourceAlpha);
+ 
+     device
+         .new_render_pipeline_state(&descriptor)
+@@ -1367,7 +1433,9 @@ fn build_path_sprite_pipeline_state(
+     color_attachment.set_source_rgb_blend_factor(metal::MTLBlendFactor::One);
+     color_attachment.set_source_alpha_blend_factor(metal::MTLBlendFactor::One);
+     color_attachment.set_destination_rgb_blend_factor(metal::MTLBlendFactor::OneMinusSourceAlpha);
+-    color_attachment.set_destination_alpha_blend_factor(metal::MTLBlendFactor::One);
++    // HERDR: "over" for alpha too. `One` added alpha up, so in a see-through
++    // window any translucent layer (a hover, a dialog's backdrop) went opaque.
++    color_attachment.set_destination_alpha_blend_factor(metal::MTLBlendFactor::OneMinusSourceAlpha);
+ 
+     device
+         .new_render_pipeline_state(&descriptor)
+diff --git a/vendor/gpui-pre-apple/src/shaders.metal b/vendor/gpui-pre-apple/src/shaders.metal
+index 2b52bb9..94d0803 100644
+--- a/vendor/gpui-pre-apple/src/shaders.metal
++++ b/vendor/gpui-pre-apple/src/shaders.metal
+@@ -97,10 +97,25 @@ vertex QuadVertexOutput quad_vertex(uint unit_vertex_id [[vertex_id]],
+       {clip_distance.x, clip_distance.y, clip_distance.z, clip_distance.w}};
+ }
+ 
++float4 quad_color(QuadFragmentInput input, Quad quad);
++
+ fragment float4 quad_fragment(QuadFragmentInput input [[stage_in]],
+                               constant Quad *quads
+                               [[buffer(QuadInputIndex_Quads)]]) {
+-  Quad quad = quads[input.quad_id];
++  return quad_color(input, quads[input.quad_id]);
++}
++
++// HERDR: a replacing quad's coverage, which its pipeline uses to clear what's
++// below before the quad itself is drawn over the cleared pixels.
++fragment float4 quad_erase_fragment(QuadFragmentInput input [[stage_in]],
++                                    constant Quad *quads
++                                    [[buffer(QuadInputIndex_Quads)]]) {
++  input.background_solid.a = 1.0;
++  input.border_color.a = 1.0;
++  return float4(0.0, 0.0, 0.0, quad_color(input, quads[input.quad_id]).a);
++}
++
++float4 quad_color(QuadFragmentInput input, Quad quad) {
+   float4 background_color = fill_color(quad.background, input.position.xy, quad.bounds,
+     input.background_solid, input.background_color0, input.background_color1);
+ 
+diff --git a/vendor/gpui-pre-macos/src/window.rs b/vendor/gpui-pre-macos/src/window.rs
+index add7a27..bdd5149 100644
+--- a/vendor/gpui-pre-macos/src/window.rs
++++ b/vendor/gpui-pre-macos/src/window.rs
+@@ -88,6 +88,15 @@ static mut WINDOW_CLASS: *const Class = ptr::null();
+ static mut PANEL_CLASS: *const Class = ptr::null();
+ static mut VIEW_CLASS: *const Class = ptr::null();
+ static mut BLURRED_VIEW_CLASS: *const Class = ptr::null();
++
++// HERDR: what a blurred window's background uses (points).
++const BLUR_RADIUS: i32 = 30;
++
++#[link(name = "CoreGraphics", kind = "framework")]
++unsafe extern "C" {
++    fn CGSMainConnectionID() -> u32;
++    fn CGSSetWindowBackgroundBlurRadius(connection: u32, window: NSInteger, radius: i32) -> i32;
++}
+ static mut WINDOW_STATE_ARCHIVER_DELEGATE_CLASS: *const Class = ptr::null();
+ static mut WINDOW_STATE_UNARCHIVER_CLASS: *const Class = ptr::null();
+ 
+@@ -1885,6 +1894,12 @@ impl PlatformWindow for MacWindow {
+             };
+             this.native_window.setBackgroundColor_(background_color);
+ 
++            // HERDR: the window server's own blur. The effect view below alone
++            // shows no blur on macOS 27.
++            let radius = if background_appearance == WindowBackgroundAppearance::Blurred { BLUR_RADIUS } else { 0 };
++            let number: NSInteger = msg_send![this.native_window, windowNumber];
++            CGSSetWindowBackgroundBlurRadius(CGSMainConnectionID(), number, radius);
++
+             if background_appearance != WindowBackgroundAppearance::Blurred {
+                 if let Some(blur_view) = this.blurred_view {
+                     NSView::removeFromSuperview(blur_view);
+diff --git a/vendor/gpui-pre/src/color.rs b/vendor/gpui-pre/src/color.rs
+index 3bd893f..d167303 100644
+--- a/vendor/gpui-pre/src/color.rs
++++ b/vendor/gpui-pre/src/color.rs
+@@ -823,6 +823,44 @@ impl Default for Background {
+     }
+ }
+ 
++// HERDR: one solid color whose quads replace what's below them instead of
++// blending over it, so a see-through window's menus show the desktop, not the
++// window's own content. `u64::MAX` is none; otherwise the color's RGBA8.
++static REPLACING: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(u64::MAX);
++
++fn rgba8(color: Hsla) -> u64 {
++    let c = Rgba::from(color);
++    let b = |v: f32| (v.clamp(0.0, 1.0) * 255.0).round() as u64;
++    (b(c.r) << 24) | (b(c.g) << 16) | (b(c.b) << 8) | b(c.a)
++}
++
++/// HERDR: quads painted solid in exactly this color (after element opacity,
++/// so a fading or hidden element blends as usual) replace what's below them,
++/// on renderers that support it (Metal); `None` turns it off. Compared at 8
++/// bits per channel.
++pub fn set_replacing_color(color: Option<Hsla>) {
++    REPLACING.store(color.map_or(u64::MAX, rgba8), std::sync::atomic::Ordering::Relaxed);
++}
++
++impl Background {
++    /// HERDR: marks a solid background in the replacing color.
++    pub(crate) fn mark_replacing(mut self) -> Self {
++        let r = REPLACING.load(std::sync::atomic::Ordering::Relaxed);
++        // Runs for every quad: the alpha byte rejects nearly all of them
++        // (opaque or clear) before the HSL→RGB conversion.
++        let alpha = || (self.solid.a.clamp(0.0, 1.0) * 255.0).round() as u64;
++        if r != u64::MAX && self.tag == BackgroundTag::Solid && alpha() == r & 255 && rgba8(self.solid) == r {
++            self.pad = 1;
++        }
++        self
++    }
++
++    /// HERDR: whether this quad replaces what's below it (see `set_replacing_color`).
++    pub fn replaces_below(&self) -> bool {
++        self.pad == 1
++    }
++}
++
+ /// Creates a hash pattern background
+ pub fn pattern_slash(color: impl Into<Hsla>, width: f32, interval: f32) -> Background {
+     let width_scaled = (width * 255.0) as u32;
+diff --git a/vendor/gpui-pre/src/window.rs b/vendor/gpui-pre/src/window.rs
+index 59adb8b..db2812b 100644
+--- a/vendor/gpui-pre/src/window.rs
++++ b/vendor/gpui-pre/src/window.rs
+@@ -4637,7 +4637,7 @@ impl Window {
+             order: 0,
+             bounds: snapped_bounds,
+             content_mask: self.snapped_content_mask(),
+-            background: quad.background.opacity(opacity),
++            background: quad.background.opacity(opacity).mark_replacing(),
+             border_color: quad.border_color.opacity(opacity),
+             corner_radii: quad.corner_radii.scale(self.scale_factor()),
+             border_widths: snapped_border_widths,

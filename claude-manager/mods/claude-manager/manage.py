@@ -291,7 +291,8 @@ def files_of(kind, name):
 
 def delete(kind, name):
     paths = files_of(kind, name)
-    r = subprocess.run(["/usr/bin/trash", *paths], capture_output=True, text=True)
+    try: r = subprocess.run(["/usr/bin/trash", *paths], capture_output=True, text=True)
+    except OSError: raise SystemExit("Move to Trash needs /usr/bin/trash (recent macOS)")
     if r.returncode != 0 or any(os.path.lexists(p) for p in paths):
         raise SystemExit(f"trash failed: {(r.stderr or r.stdout).strip() or 'still there'}")
     s = load(SETTINGS, {})  # its switch goes too, or a later file of that name would start off

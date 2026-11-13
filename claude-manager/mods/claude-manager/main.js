@@ -4,12 +4,11 @@
 // disableAllHooks); one hook, which has no native switch, is stashed and put back in place. Type to filter, Tab for the kind, ↑/↓ and Enter (or click) to flip.
 // New Claude Code sessions pick a change up; a session already running keeps what it loaded.
 
-// Look: the bottom bar's quota meters. Grey by default, one coral Claude mark,
-// color only where it means something: amber marks what Claude Code no longer loads.
+// Controls match OhMyHerdr Mods: accent switches and bordered state badges.
 
 import { View, div, svg } from "gpui-kit";
 import { v_flex, h_flex, InputState, Input, v_virtual_list, VirtualListScrollHandle, Scrollbar } from "gpui-base";
-import { header, field, kbd, kbdHint, chip, SIZE, CORAL } from "./kit.js";
+import { header, field, kbd, kbdHint, chip, tag, SIZE, CORAL } from "./kit.js";
 import { theme, exec, appHome, props, closeOverlay } from "herdr";
 
 const ROW = 28;
@@ -129,11 +128,10 @@ export default class ClaudeManager extends View {
     cx.notify();
   }
 
-  // A grey switch: on is the normal state, so it stays quiet; off goes hollow.
   toggle(c, on, busy) {
-    return h_flex().w(24).h(14).flex_none().rounded(7).p(2).border_1().border_color(on ? c.border : c.input)
-      .when(on, (el) => el.justify_end().bg(c.border)).opacity(busy ? 0.5 : 1)
-      .child(div().size(8).rounded(4).bg(on ? c.muted : c.dim));
+    return h_flex().w(28).h(16).flex_none().p(2).rounded(8).bg(on ? c.accent : c.border)
+      .opacity(busy ? 0.5 : 1).when(on, el => el.justify_end())
+      .child(div().size(12).rounded(6).bg(c.foreground));
   }
 
   // label + gauge + value, as the quota bar draws its 5h / 7d meters
@@ -162,8 +160,7 @@ export default class ClaudeManager extends View {
       .child(div().w(this.kind === "hooks" ? 220 : 300).flex_none().truncate().text_color(x.on ? c.foreground : c.dim)
         .when(sel || x.id === "*", (d) => d.font_medium()).child(x.name))
       .child(div().flex_1().min_w(0).truncate().text_size(SIZE.body).text_color(x.on ? c.muted : c.dim).child(x.desc || " "))
-      .child(div().w(80).flex_none().text_right().text_size(SIZE.micro)
-        .text_color(x.on ? c.dim : c.working).child(!x.on ? "off" : x.mode && x.mode !== "on" ? x.mode : ""));
+      .child(tag(c, !x.on ? "Off" : x.mode && x.mode !== "on" ? x.mode : "On", x.on ? undefined : c.working));
   }
 
   render() {

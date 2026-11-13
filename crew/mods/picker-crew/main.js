@@ -178,7 +178,7 @@ export default class Picker extends View {
     };
 
     const d = dialog(t, "picker", { title: "Go to…", glyph: svg(ICON("search")).size(14).flex_none().text_color(t.muted) });
-    return d.root
+    return d.root.size_full()
       .track_focus(this.handle)
       .on_key_down((e, cx) => {
         const k = e.key;
@@ -206,7 +206,7 @@ export default class Picker extends View {
             this.listHeight = size.height / settings().zoom;
             cx.notify();
           })
-          .h(Math.min(320, total))
+          .flex_1()
           .min_h(0)
           .mb(8)
           .when(fixed, (el) =>
