@@ -6,7 +6,9 @@ YES = "-y" in args
 args = [a for a in args if a != "-y"]
 CAT = [l.rstrip("\n").split("\t") for l in open("mods.tsv") if l.strip() and not l.startswith("#")]
 NAMES = [c[0] for c in CAT]
-LAYOUT_FILE = os.path.join("crew", "layouts", "crew.json")
+# The layout is named OhMyHerdr (Settings > Layout shows the file name); it used to be crew.json.
+LAYOUT_NAME, OLD_LAYOUT = "OhMyHerdr", "crew"
+LAYOUT_FILE = os.path.join("crew", "layouts", f"{LAYOUT_NAME}.json")
 LAYOUT = json.load(open(LAYOUT_FILE))
 # Each top folder is one herdr.dev entry (crew, git, ...); a mod may sit in several, same files.
 SRC = {}
@@ -15,7 +17,7 @@ for entry in sorted(os.listdir(".")):
         SRC.setdefault(m, os.path.join(entry, "mods", m))
 # A mod's keybinds: the entries' keys.json bindings whose action names it (mod.open:help-crew, tabs-crew.graph).
 KEYS = {}
-for f in sorted(glob.glob("*/keys.json")):
+for f in sorted(f for f in glob.glob("*/keys.json") if os.path.isdir(os.path.join(os.path.dirname(f), "mods"))):  # not a config snapshot
     for section, binds in json.load(open(f)).items():
         for k, action in binds.items():
             for m in SRC:
@@ -54,7 +56,7 @@ def same_tree(a, b):
 # ---- what to install --------------------------------------------------------------
 # opt-in: copies of Herdr's own screens (Settings, palette...) that take over its keys; never part of "all"
 ALL = [n for n, needs, _ in CAT if needs != "opt-in"]
-NOTE = {"layout": "  (crew layout)", "opt-in": "  (opt-in: replaces Herdr's own)"}
+NOTE = {"layout": "  (OhMyHerdr layout)", "opt-in": "  (opt-in: replaces Herdr's own)"}
 if "--list" in args:
     for name, needs, desc in CAT: print(f"  {name:<22} {desc}{NOTE.get(needs, '')}")
     sys.exit(0)
@@ -84,10 +86,10 @@ else:
 # crew-layout mods only show up inside the crew layout: offer it, and bring what it needs
 needs_layout = [c[0] for c in CAT if c[0] in chosen and c[1] == "layout"]
 if want_layout is None:
-    want_layout = bool(needs_layout) and ask(f"{', '.join(needs_layout)} live in the crew layout. Install layouts/crew.json too?")
+    want_layout = bool(needs_layout) and ask(f"{', '.join(needs_layout)} live in the {LAYOUT_NAME} layout. Install layouts/{LAYOUT_NAME}.json too?")
 if want_layout:
     extra = sorted(m for m in layout_mods(LAYOUT) if m in NAMES and m not in chosen)
-    if extra: print(f"The crew layout also needs: {', '.join(extra)}"); chosen += extra
+    if extra: print(f"The {LAYOUT_NAME} layout also needs: {', '.join(extra)}"); chosen += extra
 
 # ---- copy mods ----------------------------------------------------------------------
 disabled = [m for m in chosen if os.path.exists(os.path.join(APP, "disabled-mods", m))]
@@ -105,15 +107,46 @@ for m in chosen:
 
 # ---- layout ---------------------------------------------------------------------------
 if want_layout:
-    dst = os.path.join(APP, "layouts", "crew.json")
-    os.makedirs(os.path.dirname(dst), exist_ok=True)
-    if not (os.path.exists(dst) and filecmp.cmp(LAYOUT_FILE, dst, shallow=False)):
-        backup(dst); shutil.copy2(LAYOUT_FILE, dst); print("  + layouts/crew.json (pick it in Settings > Layout)")
+    for src in (LAYOUT_FILE, LAYOUT_FILE[:-5] + ".png"):  # the layout, then its Settings preview
+        dst = os.path.join(APP, "layouts", os.path.basename(src))
+        os.makedirs(os.path.dirname(dst), exist_ok=True)
+        if os.path.exists(src) and not (os.path.exists(dst) and filecmp.cmp(src, dst, shallow=False)):
+            backup(dst); shutil.copy2(src, dst); print(f"  + layouts/{os.path.basename(src)}")
+    # The old crew.json: whoever had it on moves to OhMyHerdr with their clicks (sizes, theme), then it
+    # goes (a copy stays in backup/). Herdr open but out of reach: it would write "crew" back, so leave it.
+    old, state = os.path.join(APP, "layouts", f"{OLD_LAYOUT}.json"), os.path.join(APP, "layouts", ".state")
+    moved = False
+    if os.path.exists(old):
+        if os.path.exists(os.path.join(state, f"{OLD_LAYOUT}.json")) and not os.path.exists(os.path.join(state, f"{LAYOUT_NAME}.json")):
+            shutil.copy2(os.path.join(state, f"{OLD_LAYOUT}.json"), os.path.join(state, f"{LAYOUT_NAME}.json"))  # as Herdr's own clone does
+        sp = os.path.join(APP, "shared.json")
+        try: sh = json.load(open(sp))
+        except (OSError, ValueError): sh = {}
+        active = isinstance(sh, dict) and sh.get("layout") == OLD_LAYOUT
+        if active and shutil.which("herdr-app") and subprocess.run(["herdr-app", "do", "layout.switch", "--name", LAYOUT_NAME], capture_output=True).returncode == 0:
+            moved = True
+        elif active and not os.path.exists(os.path.join(APP, "herdr-app.sock")):  # Herdr closed: it reads shared.json when it opens
+            sh["layout"] = LAYOUT_NAME
+            with open(sp + ".tmp", "w") as fh: json.dump(sh, fh)
+            os.replace(sp + ".tmp", sp)
+            moved = True
+        if active and not moved:
+            print(f"  ! Herdr is open on {OLD_LAYOUT}: pick {LAYOUT_NAME} in Settings > Layout, then run the installer again")
+        else:
+            if moved: print(f"  ~ switched to the {LAYOUT_NAME} layout")
+            backup(old); os.remove(old); print(f"  - layouts/{OLD_LAYOUT}.json, now {LAYOUT_NAME}.json")
+    if not moved and not os.path.exists(old): print(f"  Pick {LAYOUT_NAME} in Settings > Layout")
 
 # ---- keys: merge each mod's bindings; never overwrite yours without asking --------------
 kpath = os.path.join(APP, "keys.json")
 keys = json.load(open(kpath)) if os.path.exists(kpath) else {}
 changed = False
+# layout:crew became layout:OhMyHerdr with the layout's name; your own keys come along, once the
+# crew layout itself is gone (its keys only apply while it shows)
+if f"layout:{OLD_LAYOUT}" in keys and not os.path.exists(os.path.join(APP, "layouts", f"{OLD_LAYOUT}.json")):
+    new = keys.setdefault(f"layout:{LAYOUT_NAME}", {})
+    for k, action in keys.pop(f"layout:{OLD_LAYOUT}").items(): new.setdefault(k, action)
+    changed = True; print(f"  ~ keys: layout:{OLD_LAYOUT} is now layout:{LAYOUT_NAME}")
 for m in chosen:
     for section, binds in KEYS.get(m, {}).items():
         sec = keys.setdefault(section, {})

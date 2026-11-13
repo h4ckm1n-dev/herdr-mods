@@ -70,7 +70,7 @@ A row filling the window, with no system title bar (traffic lights at 12,16) on 
 
 ## Built from
 
-- `layouts/crew.json`: the root row, then the `sidebar` column with `brand` (workspace-chrome-crew),
+- `layouts/OhMyHerdr.json` (with `"preview": "layouts/OhMyHerdr.png"`, its Settings card): the root row, then the `sidebar` column with `brand` (workspace-chrome-crew),
   `sidebar-lists` (agents-crew, spaces-crew) and `sidebar-footer` (workspace-chrome-crew with
   `{footer: true}`). Next to it, the `work` column with `tabs` (tabs-crew) and `work-body`. The
   `work-body` row holds the terminal and a hidden `panel` stack: files-crew, git, cost. Below it,
@@ -99,7 +99,7 @@ A row filling the window, with no system title bar (traffic lights at 12,16) on 
 
 ## Done when
 
-- `herdr-app check` passes for every mod in `mods/`, and `layout.switch {name: "crew"}` shows the
+- `herdr-app check` passes for every mod in `mods/`, and `layout.switch {name: "OhMyHerdr"}` shows the
   sidebar, tab bar and bottom bar with no empty block.
 - With a Claude agent working, its row shows a spinner and its context bar. The bottom bar reads
   `1 working`.

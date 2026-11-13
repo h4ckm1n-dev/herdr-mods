@@ -45,7 +45,7 @@ Goal: never leave Herdr for routine git work.
 
 ## Layout (decided: "B — Changes over Graph", diff in panel)
 
-Side panel, default 368px wide (existing `panel` column in `layouts/crew.json`,
+Side panel, default 368px wide (existing `panel` column in `layouts/OhMyHerdr.json`,
 min 280, max 900). Top to bottom:
 
 1. **Header**: branch chip (`⎇ main`, Git Graph's existing chip style). Click →
@@ -133,11 +133,11 @@ list (kept as-is).
 
 ## Wiring
 
-- `layouts/crew.json` `panel-body` stack: replace `graph` block's mod
+- `layouts/OhMyHerdr.json` `panel-body` stack: replace `graph` block's mod
   `git-graph` → `git`; **remove the `changes` block**.
 - `mods/tabs-crew/main.js`: drop `"changes"` from the enabled panels and its
   button; Git button icon → `mods/git/icons/graph.svg`. Buttons stay icon-only.
-- `keys.json` `layout:crew`: `cmd-g` → `tabs-crew.graph` (unchanged id).
+- `keys.json` `layout:OhMyHerdr`: `cmd-g` → `tabs-crew.graph` (unchanged id).
 - Delete `mods/git-graph/` once `mods/git` passes checks.
 
 ## Done when

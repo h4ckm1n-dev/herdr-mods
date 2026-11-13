@@ -28,7 +28,7 @@ OhMyHerdr's mods, the Crew layout and their keybindings into
 `~/.config/herdr-app` (or `HERDR_APP_HOME`), creating that folder if needed.
 The installer backs up replaced files, asks before replacing conflicting
 keybindings, and offers the existing Claude quota integration. It does not
-automatically answer yes to those prompts. Pick **crew** in **Settings > Layout**.
+automatically answer yes to those prompts. Pick **OhMyHerdr** in **Settings > Layout**.
 If building or signing fails, mod installation does not run. If mod installation
 fails, the command reports failure and the built app remains available to retry.
 

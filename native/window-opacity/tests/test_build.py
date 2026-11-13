@@ -86,7 +86,7 @@ class BuildTests(unittest.TestCase):
         (mod / 'main.js').write_text('export default class Fixture {}\n')
         layouts = root / 'crew/layouts'
         layouts.mkdir()
-        (layouts / 'crew.json').write_text('{"content":{"mod":"test-mod"}}')
+        (layouts / 'OhMyHerdr.json').write_text('{"content":{"mod":"test-mod"}}')
         (root / 'crew/keys.json').write_text('{"global":{"cmd-t":"mod.open:test-mod"}}')
         self.home = root / 'herdr home'
         self.work = root / '.build/herdr-opacity'
@@ -120,7 +120,7 @@ class BuildTests(unittest.TestCase):
         self.assertTrue((self.app / 'Contents/Resources/THIRD-PARTY-NOTICES').is_file())
         self.assertEqual((self.home / 'mods/test-mod/main.js').read_text(),
                          'export default class Fixture {}\n')
-        self.assertTrue((self.home / 'layouts/crew.json').is_file())
+        self.assertTrue((self.home / 'layouts/OhMyHerdr.json').is_file())
         self.assertEqual(json.loads((self.home / 'keys.json').read_text()),
                          {'global': {'cmd-t': 'mod.open:test-mod'}})
         result = self.run_builder()

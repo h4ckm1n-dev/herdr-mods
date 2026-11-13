@@ -289,7 +289,7 @@ own screens back, delete `settings-crew`, `palette-crew`, `machine-add-crew` and
 from `~/.config/herdr-app/mods/` and the `cmd-,` / `cmd-shift-p` lines from `keys.json`. If
 claude-usage was off in OhMyHerdr Mods, turn it on and off once so your statusline works again.
 
-Then pick **crew** in **Settings › Layout**.
+Then pick **OhMyHerdr** in **Settings › Layout** (its card shows a preview).
 
 **Window opacity and blur:** these require native Herdr changes. To build the
 patched app on your own Mac, run `./native/window-opacity/build.sh`.
@@ -372,7 +372,7 @@ Codex needs nothing: its quotas come from its own session logs.
 | <kbd>⌘</kbd><kbd>⇧</kbd><kbd>T</kbd> | Theme Gallery | everywhere |
 | <kbd>⌘</kbd><kbd>/</kbd> | Every keybind | everywhere |
 
-Crew's panel and sidebar keys live in the `layout:crew` section of `~/.config/herdr-app/keys.json`,
+Crew's panel and sidebar keys live in the `layout:OhMyHerdr` section of `~/.config/herdr-app/keys.json`,
 so they only apply while the Crew layout shows. Change any of them there.
 
 <br>
@@ -434,7 +434,7 @@ Claude quotas need a Claude Pro or Max plan. Every Python script uses the standa
 <summary><b>The Crew mods don't show up</b></summary>
 <br>
 
-Pick **crew** in **Settings › Layout**. The `*-crew` mods only appear inside that layout, and a
+Pick **OhMyHerdr** in **Settings › Layout**. The `*-crew` mods only appear inside that layout, and a
 missing mod leaves an empty block: install them together with `./install.sh --all`.
 Then `herdr-app status` lists any error from a file or a mod.
 

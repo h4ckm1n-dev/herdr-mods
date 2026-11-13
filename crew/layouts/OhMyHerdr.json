@@ -1,5 +1,6 @@
 {
   "id": "root",
+  "preview": "layouts/OhMyHerdr.png",
   "cloned_from": {
     "name": "main",
     "version": "0.1.11"

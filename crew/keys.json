@@ -1,5 +1,5 @@
 {
-  "layout:crew": {
+  "layout:OhMyHerdr": {
     "cmd-shift-a": "agents-crew.focus",
     "cmd-shift-s": "spaces-crew.focus",
     "cmd-g": "tabs-crew.graph",

@@ -17,7 +17,7 @@ A centered 16:9 dialog (`kind: "dialog"`, 1040×585, `popover` background):
   - **Group heading** (24px): the name at 11px `muted` medium, its count at 10.5px `dim`.
   - **Row** (32px, 8px padding, 6px radius, `hover` background on hover): the action label at 12px
     `foreground`, truncated; the section at 10.5px `dim` when it isn't `global` (`terminal`,
-    `layout:crew`); then the keys, one 20px keycap per symbol (`surface` fill, 1px `border`, 4px radius,
+    `layout:OhMyHerdr`); then the keys, one 20px keycap per symbol (`surface` fill, 1px `border`, 4px radius,
     10.5px `muted`), 4px apart. A second stroke follows the word `then`.
 - Nothing matches: `No keybind matches` at 12px `dim`.
 

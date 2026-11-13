@@ -178,7 +178,7 @@ Coral is kept for a live Claude, so it always means "Claude is working right now
 ./install.sh --all        # the layout and every mod it needs
 ```
 
-Then pick **crew** in Settings › Layout. Install all of its mods together: the layout names each
+Then pick **OhMyHerdr** in Settings › Layout. Install all of its mods together: the layout names each
 one, and a missing mod leaves an empty block.
 
 ## Keys
@@ -190,7 +190,7 @@ one, and a missing mod leaves an empty block.
 | <kbd>⌘</kbd><kbd>E</kbd> · <kbd>⌘</kbd><kbd>G</kbd> · <kbd>⌘</kbd><kbd>⇧</kbd><kbd>U</kbd> | Files · Git · Cost |
 | <kbd>⌘</kbd><kbd>⇧</kbd><kbd>A</kbd> · <kbd>⌘</kbd><kbd>⇧</kbd><kbd>S</kbd> | Keyboard to Agents · Spaces |
 
-The panel and sidebar keys live in the `layout:crew` section of `keys.json`, so they only apply
+The panel and sidebar keys live in the `layout:OhMyHerdr` section of `keys.json`, so they only apply
 while the Crew layout shows. ⌘J and ⌘P are global.
 
 ## Customize

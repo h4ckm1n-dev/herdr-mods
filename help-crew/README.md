@@ -18,7 +18,7 @@ Actions read as plain words, keys as keycaps, and typing filters by either. It r
 ## What it does
 
 - **Two balanced columns**, grouped as Spaces, Tabs, Panes, Agents, Terminal, Layout, Mods and App.
-- **Each row:** the action in words, the section when it isn't global (`terminal`, `layout:crew`),
+- **Each row:** the action in words, the section when it isn't global (`terminal`, `layout:OhMyHerdr`),
   then the keys as keycaps. A chord's second stroke follows the word `then`.
 - **Typing filters** on the action, the raw key (`cmd-alt-[`) or the drawn key (`⌥⌘[`).
 - **Always current.** It reads your `keys.json` every time it draws, so a key you just rebound shows at once.
