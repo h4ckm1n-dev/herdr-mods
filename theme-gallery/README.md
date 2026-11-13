@@ -1,3 +1,5 @@
+<img src="https://raw.githubusercontent.com/Kai-Finds/OhMyHerdr/main/.github/kaifinds/mod-theme-gallery.png" width="100%" alt="Kai Finds · OhMyHerdr module: Theme Gallery">
+
 <div align="center">
 
 <img src="hero.png" width="100%" alt="824 themes. Try them on live. The Theme Gallery over a Herdr window repainted in a light theme: dark and light filters, a live terminal preview, and the Use button.">
@@ -49,7 +51,8 @@ A Ghostty theme becomes `themes/<name>.json` in your Herdr home the first time i
 Files that only the preview needed are removed again when the dialog closes, so Settings lists
 only the themes you keep.
 
-## Worth it, or skip it?
+<a id="worth-it-or-skip-it"></a>
+<img src="https://raw.githubusercontent.com/Kai-Finds/OhMyHerdr/main/.github/kaifinds/worth-it.png" width="100%" alt="Worth it, or skip it?">
 
 **✅ Worth it if**
 - you want to see a theme on the whole app before you commit to it

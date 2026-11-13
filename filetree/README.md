@@ -1,3 +1,5 @@
+<img src="https://raw.githubusercontent.com/Kai-Finds/OhMyHerdr/main/.github/kaifinds/mod-filetree.png" width="100%" alt="Kai Finds · OhMyHerdr module: filetree">
+
 # filetree
 
 [![Packaged by Kai Finds](https://img.shields.io/badge/packaged%20by-Kai%20Finds-00E5FF?style=flat-square&labelColor=0B0F14)](https://github.com/Kai-Finds)
@@ -7,7 +9,8 @@ By [cybertron288](https://github.com/cybertron288/herdr-mods) (MIT, `mods/filetr
 A file tree for the side panel of any Herdr layout. It follows the focused terminal's
 folder and shows git state and what Claude Code and Codex are reading and writing.
 
-## Worth it, or skip it?
+<a id="worth-it-or-skip-it"></a>
+<img src="https://raw.githubusercontent.com/Kai-Finds/OhMyHerdr/main/.github/kaifinds/worth-it.png" width="100%" alt="Worth it, or skip it?">
 
 **✅ Worth it if**
 - you want to see which files Claude Code and Codex read and write, live in the tree

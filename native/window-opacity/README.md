@@ -1,3 +1,5 @@
+<img src="https://raw.githubusercontent.com/Kai-Finds/OhMyHerdr/main/.github/kaifinds/mod-window-opacity.png" width="100%" alt="Kai Finds · OhMyHerdr module: Window opacity and blur">
+
 # Build Herdr with window opacity and blur
 
 [![Maintained by Kai Finds](https://img.shields.io/badge/maintained%20by-Kai%20Finds-00E5FF?style=flat-square&labelColor=0B0F14)](https://github.com/Kai-Finds)
@@ -5,7 +7,8 @@
 The patch is based on cunderw's [herdr-app #191](https://github.com/herdrdev/herdr-app/pull/191)
 (`window_opacity` / `window_blur`), Apache-2.0 like Herdr; it changes Herdr's files.
 
-## Worth it, or skip it?
+<a id="worth-it-or-skip-it"></a>
+<img src="https://raw.githubusercontent.com/Kai-Finds/OhMyHerdr/main/.github/kaifinds/worth-it.png" width="100%" alt="Worth it, or skip it?">
 
 **✅ Worth it if**
 - you want a translucent, blurred Herdr window and don't mind building it yourself

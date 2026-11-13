@@ -1,10 +1,13 @@
+<img src="https://raw.githubusercontent.com/Kai-Finds/OhMyHerdr/main/.github/kaifinds/mod-ci-dash.png" width="100%" alt="Kai Finds · OhMyHerdr module: CI runs">
+
 # CI runs
 
 [![Maintained by Kai Finds](https://img.shields.io/badge/maintained%20by-Kai%20Finds-00E5FF?style=flat-square&labelColor=0B0F14)](https://github.com/Kai-Finds)
 
 GitHub Actions runs, manual dispatch and artifacts for the focused terminal's repository, styled with Crew's panel frame, headers, controls and type scale.
 
-## Worth it, or skip it?
+<a id="worth-it-or-skip-it"></a>
+<img src="https://raw.githubusercontent.com/Kai-Finds/OhMyHerdr/main/.github/kaifinds/worth-it.png" width="100%" alt="Worth it, or skip it?">
 
 **✅ Worth it if**
 - your work runs on GitHub Actions and you want runs, reruns, dispatch and artifacts next to the terminal

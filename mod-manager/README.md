@@ -1,10 +1,13 @@
+<img src="https://raw.githubusercontent.com/Kai-Finds/OhMyHerdr/main/.github/kaifinds/mod-mod-manager.png" width="100%" alt="Kai Finds · OhMyHerdr module: OhMyHerdr Mods">
+
 # OhMyHerdr Mods
 
 [![Maintained by Kai Finds](https://img.shields.io/badge/maintained%20by-Kai%20Finds-00E5FF?style=flat-square&labelColor=0B0F14)](https://github.com/Kai-Finds)
 
 A centered native dialog to enable or disable installed OhMyHerdr mods.
 
-## Worth it, or skip it?
+<a id="worth-it-or-skip-it"></a>
+<img src="https://raw.githubusercontent.com/Kai-Finds/OhMyHerdr/main/.github/kaifinds/worth-it.png" width="100%" alt="Worth it, or skip it?">
 
 **✅ Worth it if**
 - you want to switch mods off and on live, without uninstalling them

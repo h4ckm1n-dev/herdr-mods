@@ -1,3 +1,5 @@
+<img src="https://raw.githubusercontent.com/Kai-Finds/OhMyHerdr/main/.github/kaifinds/mod-help-crew.png" width="100%" alt="Kai Finds · OhMyHerdr module: Keybinds">
+
 <div align="center">
 
 <img src="hero.png" width="100%" alt="Every Herdr shortcut. One sheet. The Keybinds dialog: a filter field and every shortcut in two columns, drawn as keycaps.">
@@ -26,7 +28,8 @@ Actions read as plain words, keys as keycaps, and typing filters by either. It r
 - **Always current.** It reads your `keys.json` every time it draws, so a key you just rebound shows at once.
 - **Esc** or **⌘/** again closes it.
 
-## Worth it, or skip it?
+<a id="worth-it-or-skip-it"></a>
+<img src="https://raw.githubusercontent.com/Kai-Finds/OhMyHerdr/main/.github/kaifinds/worth-it.png" width="100%" alt="Worth it, or skip it?">
 
 **✅ Worth it if**
 - you rebind keys and forget where you put them

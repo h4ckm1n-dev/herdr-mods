@@ -1,3 +1,5 @@
+<img src="https://raw.githubusercontent.com/Kai-Finds/OhMyHerdr/main/.github/kaifinds/mod-dialogs.png" width="100%" alt="Kai Finds · OhMyHerdr module: Centered dialogs">
+
 # Centered Herdr dialogs, without rebuilding
 
 [![Maintained by Kai Finds](https://img.shields.io/badge/maintained%20by-Kai%20Finds-00E5FF?style=flat-square&labelColor=0B0F14)](https://github.com/Kai-Finds)
@@ -19,7 +21,8 @@ The existing OhMyHerdr picker, Git action dialogs and worktree dialogs use
 the same geometry; the vendored kit gives its dialogs the accent outline.
 The original context menus retain their pointer placement.
 
-## Worth it, or skip it?
+<a id="worth-it-or-skip-it"></a>
+<img src="https://raw.githubusercontent.com/Kai-Finds/OhMyHerdr/main/.github/kaifinds/worth-it.png" width="100%" alt="Worth it, or skip it?">
 
 **✅ Worth it if**
 - you want Herdr's Settings, palette, Add machine and prompt centered, without rebuilding Herdr

@@ -1,3 +1,5 @@
+<img src="https://raw.githubusercontent.com/Kai-Finds/OhMyHerdr/main/.github/kaifinds/mod-git.png" width="100%" alt="Kai Finds · OhMyHerdr module: The Git panel">
+
 <div align="center">
 
 <img src="hero.png" width="100%" alt="Stage, commit, sync. Never leave the terminal. The Git side panel next to a terminal: commit box, changed files with stage and discard buttons, and the commit graph.">
@@ -51,7 +53,8 @@ Stage files or single hunks, commit, pull and push, switch branches and stash, w
 - **No polling.** It reads git when the repo changes on disk, when you change focus, space or tab,
   and after its own actions.
 
-## Worth it, or skip it?
+<a id="worth-it-or-skip-it"></a>
+<img src="https://raw.githubusercontent.com/Kai-Finds/OhMyHerdr/main/.github/kaifinds/worth-it.png" width="100%" alt="Worth it, or skip it?">
 
 **✅ Worth it if**
 - your loop is stage, commit, sync, repeat, and you want it next to the terminal

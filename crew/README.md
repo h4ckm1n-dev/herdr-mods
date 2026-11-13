@@ -1,3 +1,5 @@
+<img src="https://raw.githubusercontent.com/Kai-Finds/OhMyHerdr/main/.github/kaifinds/mod-crew.png" width="100%" alt="Kai Finds · OhMyHerdr module: The Crew layout">
+
 <div align="center">
 
 <img src="hero.png" width="100%" alt="Agents first. The whole window. The Herdr window in the Crew layout: agents grouped by what they need, spaces with branch and color, a Claude Code terminal, the Cost panel and the bottom bar.">
@@ -174,7 +176,8 @@ shortcuts drawn as keycaps.
 
 Coral is kept for a live Claude, so it always means "Claude is working right now".
 
-## Worth it, or skip it?
+<a id="worth-it-or-skip-it"></a>
+<img src="https://raw.githubusercontent.com/Kai-Finds/OhMyHerdr/main/.github/kaifinds/worth-it.png" width="100%" alt="Worth it, or skip it?">
 
 **✅ Worth it if**
 - you run several Claude Code or Codex sessions and want them sorted by what they need from you

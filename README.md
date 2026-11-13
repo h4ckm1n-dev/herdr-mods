@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="https://raw.githubusercontent.com/Kai-Finds/OhMyHerdr/main/.github/kaifinds/hero.png" width="100%" alt="Kai Finds field note: OhMyHerdr. Every coding agent, one window. A cockpit for Claude Code and Codex in the Herdr desktop app.">
+
 # OhMyHerdr
 
 **Turn the [Herdr](https://herdr.dev) desktop app into a cockpit for Claude Code and Codex.**<br>
@@ -49,7 +51,8 @@ OhMyHerdr fixes each one, in the window you already work in.
 | You learn what a day of agents cost when the invoice lands. | The **Cost** panel prices every Claude Code and Codex session live: today, the last hour, 7 days, by model and by project. |
 | The 5-hour quota runs out halfway through a refactor. | The Codex and Claude **5h and 7d quotas** sit in the bottom bar: grey until 50%, amber after, red past 90%. |
 
-## Worth it, or skip it?
+<a id="worth-it-or-skip-it"></a>
+<img src="https://raw.githubusercontent.com/Kai-Finds/OhMyHerdr/main/.github/kaifinds/worth-it.png" width="100%" alt="Worth it, or skip it?">
 
 **✅ Worth it if**
 - you run Claude Code and Codex side by side in the Herdr desktop app
@@ -599,6 +602,13 @@ one copy, then copy it to the others.
 Bookmark this one. A ⭐ also helps other Herdr users find it.
 
 <sub>MIT © 2026 <a href="https://github.com/h4ckm1n-dev">h4ckm1n-dev</a>, except <code>dialogs/</code> and <code>native/</code> (Apache-2.0, derived from Herdr) · the Git module builds on <a href="https://github.com/rabeeh-ta/herdr-git-graph">herdr-git-graph</a> by Rabeeh T A · file icons from <a href="https://github.com/cybertron288/herdr-mods">cybertron288/herdr-mods</a> and Material Icon Theme · line icons from Lucide · window opacity from cunderw's <a href="https://github.com/herdrdev/herdr-app/pull/191">herdr-app #191</a> · screenshots use demo projects · not affiliated with Herdr</sub>
+
+</div>
+
+
+<div align="center">
+
+<a href="https://www.threads.com/@kaifinds.ai"><img src="https://raw.githubusercontent.com/Kai-Finds/OhMyHerdr/main/.github/kaifinds/more-finds.png" width="100%" alt="More finds like this one. Follow Kai Finds on Threads (@kaifinds.ai), Facebook and kaifinds.sabaidev.la"></a>
 
 </div>
 

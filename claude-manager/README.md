@@ -1,3 +1,5 @@
+<img src="https://raw.githubusercontent.com/Kai-Finds/OhMyHerdr/main/.github/kaifinds/mod-claude-manager.png" width="100%" alt="Kai Finds · OhMyHerdr module: Claude Manager">
+
 <div align="center">
 
 <img src="hero.png" width="100%" alt="All of Claude Code. One switch each. The Claude Manager dialog: tabs for skills, commands, agents, MCP, hooks and plugins, a switch on every row, and per-kind counts in the footer.">
@@ -61,7 +63,8 @@ Every write is atomic: a temporary file, then a rename. The previous file is kep
 - **Secrets stay out.** MCP rows show only the transport and the command's name or the URL's host,
   never `env`, headers or arguments.
 
-## Worth it, or skip it?
+<a id="worth-it-or-skip-it"></a>
+<img src="https://raw.githubusercontent.com/Kai-Finds/OhMyHerdr/main/.github/kaifinds/worth-it.png" width="100%" alt="Worth it, or skip it?">
 
 **✅ Worth it if**
 - Claude Code loads dozens of skills, MCP servers or plugins and you want new sessions to start lighter

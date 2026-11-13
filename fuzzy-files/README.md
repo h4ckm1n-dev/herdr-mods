@@ -1,3 +1,5 @@
+<img src="https://raw.githubusercontent.com/Kai-Finds/OhMyHerdr/main/.github/kaifinds/mod-fuzzy-files.png" width="100%" alt="Kai Finds · OhMyHerdr module: Find files">
+
 # Find files
 
 [![Maintained by Kai Finds](https://img.shields.io/badge/maintained%20by-Kai%20Finds-00E5FF?style=flat-square&labelColor=0B0F14)](https://github.com/Kai-Finds)
@@ -9,7 +11,8 @@ in a **new Neovim tab in the original space**; PNG and JPEG files open in an
 image tab instead (kitty graphics; JPEG needs macOS `sips`), `:q` closes it.
 Escape closes the finder.
 
-## Worth it, or skip it?
+<a id="worth-it-or-skip-it"></a>
+<img src="https://raw.githubusercontent.com/Kai-Finds/OhMyHerdr/main/.github/kaifinds/worth-it.png" width="100%" alt="Worth it, or skip it?">
 
 **✅ Worth it if**
 - you want fuzzy filename search with no fzf or ripgrep to install
