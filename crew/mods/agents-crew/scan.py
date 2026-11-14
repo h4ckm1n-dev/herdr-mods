@@ -45,9 +45,15 @@ def tail_lines(path):
     if size > TAIL: lines = lines[1:]  # first line is cut
     out = []
     for l in lines:
-        try: out.append(json.loads(l))
-        except ValueError: pass
+        try: d = json.loads(l)
+        except ValueError: continue
+        if isinstance(d, dict): out.append(d)  # a stray non-object line must not crash the scan
     return out
+
+def stamp(ts):
+    """Epoch seconds of an ISO timestamp, or None when it isn't one."""
+    try: return datetime.fromisoformat(ts.replace("Z", "+00:00")).timestamp()
+    except (AttributeError, TypeError, ValueError): return None
 
 def base(p): return os.path.basename(p.rstrip("/")) or p
 
@@ -132,9 +138,9 @@ def usage(path, cache):
         for l in data[:end].split(b"\n"):
             try: d = json.loads(l)
             except ValueError: continue
-            ts = d.get("timestamp")
-            if ts:  # working time: gaps between records, capped, so a resume hours later adds nothing
-                t = datetime.fromisoformat(ts.replace("Z", "+00:00")).timestamp()
+            if not isinstance(d, dict): continue
+            ts = d.get("timestamp"); t = stamp(ts)
+            if t is not None:  # working time: gaps between records, capped, so a resume hours later adds nothing
                 if c["ts"] and t > c["ts"]: c["active"] += min(GAP_S, t - c["ts"])
                 c["ts"] = t
             kind, m = d.get("type"), d.get("message") or {}
@@ -266,9 +272,8 @@ def turn_span(records):
     """(start, end) of the current task: from the last prompt the person (or a task notice) sent, to the last record."""
     start = end = None
     for d in records:
-        ts = d.get("timestamp")
-        if not ts or d.get("type") not in ("user", "assistant"): continue
-        t = datetime.fromisoformat(ts.replace("Z", "+00:00")).timestamp()
+        t = stamp(d.get("timestamp"))
+        if t is None or d.get("type") not in ("user", "assistant"): continue
         end = t
         c = (d.get("message") or {}).get("content")
         prompt = isinstance(c, str) or (isinstance(c, list) and not any(isinstance(b, dict) and b.get("type") == "tool_result" for b in c))
@@ -317,7 +322,10 @@ if __name__ == "__main__":
     res, cache = {}, load_cache()
     hist = history(cache)
     for key, pid, cwd in terms:
-        path, exact = transcript(int(pid) if pid.isdigit() else None, cwd, known, kids)
-        res[key] = session(path, exact, cache, hist) if path else None
+        try:
+            path, exact = transcript(int(pid) if pid.isdigit() else None, cwd, known, kids)
+            res[key] = session(path, exact, cache, hist) if path else None
+        except Exception:  # one bad session must not blank every card (as in codex_scan.py)
+            res[key] = None
     save_cache(cache)
     print(json.dumps(res, separators=(",", ":")))
