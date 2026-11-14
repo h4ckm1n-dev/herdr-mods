@@ -102,8 +102,11 @@ export default class Settings extends View {
     this.raw = await readTextFile(this.file());
     try {
       this.person = this.raw ? JSON.parse(this.raw) : {};
-    } catch {
+      this.broken = null;
+    } catch (e) {
+      // Writing now would replace the whole file with the one key changed.
       this.person = {};
+      this.broken = `settings.json has a JSON error (${e.message}). Fix it first: nothing is saved until then.`;
     }
   }
 
@@ -113,6 +116,7 @@ export default class Settings extends View {
     cx.spawn(async (cx) => {
       for (let attempt = 0; attempt < 3; attempt++) {
         await this.load();
+        if (this.broken) break;
         const next = JSON.parse(JSON.stringify(this.person));
         edit(next);
         try {
@@ -921,6 +925,7 @@ export default class Settings extends View {
                 div()
                   .px(28)
                   .py(22)
+                  .when(Boolean(this.broken), (el) => el.child(div().mb(14).text_size(12.5).text_color(t.blocked).child(this.broken)))
                   .child(
                     this.section === "look"
                       ? this.look(t, cx)
