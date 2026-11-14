@@ -9,20 +9,23 @@ HOME = os.path.expanduser("~")
 PROJECTS = os.path.join(HOME, ".claude", "projects")
 LEDGERS = os.path.join(HOME, ".claude", "logs")
 CACHE = os.path.join(HOME, ".cache", "herdr-cost", "usage.json")
-V = 3  # 2: 10-minute slots for the last hour; 3: the session title
+V = 4  # 2: 10-minute slots for the last hour; 3: the session title; 4: fast-mode turns priced apart
 WINDOW = 7
 SLOT = 600  # seconds: spend is also kept in 10-minute slots, for the last hour
 
-# $/MTok: (input, output, cache read). Source: claude-api skill "Current Models" table (cached 2026-10-06);
+# $/MTok: (input, output, cache read). Source: claude-api skill "Current Models" table (cached 2026-11-03);
 # matched by longest model-id prefix. Cache write is derived: 5-minute = 1.25x input, 1-hour = 2x input.
 # ponytail: static table; Haiku 5.5 is $0.10/$0.50 only for prompts <=100K (we bill all at that rate),
 # cache-read for Opus 4.x / Sonnet 4.6 / Haiku 4.5 assumed 0.1x input (not in the table).
 PRICES = {
-    "claude-fable":      (10.0, 50.0, 0.25),
+    "claude-fable-5-2":  (8.0, 40.0, 0.20),
+    "claude-mythos-5-2": (8.0, 40.0, 0.20),
+    "claude-fable":      (10.0, 50.0, 0.25),   # fable 5.1 (fable 5 cache reads are $1: not split out)
     "claude-mythos":     (10.0, 50.0, 0.25),
     "claude-opus-5-5":   (4.0, 20.0, 0.20),
     "claude-opus":       (5.0, 25.0, 0.50),   # opus 5, 4.8, 4.7, 4.6
-    "claude-sonnet-5":   (2.0, 10.0, 0.20),   # sonnet 5.5 and 5
+    "claude-sonnet-5-5": (2.0, 10.0, 0.10),
+    "claude-sonnet-5":   (2.0, 10.0, 0.20),   # sonnet 5
     "claude-sonnet":     (3.0, 15.0, 0.30),   # sonnet 4.6
     "claude-haiku-5":    (0.10, 0.50, 0.01),
     "claude-haiku":      (1.0, 5.0, 0.10),    # haiku 4.5
@@ -33,9 +36,12 @@ def family(model):
     m = (model or "").lower()
     return next((f for f in FAMILIES if f in m), "other")
 
+FAST = "-fast"  # appended to the model of a fast-mode turn (usage.speed == "fast"): 2x the standard rates
+
 def price(model):
     best = max((p for p in PRICES if (model or "").startswith(p)), key=len, default=None)
-    return PRICES[best] if best else PRICES["claude-opus-5-5"]  # unknown model: assume the daily driver
+    p = PRICES[best] if best else PRICES["claude-opus-5-5"]  # unknown model: assume the daily driver
+    return tuple(x * 2 for x in p) if (model or "").endswith(FAST) else p
 
 def cost(model, t):
     """t = [input, output, cache_read, cache_write_5m, cache_write_1h] tokens -> dollars."""
@@ -82,7 +88,7 @@ def scan(path, cache):
             if c["last"] and c["last"][0] == m.get("id"):
                 _, day, model, t, slot = c["last"]
                 add(c["days"], day, model, t, -1); add(c["slots"], slot, model, t, -1)
-            day, model, t = local_day(d["timestamp"]), m["model"], tokens(u)
+            day, model, t = local_day(d["timestamp"]), m["model"] + (FAST if u.get("speed") == "fast" else ""), tokens(u)
             slot = str(int(epoch(d["timestamp"]) // SLOT))
             add(c["days"], day, model, t); add(c["slots"], slot, model, t)
             c["last"] = [m.get("id"), day, model, t, slot]

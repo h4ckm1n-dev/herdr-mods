@@ -15,6 +15,9 @@ class Cost(unittest.TestCase):
         self.assertAlmostEqual(cost.cost("claude-sonnet-5-5", [1_000_000, 0, 0, 0, 0]), 2.0)
         self.assertAlmostEqual(cost.cost("claude-opus-4-8", [1_000_000, 0, 0, 0, 0]), 5.0)  # prefix falls to the generic opus row
         self.assertEqual(cost.family("claude-haiku-5-5"), "haiku")
+        self.assertAlmostEqual(cost.cost("claude-fable-5-2", [0, 1_000_000, 1_000_000, 0, 0]), 40 + 0.2)  # not the 5.1 row
+        self.assertAlmostEqual(cost.cost("claude-sonnet-5-5", [0, 0, 1_000_000, 0, 0]), 0.10)
+        self.assertAlmostEqual(cost.cost("claude-opus-5-5" + cost.FAST, [1_000_000, 0, 0, 0, 0]), 8.0)  # fast mode: 2x
 
     def test_dedupe_keeps_latest_and_resumes(self):
         with tempfile.TemporaryDirectory() as d:

@@ -40,7 +40,7 @@ export default class Cost extends View {
     this.busy = true;
     cx.spawn(async (cx) => {
       try {
-        const r = await exec("python3", ["-I", this.script]);
+        const r = await exec("python3", ["-I", this.script], { timeout: 600000 }); // the first scan reads every transcript: can pass the 30 s default
         if (r.code === 0) { this.data = JSON.parse(r.stdout); this.error = null; this.at = Date.now(); }
         else this.error = r.stderr.trim().split("\n").at(-1) || "cost.py failed";
       } catch (e) {
