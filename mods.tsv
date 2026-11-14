@@ -22,3 +22,4 @@ palette-crew	opt-in	Original Herdr command palette in a centered 16:9 dialog
 machine-add-crew	opt-in	Original Add a machine in a centered 16:9 dialog
 prompt-crew	opt-in	Original text prompt in a centered 16:9 dialog
 fuzzy-files	-	Fuzzy file finder in the active tab folder, open in a new Neovim tab, cmd-shift-F
+session-recap	-	Files a Claude Code session read and wrote, on a timeline, cmd-shift-H

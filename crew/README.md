@@ -60,6 +60,7 @@ list takes the room. Both folded, each header stays at its own edge.
 Every Claude Code and Codex session, in four groups: **Working**, **Needs you**, **Done** and
 **Idle**.
 
+- Right-click an agent to see the files its session read and wrote ([Session recap](../session-recap/), when installed).
 - A row shows a spinner while the agent works, its icon (Claude in coral, Codex in cyan), its name,
   and the time since its last state change.
 - Under it: the last activity and context percentage. Expand the row for the session's task

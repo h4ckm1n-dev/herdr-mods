@@ -74,6 +74,11 @@ with its Files-panel icon. Enter opens the selection in a new Neovim tab in the
 same space, and `:q` closes that tab. PNG and JPEG open in an image tab instead.
 Install with `./install.sh fuzzy-files`.
 
+**[Session recap](session-recap/)**: **⌘⇧H** shows which files a Claude Code
+session read and wrote, on a timeline grouped by folder. Right-click an agent in
+Crew to open its session; finished sessions work too.
+Install with `./install.sh session-recap`.
+
 **[OhMyHerdr Mods](mod-manager/)**: press **⌘⇧M** for a centered dialog to
 switch installed mods on or off, live. A mod turned off keeps its files; Crew
 mods fall back to Herdr's built-in equivalents when available.
@@ -382,6 +387,7 @@ Codex needs nothing: its quotas come from its own session logs.
 | <kbd>⌘</kbd><kbd>J</kbd> | Next agent waiting on you, in any space | everywhere |
 | <kbd>⌘</kbd><kbd>P</kbd> | Go to a tab, space or agent | everywhere |
 | <kbd>⌘</kbd><kbd>⇧</kbd><kbd>F</kbd> | Find files in the active tab's folder | everywhere |
+| <kbd>⌘</kbd><kbd>⇧</kbd><kbd>H</kbd> | Session recap: the files a session read and wrote | everywhere |
 | <kbd>⌘</kbd><kbd>⇧</kbd><kbd>M</kbd> | OhMyHerdr Mods: switch mods on or off | everywhere |
 | <kbd>⌘</kbd><kbd>,</kbd> · <kbd>⌘</kbd><kbd>⇧</kbd><kbd>P</kbd> | Herdr's Settings · command palette, as centered dialogs | everywhere |
 | <kbd>⌘</kbd><kbd>E</kbd> · <kbd>⌘</kbd><kbd>G</kbd> · <kbd>⌘</kbd><kbd>⇧</kbd><kbd>U</kbd> | Files · Git · Cost panel (again: close) | Crew layout |
@@ -420,6 +426,7 @@ old one is kept in `backup/`.
 |---|:-:|:-:|:-:|:-:|---|
 | Crew | ✓ | ✓ | for the Git panel | for agents, Cost, quotas | Neovim, to edit files from the Files panel; macOS `sips` for JPEG |
 | Find files | ✓ | ✓ | to respect Git ignore rules | | Neovim; Crew's Files panel for file icons; macOS `sips` for JPEG |
+| Session recap | ✓ | ✓ | | ✓ | |
 | OhMyHerdr Mods | ✓ | ✓ | | | |
 | Centered dialogs | ✓ | | | | opt-in, not in `--all`: copies of Herdr 0.1.13's own screens, may lag a newer Herdr |
 | CI runs | ✓ | | | | GitHub CLI, logged in (`gh auth login`) |
@@ -574,6 +581,7 @@ OhMyHerdr/
 ├── theme-gallery/       README.md · RECIPE.md · keys.json · mods/theme-gallery
 ├── help-crew/           README.md · RECIPE.md · keys.json · mods/help-crew
 ├── fuzzy-files/         Find files: README.md · keys.json · mods/fuzzy-files
+├── session-recap/       Session recap: README.md · keys.json · mods/session-recap
 ├── mod-manager/         OhMyHerdr Mods: README.md · keys.json · mods/mod-manager
 ├── dialogs/             Herdr's Settings, palette, Add machine and prompt as centered dialogs
 ├── ci-dash/             GitHub Actions runs panel (manual install, needs `gh`)

@@ -384,6 +384,11 @@ export default class Agents extends View {
           cx.notify();
         })
         .on_click(() => run("pane.focus", { pane: a.pane }))
+        // right-click: the files this agent's session read and wrote (Session recap, when installed)
+        .on_mouse_down("right", (_e, cx) => {
+          cx.stop_propagation();
+          openOverlay({ mod: "session-recap", kind: "dialog", frame: "none", width: 1040, height: 585, props: { session: this.crew?.[a.address]?.id } });
+        })
         .child(gutter(t, a.status))
         // The program's icon; with sub-agents it also folds them (as the chevron does).
         .when(Boolean(pic), el => el.child(div().id(`agent-fold-${a.address}`).flex_none()

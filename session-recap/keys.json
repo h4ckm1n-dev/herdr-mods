@@ -1,0 +1,3 @@
+{
+  "global": { "cmd-shift-h": "mod.open:session-recap" }
+}

@@ -111,5 +111,9 @@
   {
     "id": "fuzzy-files",
     "desc": "Fuzzy file finder in the active tab folder, open in a new Neovim tab, cmd-shift-F"
+  },
+  {
+    "id": "session-recap",
+    "desc": "Files a Claude Code session read and wrote, on a timeline, cmd-shift-H"
   }
 ]
