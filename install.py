@@ -154,13 +154,25 @@ if f"layout:{OLD_LAYOUT}" in keys and not os.path.exists(os.path.join(APP, "layo
     new = keys.setdefault(f"layout:{LAYOUT_NAME}", {})
     for k, action in keys.pop(f"layout:{OLD_LAYOUT}").items(): new.setdefault(k, action)
     changed = True; print(f"  ~ keys: layout:{OLD_LAYOUT} is now layout:{LAYOUT_NAME}")
+# Herdr's own action a mod stands in for (mod.json cloned_from): taking over its key is the point, so yes by default.
+NATIVE = {"help": "app.help", "frame-settings": "app.settings", "frame-palette": "app.palette"}
+def replaces(m):
+    try:
+        with open(os.path.join(SRC[m], "mod.json")) as f: name = json.load(f).get("cloned_from", {}).get("name")
+    except (OSError, ValueError, AttributeError): return None
+    return NATIVE.get(name, f"mod.open:{name}") if name else None
+before = {section: set(binds.values()) for section, binds in keys.items() if isinstance(binds, dict)}
 for m in chosen:
     for section, binds in KEYS.get(m, {}).items():
         sec = keys.setdefault(section, {})
         for k, action in binds.items():
             cur = sec.get(k)
             if cur == action: continue
-            if cur and not ask(f"{k} ({section}) is '{cur}'. Rebind to '{action}' for {m}?", default=False):
+            # you bound it to another key: keep yours, don't add ours back (so a mod's extra default key for an
+            # action you already have never arrives through --update)
+            if action in before.get(section, ()):
+                continue
+            if cur and not ask(f"{k} ({section}) is '{cur}'. Rebind to '{action}' for {m}?", default=cur == replaces(m)):
                 print(f"  ! kept {k} = {cur}"); continue
             sec[k] = action; changed = True
             print(f"  + key {k} -> {action}")

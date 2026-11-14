@@ -87,6 +87,18 @@ class Migration(unittest.TestCase):
         self.assertEqual(self.read("shared.json")["layout"], "crew")
         self.assertIn("layout:crew", self.read("keys.json"))
 
+    def test_keys_take_over_what_they_replace_and_respect_your_own(self):
+        # Herdr seeds keys.json with its defaults; you moved the theme gallery to another key
+        (self.home / "keys.json").write_text(json.dumps({"global": {
+            "cmd-/": "app.help", "cmd-shift-/": "app.help", "cmd-shift-t": "my.own",
+            "cmd-alt-t": "mod.open:theme-gallery"}}))
+        r = subprocess.run(["sh", str(REPO / "install.sh"), "help-crew", "theme-gallery"], cwd=REPO, env=self.env,
+                           stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=120)  # no TTY: defaults
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        g = self.read("keys.json")["global"]
+        self.assertEqual((g["cmd-/"], g["cmd-shift-/"]), ("mod.open:help-crew", "mod.open:help-crew"))
+        self.assertEqual((g["cmd-shift-t"], g["cmd-alt-t"]), ("my.own", "mod.open:theme-gallery"))
+
 
 if __name__ == "__main__":
     unittest.main()
