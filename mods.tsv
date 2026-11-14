@@ -8,6 +8,7 @@ claude-usage	layout	Bottom bar: Codex and Claude Code 5h / 7d quotas, side by si
 pane-crew	layout	Pane header for the crew layout
 files-crew	layout	Files panel: lazy browser of the focused pane's folder, read-only previews
 git	-	Git panel: graph, changes, stage/discard, branches, stash, commit, pull/push
+ci-dash	layout	CI panel: GitHub Actions runs, failed-step logs, rerun, dispatch, artifacts (needs gh)
 cost	-	Claude Code and Codex spend at API prices: today, last hour, 7 days, by model, priciest session
 menu-crew	-	Context menus (tab, space, terminal) in the crew style
 new-menu-crew	-	New tab / agent menu

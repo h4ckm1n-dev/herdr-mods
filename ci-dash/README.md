@@ -17,11 +17,11 @@ GitHub Actions runs, manual dispatch and artifacts for the focused terminal's re
 - you don't use GitHub Actions or `gh`
 - you pull large artifacts: commands time out after 30 seconds
 
-Requires an authenticated GitHub CLI (`gh auth login`). Install `mods/ci-dash` into `~/.config/herdr-app/mods/`, then run `herdr-app check ~/.config/herdr-app/mods/ci-dash`.
+Requires an authenticated GitHub CLI (`gh auth login`). Install it with `./install.sh ci-dash`; the Crew layout brings it along.
 
-The local Crew layout uses a `ci` block in its `panel-body` stack, pointing to `ci-dash`. Its toolbar button sits beside Git and toggles that panel. The panel uses Crew's rounded frame in both side-panel and standalone use.
+The Crew layout has a `ci` block in its `panel-body` stack, pointing to `ci-dash`. Its toolbar button sits beside Git and toggles that panel. The panel uses Crew's rounded frame in both side-panel and standalone use.
 
-Runs shows the latest 30 runs with filters, jobs and steps. Dispatch retains workflow, branch, inputs and explicit review before starting a run. Artifacts downloads into `<repo>/.ci-dash/artifacts/`; add `.ci-dash/` to the repository's ignore rules if you use downloads. A failed run shows the end of each failed step's log under its jobs, with **Copy** and **Send to agent**, which pastes the run, the step and that log into the agent of the shown tab. Rerun, Cancel and Dispatch change real GitHub runs only when clicked.
+Runs shows the latest 30 runs with filters, jobs and steps. Dispatch retains workflow, branch, inputs and explicit review before starting a run. Artifacts downloads into `<repo>/.ci-dash/artifacts/`, which ignores itself in git (`.ci-dash/.gitignore`). A failed run shows the end of each failed step's log under its jobs, with **Copy** and **Send to agent**, which pastes the run, the step and that log into the agent of the shown tab. Rerun, Cancel and Dispatch change real GitHub runs only when clicked.
 
 GitHub calls use the existing `gh` login; no credentials are stored by the mod. The mod runs local programs and uses network access through `gh`. Large downloads may exceed its 30-second command timeout.
 

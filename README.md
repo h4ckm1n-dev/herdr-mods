@@ -22,7 +22,7 @@ See every agent at once, jump to the one waiting on you, and know what today cos
 git clone https://github.com/Kai-Finds/OhMyHerdr && cd OhMyHerdr && ./install.sh --all
 ```
 
-<sub>One layout · 23 mods · one installer · MIT · nothing leaves your machine but what you ask `gh` for</sub>
+<sub>One layout · 25 mods · one installer · MIT · nothing leaves your machine but what you ask `gh` for</sub>
 
 <p>
 <a href="#worth-it-or-skip-it">Worth it?</a> ·
@@ -130,7 +130,7 @@ sidebar, tab bar, pane headers, side panels, bottom bar, menus and dialogs. **St
 modules** ([Claude Manager](claude-manager/), [Git](git/), [Theme Gallery](theme-gallery/),
 [Keybinds](help-crew/), [Find files](fuzzy-files/), [OhMyHerdr Mods](mod-manager/) and the
 [centered dialogs](dialogs/)) work in Crew or in Herdr's default layout. [CI runs](ci-dash/)
-and cybertron288's [filetree](filetree/) install by hand.
+comes with the Crew layout as a side panel; cybertron288's [filetree](filetree/) installs by hand.
 
 ### Agents
 
@@ -584,7 +584,7 @@ OhMyHerdr/
 ├── session-recap/       Session recap: README.md · keys.json · mods/session-recap
 ├── mod-manager/         OhMyHerdr Mods: README.md · keys.json · mods/mod-manager
 ├── dialogs/             Herdr's Settings, palette, Add machine and prompt as centered dialogs
-├── ci-dash/             GitHub Actions runs panel (manual install, needs `gh`)
+├── ci-dash/             GitHub Actions runs panel (a Crew side panel, needs `gh`)
 ├── filetree/            a file tree panel for any layout (manual install)
 └── native/              patch to build Herdr with window opacity and blur
 ```

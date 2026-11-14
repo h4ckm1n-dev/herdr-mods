@@ -157,6 +157,16 @@
                       "content": {
                         "mod": "cost"
                       }
+                    },
+                    {
+                      "id": "ci",
+                      "type": "block",
+                      "content": {
+                        "mod": "ci-dash",
+                        "props": {
+                          "panel": true
+                        }
+                      }
                     }
                   ],
                   "active": "files"
