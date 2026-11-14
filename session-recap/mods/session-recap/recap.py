@@ -128,7 +128,7 @@ def recap(path):
         groups.setdefault(show_dir(os.path.dirname(p), cwd), []).append(files[p])
     clock = lambda ts: datetime.fromtimestamp(ts).strftime("%H:%M")
     # five evenly spaced ticks, each with the clock of the first call at or after it
-    ticks = [{"x": k / 4, "label": clock(next(e[0] for e, a in zip(evs, at) if a >= span * k / 4 - 1e-9))} for k in range(5)]
+    ticks = [{"x": k / 4, "label": clock(next((e[0] for e, a in zip(evs, at) if a >= span * k / 4 - 1e-9), evs[-1][0]))} for k in range(5)]  # default: all calls at one instant
     out.update(start=evs[0][0], end=evs[-1][0], files=len(files), reads=sum(f["reads"] for f in files.values()),
                writes=sum(f["writes"] for f in files.values()), ticks=ticks,
                shell={"count": sum(1 for e in evs if e[2] == "s"), "marks": shell[:MARKS * 4]},

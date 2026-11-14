@@ -34,5 +34,9 @@ assert d["groups"][1]["files"][0]["marks"] == [[0.846, "w"]], d["groups"][1]
 # a shell command names no file: it is counted and placed in time, on its own row (45 s into 195 s of work)
 assert d["shell"] == {"count": 1, "marks": [0.231]}, d["shell"]
 assert d["ticks"][0]["x"] == 0 and d["ticks"][-1]["x"] == 1 and len(d["ticks"][0]["label"]) == 5
+# one tool call (all calls at one instant) still gets its ticks instead of crashing
+open(os.path.join(proj, "abcd1234-0001.jsonl"), "w").write(json.dumps(use("2026-01-02T09:00:00Z", "Read", "/work/app/x.py")) + "\n")
+one = run("show", "abcd1234-0001")
+assert one.returncode == 0 and len(json.loads(one.stdout)["ticks"]) == 5, one.stderr
 assert run("show", "../etc/passwd").returncode != 0 and run("show", "ffffffff-none").returncode != 0
 print("ok")
