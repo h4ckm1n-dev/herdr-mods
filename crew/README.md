@@ -26,9 +26,9 @@ Agents and spaces on the left, Files, Git and Cost on the right, quotas along th
 │ brand row    │ tab bar  · tabs · + · [Files] [Git] [Cost] │              │
 ├──────────────┼────────────────────────────────────────────┤              │
 │ Agents       │ pane header                                │  side panel  │
-│  Working     │                                            │  Files       │
-│  Needs you   │            your terminals                  │  Git         │
-│  Done · Idle │                                            │  Cost        │
+│  Needs you   │                                            │  Files       │
+│  Done        │            your terminals                  │  Git         │
+│  Working·Idle│                                            │  Cost        │
 ├──────────────┤                                            │              │
 │ Spaces       │                                            │              │
 ├──────────────┼────────────────────────────────────────────┴──────────────┤
@@ -57,7 +57,7 @@ list takes the room. Both folded, each header stays at its own edge.
 
 <img src="sidebar.png" align="right" width="200" alt="Agents and spaces">
 
-Every Claude Code and Codex session, in four groups: **Working**, **Needs you**, **Done** and
+Every Claude Code and Codex session, in four groups, in this order: **Needs you**, **Done**, **Working** and
 **Idle**.
 
 - Right-click an agent to see the files its session read and wrote ([Session recap](../session-recap/), when installed).

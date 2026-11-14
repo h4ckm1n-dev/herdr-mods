@@ -16,7 +16,7 @@ A row filling the window, with no system title bar (traffic lights at 12,16) on 
    row's toggle.
    - **Brand row**, 46px, draggable: the Herdr mark, search, sidebar toggle.
    - **Agents**, half the remaining height: a 42px header with `Agents`, a count tag, a live
-     `n working` and a sort button. Under it, groups (Working, Needs you, Done, Idle) of 36px rows.
+     `n working` and a sort button. Under it, groups (Needs you, Done, Working, Idle) of 36px rows.
      A row has a 16px status gutter (a spinner while working, 8px dots otherwise), the agent's
      icon in its color (Claude coral `#D97757`, Codex cyan), its name, and the time since its last
      state change. A Claude or Codex agent adds lines under its row: the last thing it did, its
@@ -26,11 +26,11 @@ A row filling the window, with no system title bar (traffic lights at 12,16) on 
    - **Footer**, 69px: Settings and Add machine.
 2. **Work column**:
    - **Tab bar**, 42px, draggable. It holds the tabs, a `+` button (new tab or agent menu), and on
-     the right one icon button per side panel: Files, Graph, Cost.
+     the right one icon button per side panel: Files, Git, Cost, CI runs.
    - **Body**, 8px padding and gap: the terminal pane. Each pane has a 30px `pane-crew` header
      with the program, title, folder, and split / zoom / close buttons. A side panel column sits
      at the right, 368px (280–900, resizable). It is hidden until a tab-bar button opens it, and
-     stacks the Files, Graph and Cost panels.
+     stacks the Files, Git, Cost and CI runs panels.
    - **Bottom bar**, 28px, `chrome`, 1px top border, 11px `muted` type:
      - On the left: a monitor or server icon with the machine, the branch as a tag, then
        `n working` with a spinner and `n needs you` with a `blocked` dot, or just `n agents`.
