@@ -1,11 +1,19 @@
+// A typed space stands for any separator, as in fzf: "src main" finds src/main.js, "a b" still not "ab".
+const SEP = /[\s:.\-_/]/;
+function find(text, ch, at) {
+  if (!/\s/.test(ch)) return text.indexOf(ch, at);
+  for (let i = at; i < text.length; i++) if (SEP.test(text[i])) return i;
+  return -1;
+}
+
 // Same boundary/consecutive-character scoring as palette-crew.
 export function fuzzy(query, path) {
   const text = path.toLowerCase();
   let score = 0, at = 0, run = 0;
-  for (const ch of query.toLowerCase()) {
-    const i = text.indexOf(ch, at);
+  for (const ch of query.trim().replace(/\s+/g, " ").toLowerCase()) {
+    const i = find(text, ch, at);
     if (i < 0) return null;
-    const boundary = i === 0 || /[\s:.\-_/]/.test(text[i - 1]);
+    const boundary = i === 0 || SEP.test(text[i - 1]);
     run = i === at && at > 0 ? run + 1 : 0;
     score += 1 + (boundary ? 6 : 0) + run * 3 - Math.min(i - at, 6) * 0.3;
     at = i + ch.length;
@@ -17,10 +25,10 @@ export function fuzzy(query, path) {
 export function hits(query, path) {
   const text = path.toLowerCase(), out = [];
   let at = 0;
-  for (const ch of query.toLowerCase()) {
-    const i = text.indexOf(ch, at);
+  for (const ch of query.trim().replace(/\s+/g, " ").toLowerCase()) {
+    const i = find(text, ch, at);
     if (i < 0) return [];
-    out.push(i);
+    if (!/\s/.test(ch)) out.push(i); // the separator a space matched stays unlit
     at = i + ch.length;
   }
   return out;
@@ -31,7 +39,7 @@ export const thousands = n => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 export const tilde = path => path.replace(/^\/(Users|home)\/[^/]+(?=\/|$)/, "~");
 
 export function rank(files, query) {
-  if (!query) return files;
+  if (!query.trim()) return files;
   return files.map(path => ({ path, score: fuzzy(query, path) }))
     .filter(row => row.score !== null)
     .sort((a, b) => b.score - a.score || a.path.localeCompare(b.path))

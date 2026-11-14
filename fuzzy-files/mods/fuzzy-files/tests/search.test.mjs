@@ -45,6 +45,9 @@ try {
 assert.deepEqual(hits("mjs", "src/main.js"), [4, 9, 10], "hits walk like fuzzy()");
 assert.deepEqual(hits("zz", "src/main.js"), []);
 assert.equal(thousands(1644), "1,644");
+assert.deepEqual(rank(["src/main.js", "docs/readme.md"], "src main"), ["src/main.js"]); // spaces as fzf reads them
+assert.equal(hits("s m", "src/main.js").length, 2);
+assert.deepEqual(rank(["src/main.js"], " src  main "), ["src/main.js"]); // stray and doubled spaces
 assert.equal(thousands(50000), "50,000");
 assert.equal(tilde("/Users/ann/Documents/app"), "~/Documents/app");
 assert.equal(tilde("/home/ann"), "~");
