@@ -17,9 +17,12 @@ function place(s) {
 // A space's checkout: "main" (a repo's own), "linked" (a worktree), or null.
 async function checkout(folder, on) {
   const top = await exec("git", ["rev-parse", "--show-toplevel"], { cwd: folder, on });
-  const common = await exec("git", ["rev-parse", "--path-format=absolute", "--git-common-dir"], { cwd: folder, on });
-  if (top.code !== 0 || common.code !== 0) return null;
-  return common.stdout.trim() === `${top.stdout.trim()}/.git` ? "main" : "linked";
+  // A linked worktree has its own git dir under the common one; a main checkout
+  // or a submodule (git dir in super/.git/modules) shares it.
+  const dirs = await exec("git", ["rev-parse", "--path-format=absolute", "--git-dir", "--git-common-dir"], { cwd: folder, on });
+  if (top.code !== 0 || dirs.code !== 0) return null;
+  const [dir, common] = dirs.stdout.trim().split("\n");
+  return dir === common ? "main" : "linked";
 }
 
 function items(p, git) {

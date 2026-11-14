@@ -99,10 +99,12 @@ async function submodules(top, on) {
 // the folder is itself a linked worktree. null outside git.
 async function repoOf(folder, on) {
   const top = await git(folder, ["rev-parse", "--show-toplevel"], on);
-  const common = await git(folder, ["rev-parse", "--path-format=absolute", "--git-common-dir"], on);
-  if (!top.ok || !common.ok) return null;
-  const main = common.out.endsWith("/.git") ? common.out.slice(0, -5) : common.out;
-  return { top: top.out, main, name: main.split("/").pop(), linked: main !== top.out };
+  const dirs = await git(folder, ["rev-parse", "--path-format=absolute", "--git-dir", "--git-common-dir"], on);
+  if (!top.ok || !dirs.ok) return null;
+  const [dir, common] = dirs.out.split("\n");
+  const main = common.endsWith("/.git") ? common.slice(0, -5) : common;
+  // Linked only when it has its own git dir: a submodule shares its git dir and common dir.
+  return { top: top.out, main, name: main.split("/").pop(), linked: dir !== common };
 }
 
 export default class Worktree extends View {
@@ -169,7 +171,8 @@ export default class Worktree extends View {
   }
 
   async work(cx) {
-    if (this.busy || !this.repo) return;
+    // Enter reaches here too: never remove the main checkout or a submodule.
+    if (this.busy || !this.repo || (props().action === "remove" && !this.repo.linked)) return;
     this.busy = true;
     this.error = "";
     cx.notify();
