@@ -4,7 +4,7 @@
 import { View, div, image, svg } from "gpui-kit";
 import { v_flex, h_flex } from "gpui-base";
 import { agents, terminals, panes, focused, spaces, run, theme, shared, setShared, setAgentOrder, openOverlay, closeOverlay, props, window, layout, nextCommand, readTextFile, appHome } from "herdr";
-import { ICON, SIZE, dot, empty, errorBand, gutter, iconButton, menuItem, plural, section, spinner, statusColor, surfaceless, tag, header as panelHeader, foldOnClick, navKey, trackTerminal, keyHints, ago } from "./kit.js";
+import { ICON, SIZE, dot, empty, errorBand, gutter, iconButton, menuItem, plural, spinner, statusColor, surfaceless, tag, header as panelHeader, foldOnClick, navKey, trackTerminal, keyHints, ago } from "./kit.js";
 import { startCrew, crewLines, conflictBand, nextBlocked, hasTasks } from "./crew.js";
 
 function find(node, id) {
@@ -319,7 +319,7 @@ export default class Agents extends View {
       // An agent on another machine (`vps/t7`) says which.
       const machine = a.address.includes("/") ? a.address.split("/")[0] : null;
       if (collapsed) {
-        // The rail: number + status gutter. Icon-less, so the tooltip names the agent.
+        // The rail: status gutter + number. Icon-less, so the tooltip names the agent.
         const tip = [a.space_name, label(a)].filter(Boolean).join(" \u00b7 ");
         const railFill = spaceFill(t, a);
         return h_flex()
@@ -338,8 +338,10 @@ export default class Agents extends View {
           .hover((s) => s.bg(a.focused ? t.selected : t.hover))
           .when(Boolean(tip), (el) => el.tooltip(tip).accessibility_label(tip))
           .on_click(() => run("pane.focus", { pane: a.pane }))
-          .child(div().flex_1().min_w(0).whitespace_nowrap().text_right().text_size(SIZE.meta).text_color(a.focused ? t.foreground : t.muted).child(String(i + 1)))
-          .child(gutter(t, a.status));
+          // status on the left (the 16px gutter every Crew row starts with), the number on the right: in a column,
+          // the spinners and dots line up and so do the numbers, as in the Spaces rows
+          .child(gutter(t, a.status))
+          .child(div().flex_1().min_w(0).whitespace_nowrap().text_right().text_size(SIZE.meta).text_color(a.focused ? t.foreground : t.muted).child(String(i + 1)));
       }
       const when = this.since(a);
       const idle = a.status === "idle" && !a.focused;
@@ -439,7 +441,7 @@ export default class Agents extends View {
       else groups.push({ id, label: byPriority ? SECTION[r] : a.space_name || "", status: byPriority ? SECTION_STATUS[r] : null, members: [a] });
     }
 
-    // A group's header (kit section: sentence case, count right, chevron); it folds the group.
+    // A group's header (as the kit's section: sentence case, the chevron after the label, the count at the right edge); it folds the group.
     // The label keeps its section's status color (Needs you, Working, Done): that's information.
     // Folded in grouped view, a small status mark says the most urgent state inside.
     const header = (g) => {
@@ -454,13 +456,19 @@ export default class Agents extends View {
         .child(div().min_w(0).truncate().when(Boolean(g.status), (el) => el.text_color(t[g.status] ?? t.muted)).child(g.label))
         .when(!open && !byPriority && Boolean(top) && top !== "idle", (el) =>
           el.child(top === "working" ? spinner(t.working, 10) : dot(statusColor(t, top), 6)));
-      return section(t, g.id, label, g.members.length, {
-        open,
-        onClick: (_e, cx) => {
+      // The kit's section, with the chevron after the label instead of after the count: the count then ends
+      // on the right edge, on the same vertical as the rows' figures (time, context %, tasks done).
+      return h_flex().id(g.id).px(8).pt(8).pb(4).gap(8).items_center().text_size(SIZE.meta).text_color(t.muted)
+        .cursor_pointer().rounded(6).hover((s) => s.text_color(t.foreground))
+        .on_click((_e, cx) => {
           open ? this.folded.add(g.id) : this.folded.delete(g.id);
           cx.notify();
-        },
-      }).when(kb && curId === g.id, (el) => el.rounded(6).bg(t.selected).border_1().border_color(t.accent));
+        })
+        .child(label.flex_shrink(1).min_w(0)) // a long space name gives way, the count keeps the edge
+        .child(svg(ICON(open ? "chevron-down" : "chevron-right")).size(12).flex_none().text_color(t.dim))
+        .child(div().flex_1().min_w(0))
+        .child(div().flex_none().text_color(t.dim).child(String(g.members.length)))
+        .when(kb && curId === g.id, (el) => el.rounded(6).bg(t.selected).border_1().border_color(t.accent));
     };
 
     // The keyboard's items, in the order they are drawn: group headers, agents, sub-agents.
@@ -497,13 +505,13 @@ export default class Agents extends View {
     const status = blocked
       // needs you beats working: it is the one thing to act on; a click goes to the next one (⌘J too)
       ? h_flex().id("ag-blocked").flex_shrink(1).min_w(0).gap(6).items_center().cursor_pointer().rounded(4)
-        .tooltip("Go to the next agent that needs you (⌘J)").on_click(() => nextBlocked())
+        .tooltip("Go to the next agent that needs you (⌘J)").on_mouse_down("left", (_e, cx) => cx.stop_propagation()).on_click(() => nextBlocked())
         .child(dot(t.blocked, 6)).child(div().min_w(0).truncate().text_size(SIZE.meta).text_color(t.blocked).child(`${blocked} need${blocked === 1 ? "s" : ""} you`))
       : working
       // kit liveStatus, but able to shrink: at ~220px the header is a few px short of fitting it
       ? h_flex().flex_shrink(1).min_w(0).gap(6).items_center()
         .id("ag-working").tooltip(`${working} working`)
-        // at 268px the header can't hold "n working" beside the count and the sort button: spinner + n says it
+        // at 268px the header can't hold "n working" beside the sort button and the count: spinner + n says it
         .child(spinner(t.working, 11)).child(div().min_w(0).truncate().text_size(SIZE.meta).text_color(t.working).child(String(working)))
       : list.length
         ? div().flex_none().text_size(SIZE.meta).text_color(blocked ? t.blocked : t.dim)
@@ -537,8 +545,10 @@ export default class Agents extends View {
         title: "Agents",
         onClick: foldOnClick("agents", "spaces", "sidebar-gap"),
         count: list.length ? String(list.length) : null,
-        status,
-        actions: [iconButton(t, "ag-sort", ICON(sort.icon), () => openOverlay({ mod: "agents-crew", kind: "popup", width: 200, height: 140, props: { sortMenu: true } }), { tip: `Sort agents: ${sort.label}` })],
+        // the sort button sits before the status, so the header's figure ends on the right edge too
+        status: h_flex().flex_shrink(1).min_w(0).gap(6).items_center()
+          .child(iconButton(t, "ag-sort", ICON(sort.icon), () => openOverlay({ mod: "agents-crew", kind: "popup", width: 200, height: 140, props: { sortMenu: true } }), { tip: `Sort agents: ${sort.label}` }))
+          .child(status ?? div()),
       })))
       .when(!collapsed, (el) => el.child(conflictBand(this, t) ?? div()))
       // the scanners feed activity, context and tasks: say so when they fail rather than show bare rows

@@ -6,7 +6,7 @@
 import { View, div, svg } from "gpui-kit";
 import { v_flex, h_flex } from "gpui-base";
 import { spaces, machines, panes, agents, run, openOverlay, exec, hc, theme, shared, setShared, watchFolder, window, layout, nextCommand } from "herdr";
-import { ICON, SIZE, dot, spinner, iconButton, surfaceless, tag, header, foldOnClick, navKey, trackTerminal, keyHints } from "./kit.js";
+import { ICON, SIZE, dot, spinner, gutter, iconButton, surfaceless, tag, header, foldOnClick, navKey, trackTerminal, keyHints } from "./kit.js";
 
 function find(node, id) {
   if (node?.id === id) return node;
@@ -51,6 +51,11 @@ const nextBlocked = () => {
   const b = agents().filter((a) => a.status === "blocked");
   if (b.length) run("agent.focus", { terminal: b[(b.findIndex((a) => a.focused) + 1) % b.length].address });
 };
+
+// The name row, as an agent row is built: the agents' state in the 16px gutter, the avatar where an agent has
+// its icon, the name, then at the right the close button and ± uncommitted paths. Fixed widths, 8 px apart,
+// so the figures of every row sit in the same columns (the git line under a name ends under the ± column).
+const COLS = { status: 16, dirty: 28, close: 20 };
 
 // Header right side, as the Agents header says it: spaces that need you, else spaces working.
 function spacesStatus(t) {
@@ -413,7 +418,7 @@ export default class Spaces extends View {
     const same = (a) => a.toLowerCase() === name.toLowerCase();
     const branch = same(raw) || raw === "master" || raw === "main" ? "" : raw;
     const repo = tree || same(g.name) ? "" : g.name;
-    return repo || branch || g.ahead > 0 || g.behind > 0 ? { repo, branch, ahead: g.ahead, behind: g.behind, dirty: g.dirty } : null;
+    return repo || branch || g.ahead > 0 || g.behind > 0 ? { repo, branch, ahead: g.ahead, behind: g.behind } : null;
   }
 
   gitTail({ repo, branch, ...g }, t) {
@@ -428,25 +433,27 @@ export default class Spaces extends View {
       .when(Boolean(repo), (el) => el.child(div().min_w(0).flex_shrink(4).truncate().child(repo)))
       .when(Boolean(repo) && Boolean(branch), (el) => el.child(div().flex_none().child("·")))
       .when(Boolean(branch), (el) => el.child(div().flex_shrink(1).min_w(40).truncate().text_color(t.muted).child(branch)))
-      // uncommitted work, before a space is closed or a worktree removed: "±3" = three changed paths
-      .when(g.dirty > 0, (el) => el.child(div().flex_none().text_size(SIZE.micro).text_color(t.working).child(`\u00b1${g.dirty}`)))
+      // ahead / behind go to the line's right end, under the name row's ± column (see COLS): figures in one column
+      .child(div().flex_1().min_w(0))
       .when(g.ahead > 0, (el) => el.child(div().flex_none().text_size(SIZE.micro).text_color(t.ansi2).child(`\u2191${g.ahead}`)))
       .when(g.behind > 0, (el) => el.child(div().flex_none().text_size(SIZE.micro).text_color(t.ansi1).child(`\u2193${g.behind}`)));
   }
 
-  // A space's agents, said the way the Agents list says them: a spinner while one works, a dot when
-  // one needs you or is done, then how many; idle ones are a quiet number. Same column on every row.
-  agentMark(w, t) {
+  // The most urgent state among a space's agents (needs you > done > working > idle), or null without agents.
+  agentState(w) {
     const list = agents().filter((a) => a.space === w.id);
     if (!list.length) return null;
     const rank = { blocked: 4, done: 3, working: 2, idle: 1 };
-    const top = list.reduce((m, a) => ((rank[a.status] ?? 0) > (rank[m] ?? 0) ? a.status : m), "idle");
-    const color = top === "idle" ? t.dim : t[top] ?? t.dim;
-    return h_flex().id(`sp-ag-${w.id}`).flex_none().pl(4).gap(4).items_center().justify_end()
-      .tooltip(`${list.length} agent${list.length === 1 ? "" : "s"} · ${list.map((a) => a.status).join(", ")}`)
-      .when(top === "working", (el) => el.child(spinner(t.working, 10)))
-      .when(top === "blocked" || top === "done", (el) => el.child(dot(color, 6)))
-      .child(div().flex_none().text_size(SIZE.micro).text_color(color).child(String(list.length)));
+    return { list, top: list.reduce((m, a) => ((rank[a.status] ?? 0) > (rank[m] ?? 0) ? a.status : m), "idle") };
+  }
+
+  // That state in the row's 16px gutter, drawn by the kit exactly as an agent row draws its own: a spinner
+  // while one works, a dot when one needs you or is done; empty when all are idle or there is none. How many
+  // agents is in the tooltip: the Agents list above already counts them.
+  statusMark(w, t) {
+    const s = this.agentState(w), top = s && s.top !== "idle" ? s.top : null;
+    return gutter(t, top).id(`sp-ag-${w.id}`)
+      .when(Boolean(s), (el) => el.tooltip(`${s.list.length} agent${s.list.length === 1 ? "" : "s"} \u00b7 ${s.list.map((a) => a.status).join(", ")}`));
   }
 
   row({ w, i, g, tree }, t, cur = false) {
@@ -455,7 +462,7 @@ export default class Spaces extends View {
     const colors = shared("space.colors") ?? {};
     const color = colors[w.id] ?? "ansi6";
     const fill = color.startsWith("#") ? color : (MARK[color] ?? t[color]);
-    const meta = this.gitMeta(g, tree, w.name), mark = this.agentMark(w, t);
+    const meta = this.gitMeta(g, tree, w.name);
     return v_flex()
       .relative()
       .id(`space-${w.id}`)
@@ -500,37 +507,40 @@ export default class Spaces extends View {
       })
       .on_mouse_down("right", () => this.menu(w))
       .on_hover((h, cx) => { if (h) this.hoverId = w.id; else if (this.hoverId === w.id) this.hoverId = null; cx.notify(); })
-      // Crew row anatomy: avatar in the 16px gutter, 12px semibold name, dim 11px meta right.
-      // A worktree hangs one gutter in, its branch glyph where the avatar would be.
+      // Crew row anatomy: the 16px status gutter, the avatar, 12px semibold name, dim 11px meta right.
+      // A worktree hangs one gutter in after the status (which stays in one column), its branch glyph where the avatar would be.
       .child(
         h_flex()
           .gap(8)
           .items_center()
           .text_size(SIZE.body)
-          .when(Boolean(tree), el => el.pl(24).child(h_flex().w(16).flex_none().justify_center().child(svg(ICON("branch")).size(12).text_color(t.dim))))
+          .child(this.statusMark(w, t))
+          .when(Boolean(tree), el => el.child(div().w(16).flex_none()).child(h_flex().w(16).flex_none().justify_center().child(svg(ICON("branch")).size(12).text_color(t.dim))))
           .when(!tree, el => el.child(avatar(fill, w.name)))
           .child(div().flex_1().min_w(0).truncate().font_semibold().text_color(on ? t.foreground : tree ? t.muted : t.foreground).child(w.name))
-          // uncommitted paths ride on the name row when there is no git line under it: dirty alone never adds a line
-          .when(!meta && g?.dirty > 0, (el) => el.child(div().flex_none().text_size(SIZE.micro).text_color(t.working).child(`\u00b1${g.dirty}`)))
-          .when(Boolean(mark), (el) => el.child(mark))
-          // close: on hover (and on the shown space), in a slot kept so names never shift.
-          // space.close without `confirmed` lets Herdr ask first when the space has running terminals.
-          .child(div().w(20).flex_none().flex().justify_end()
+          // close: on hover (and on the shown space), in a slot kept so names never shift; it sits before the
+          // figure, which keeps the row's right edge. space.close without `confirmed` lets Herdr ask first when
+          // the space has running terminals.
+          .child(div().w(COLS.close).flex_none().flex().justify_end()
             .when(this.hoverId === w.id || on, (el) => el.child(iconButton(t, `sp-close-${w.id}`, "x",
-              () => run("space.close", { id: w.id }), { tip: `Close ${w.name}`, size: 12 }).size(20)))),
+              () => run("space.close", { id: w.id }), { tip: `Close ${w.name}`, size: 12 }).size(20))))
+          // uncommitted paths ("\u00b13"), always on the name row, right-aligned at the row's edge: every space's
+          // figure ends on the same line, with or without a git line under it
+          .child(div().w(COLS.dirty).flex_none().text_right().text_size(SIZE.micro).text_color(t.working).child(g?.dirty > 0 ? `\u00b1${g.dirty}` : "")),
       )
-      // second line, under the name: repo · branch ↑↓ (the gutter stays empty, as under an agent)
-      .when(Boolean(meta), (el) => el.child(h_flex().pl(tree ? 48 : 24).min_w(0).child(this.gitTail(meta, t))));
+      // second line: repo · branch ↑↓, starting under the avatar as an agent's activity line starts under its
+      // icon (the gutter stays empty)
+      .when(Boolean(meta), (el) => el.child(h_flex().pl((tree ? 24 : 0) + COLS.status + 8).min_w(0).child(this.gitTail(meta, t).flex_1())));
   }
 
-  // The rail: number, and a dot only when the space needs you (glyph()). Tooltip names it.
+  // The rail, as the Agents rail: the status gutter, then the number at the right edge. Tooltip names it.
   compact({ w, i }, t, cur = false) {
     return h_flex()
       .id(`space-${w.id}`)
       .h(26)
       .mx(4)
+      .px(4)
       .flex_none()
-      .justify_center()
       .items_center()
       .gap(4)
       .rounded(6)
@@ -541,8 +551,8 @@ export default class Spaces extends View {
       .tooltip(w.name)
       .accessibility_label(w.name)
       .on_click(() => run("space.select", { id: w.id }))
-      .child(div().text_size(SIZE.meta).text_color(w.active ? t.foreground : t.muted).child(String(i + 1)))
-      .when(glyph(w.status) === "\u25cf", (el) => el.child(dot(tone(t, w.status), 6)));
+      .child(gutter(t, w.status && w.status !== "idle" ? w.status : null))
+      .child(div().flex_1().min_w(0).whitespace_nowrap().text_right().text_size(SIZE.meta).text_color(w.active ? t.foreground : t.muted).child(String(i + 1)));
   }
 
   render() {
@@ -597,7 +607,7 @@ export default class Spaces extends View {
       }))
       .child(collapsed
         ? h_flex().h(42).flex_none().items_center().justify_center().child(newSpace)
-        : header(t, { rule: false, dense: true, status: spacesStatus(t), glyph: svg(ICON("folder")).size(14).flex_none().text_color(t.muted), title: "Spaces", onClick: foldOnClick("spaces", "agents", "sidebar-gap"), count: sp.length ? String(sp.length) : null, actions: [newSpace] }))
+        : header(t, { rule: false, dense: true, status: h_flex().flex_shrink(1).min_w(0).gap(6).items_center().child(newSpace).child(spacesStatus(t) ?? div()), glyph: svg(ICON("folder")).size(14).flex_none().text_color(t.muted), title: "Spaces", onClick: foldOnClick("spaces", "agents", "sidebar-gap"), count: sp.length ? String(sp.length) : null }))
       .child(v_flex().id("space-list").flex_1().min_h(0).px(collapsed ? 0 : 8).pb(8).gap(2).overflow_y_scrollbar().mode("always")
         .on_mouse_up("left", (_e, cx) => { this.pressed = null; cx.notify(); })
         .children(entries.map((e) => e.make(kb && e.id === curItem?.id))))
