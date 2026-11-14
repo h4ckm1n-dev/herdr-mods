@@ -19,6 +19,23 @@ class Cost(unittest.TestCase):
         self.assertAlmostEqual(cost.cost("claude-sonnet-5-5", [0, 0, 1_000_000, 0, 0]), 0.10)
         self.assertAlmostEqual(cost.cost("claude-opus-5-5" + cost.FAST, [1_000_000, 0, 0, 0, 0]), 8.0)  # fast mode: 2x
 
+    def test_unknown_model_is_named_not_silently_opus(self):
+        with tempfile.TemporaryDirectory() as d:
+            f = os.path.join(d, "s.jsonl")
+            ts = "2026-11-06T12:00:00Z"
+            open(f, "w").write(line("m1", ts, 1000) + line("m2", ts, 1000, model="claude-nova-9") + line("m3", ts, 1000, model="claude-nova-9", speed="fast"))
+            r = cost.report([(f, "p", False)], {}, cost.local_day(ts))
+            self.assertEqual(r["guessed"], ["claude-nova-9"])  # once, without the fast-mode suffix; the known model is not listed
+            self.assertAlmostEqual(cost.cost("claude-nova-9", [0, 1_000_000, 0, 0, 0]), 20.0)  # still counted, at Opus 5.5 rates
+
+    def test_claude_config_dir_moves_the_transcripts(self):
+        import subprocess
+        with tempfile.TemporaryDirectory() as d:
+            here = os.path.join(os.path.dirname(__file__), "..")
+            out = subprocess.run([sys.executable, "-c", "import cost; print(cost.PROJECTS); print(cost.LEDGERS)"], cwd=here,
+                                 env={**os.environ, "CLAUDE_CONFIG_DIR": d}, capture_output=True, text=True).stdout.split()
+            self.assertEqual(out, [os.path.join(d, "projects"), os.path.join(d, "logs")])
+
     def test_dedupe_keeps_latest_and_resumes(self):
         with tempfile.TemporaryDirectory() as d:
             f = os.path.join(d, "s.jsonl")

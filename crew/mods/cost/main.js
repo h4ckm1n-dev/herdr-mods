@@ -4,16 +4,16 @@
 
 import { View, div, svg } from "gpui-kit";
 import { v_flex, h_flex } from "gpui-base";
-import { exec, appHome, theme, nextCommand } from "herdr";
-import { panel, header, list, section, bar, tag, empty, errorBand, liveStatus, trackTerminal, navKey, keyHints, CORAL, SIZE, panelFocusAsked, agentColor } from "./kit.js";
+import { exec, appHome, theme, nextCommand, shared, setShared, notify, openOverlay, readTextFile } from "herdr";
+import { panel, header, list, section, bar, tag, chip, empty, errorBand, liveStatus, trackTerminal, navKey, keyHints, CORAL, SIZE, panelFocusAsked, agentColor, agoWords } from "./kit.js";
 
-// ponytail: daily budget in USD, a constant on purpose; raise it when your normal day changes.
-const DAILY_BUDGET = 150;
+// Daily budget in USD: the − / + beside it in the panel set it (shared state, kept across restarts).
+const DEFAULT_BUDGET = 150, STEP = 10;
+const budgetNow = () => { const b = Number(shared("cost.budget")); return b > 0 ? b : DEFAULT_BUDGET; };
 const POLL_MS = 60_000;
 
 // one format everywhere: whole dollars, thousands grouped; spend under a dollar is "<$1"
 const usd = (v) => (v > 0 && v < 1 ? "<$1" : `$${String(Math.round(v)).replace(/\B(?=(\d{3})+$)/g, ",")}`);
-const ago = (ms) => { const m = Math.round((Date.now() - ms) / 60000); return m < 1 ? "just now" : m < 60 ? `${m}m ago` : `${Math.round(m / 60)}h ago`; };
 const MODELS = (t) => ({ opus: ["Opus", CORAL], sonnet: ["Sonnet", t.ansi4], haiku: ["Haiku", t.ansi2], fable: ["Fable", t.ansi5], mythos: ["Mythos", t.ansi5], other: ["Other", t.muted] });
 const weekday = (iso) => ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][new Date(iso + "T12:00:00").getDay()];
 
@@ -28,6 +28,11 @@ export default class Cost extends View {
         if (c === "focus") { this.kb.focus(); cx.notify(); }
       }
     });
+    // "Priciest today" opens that session's recap, when Session recap is installed and on
+    cx.spawn(async (cx) => {
+      this.recap = Boolean(await readTextFile(`${appHome()}/mods/session-recap/recap.py`).catch(() => null));
+      cx.notify();
+    });
     this.script = `${appHome()}/mods/cost/cost.py`;
     cx.timer.every(POLL_MS, (cx) => this.refresh(cx));
     this.refresh(cx);
@@ -36,12 +41,13 @@ export default class Cost extends View {
   refresh(cx) {
     if (this.busy) return;
     // render() stamps this; a panel hidden behind another stops costing a python run per minute
-    if (this.data && Date.now() - (this.shown ?? 0) > 3 * POLL_MS) return cx.notify();
+    // (hidden, it still reads every 10 minutes: the budget toast is for exactly when nobody is looking)
+    if (this.data && Date.now() - (this.shown ?? 0) > 3 * POLL_MS && Date.now() - (this.at ?? 0) < 10 * POLL_MS) return cx.notify();
     this.busy = true;
     cx.spawn(async (cx) => {
       try {
         const r = await exec("python3", ["-I", this.script], { timeout: 600000 }); // the first scan reads every transcript: can pass the 30 s default
-        if (r.code === 0) { this.data = JSON.parse(r.stdout); this.error = null; this.at = Date.now(); }
+        if (r.code === 0) { this.data = JSON.parse(r.stdout); this.error = null; this.at = Date.now(); this.warn(); }
         else this.error = r.stderr.trim().split("\n").at(-1) || "cost.py failed";
       } catch (e) {
         this.error = String(e);
@@ -50,6 +56,20 @@ export default class Cost extends View {
       cx.notify();
     });
   }
+
+  // One toast at 80% of the budget and one at 100%, per day: the panel is closed most of the time.
+  // ponytail: the day's last level lives in shared state, so a reload doesn't toast again
+  warn() {
+    const d = this.data, b = budgetNow(), day = d?.days?.at(-1)?.[0];
+    const level = !d ? 0 : d.today >= b ? 100 : d.today >= 0.8 * b ? 80 : 0;
+    const w = shared("cost.warned");
+    if (!level || (w?.day === day && w.level >= level)) return;
+    setShared("cost.warned", { day, level });
+    notify({ title: level === 100 ? `Daily budget reached: ${usd(d.today)} of ${usd(b)}` : `80% of today's budget: ${usd(d.today)} of ${usd(b)}`,
+      body: d.topSession?.title ? `Priciest session: ${d.topSession.title} (${usd(d.topSession.usd)})` : "", level: level === 100 ? "error" : "warning" });
+  }
+
+  setBudget(delta, cx) { setShared("cost.budget", Math.max(STEP, budgetNow() + delta)); cx.notify(); }
 
   // label .... bar .... value, one line (bar is a true fraction of the group's max)
   meter(t, id, label, frac, color, value, sub, labelW = 56) {
@@ -62,11 +82,15 @@ export default class Cost extends View {
 
   // One column per day, bottom-aligned, height = share of the week's max; the value in the tooltip.
   // `scale`: the max to measure against (a second series shares the first one's dollars); else its own max.
-  columns(t, id, days, h, color, fmt, scale) {
+  // `line`: a value drawn as a hairline across the columns (the daily budget), when it fits under the max.
+  columns(t, id, days, h, color, fmt, scale, line) {
     const max = Math.max(1e-9, scale ?? Math.max(...days.map((x) => x[1])));
-    return h_flex().px(12).h(h).gap(6).items_end().children(days.map(([day, v], i) =>
+    const cols = h_flex().px(12).h(h).gap(6).items_end().children(days.map(([day, v], i) =>
       div().id(`${id}-${day}`).flex_1().h(v > 0 ? Math.max(2, Math.round((v / max) * h)) : 1).rounded(2)
         .bg(v > 0 ? color(v, i === days.length - 1) : t.border).tooltip(`${weekday(day)} · ${fmt(v)}`)));
+    if (!(line > 0 && line <= max)) return cols;
+    return div().relative().h(h).child(cols)
+      .child(div().absolute().left(12).right(12).top(Math.round(h - (line / max) * h)).h(1).bg(t.muted));
   }
 
   card(t, id, ...children) {
@@ -80,6 +104,7 @@ export default class Cost extends View {
     trackTerminal();
     const d = this.data;
     const kb = this.kb.is_focused();
+    const DAILY_BUDGET = budgetNow();
     const over = d && d.today > DAILY_BUDGET;
     const accent = over ? t.blocked : t.accent; // coral stays for live Claude states (DESIGN.md)
 
@@ -88,7 +113,7 @@ export default class Cost extends View {
       title: "Cost",
       count: d ? "API equiv." : undefined,
       status: this.busy && !d ? liveStatus(t, "scanning", CORAL)
-        : d ? div().text_size(SIZE.meta).text_color(t.dim).child(ago(this.at ?? Date.now()))
+        : d ? div().text_size(SIZE.meta).text_color(t.dim).child(agoWords(this.at ?? Date.now()))
         : "idle",
     });
 
@@ -98,7 +123,12 @@ export default class Cost extends View {
         : empty(t, { title: "Reading transcripts…", hint: "The first scan reads every recent session once" });
     } else {
       const M = MODELS(t);
-      const maxDay = Math.max(DAILY_BUDGET, ...d.days.map((x) => x[1]));
+      // the budget joins the scale only once a day came near it: a $20 week must not flatten under a $150 line
+      const topDay = Math.max(...d.days.map((x) => x[1]));
+      const maxDay = topDay >= 0.5 * DAILY_BUDGET ? Math.max(DAILY_BUDGET, topDay) : topDay;
+      // at the last hour's pace, when today's budget runs out (only worth a line inside the working day)
+      const left = !over && d.lastHour > 0 ? (DAILY_BUDGET - d.today) / d.lastHour : null;
+      const runsOut = left != null && left < 8 ? (left < 1 ? `${Math.max(1, Math.round(left * 60))}m` : `${Math.round(left * 10) / 10}h`) : null;
       const modelsRows = Object.entries(d.models).sort((a, b) => b[1][1] - a[1][1]);
       const maxModel = Math.max(0.0001, ...modelsRows.map(([, v]) => v[1]));
       const splitTot = d.split.main[1] + d.split.sub[1];
@@ -119,7 +149,12 @@ export default class Cost extends View {
               .child(div().text_color(d.perHour && d.lastHour > 1.5 * d.perHour ? t.working : t.foreground).child(usd(d.lastHour)))
               .child(div().child(`· ${usd(d.perHour)}/h today`))
               // Codex's share, only when it spent something today
-              .when((d.codex?.usdToday ?? 0) >= 0.5, (e2) => e2.child(div().flex_1().min_w(0).truncate().child(`· Codex ${usd(d.codex.usdToday)}`))))
+              .when((d.codex?.usdToday ?? 0) >= 0.5, (e2) => e2.child(div().min_w(0).truncate().child(`· Codex ${usd(d.codex.usdToday)}`))))
+            // the budget's own − / +, at the row's end so the amount line never runs out of room
+            .child(div().flex_1().min_w(0))
+            .child(chip(t, "c-budget-less", "−", { tip: `Daily budget −$${STEP} (now ${usd(DAILY_BUDGET)})`, onClick: (_e, cx) => this.setBudget(-STEP, cx) }))
+            .child(chip(t, "c-budget-more", "+", { tip: `Daily budget +$${STEP} (now ${usd(DAILY_BUDGET)})`, onClick: (_e, cx) => this.setBudget(STEP, cx) })),
+          ...(runsOut ? [h_flex().px(12).pt(2).text_size(SIZE.meta).text_color(left < 2 ? t.working : t.dim).child(`Budget reached in about ${runsOut} at this pace`)] : [])
 ),  // the 7-day average now reads off the columns below
         // where today's money went: the one session (with its subagents) that cost the most
         ...(d.topSession ? [this.card(t, "c-top",
@@ -128,12 +163,14 @@ export default class Cost extends View {
             .child(div().flex_none().text_size(SIZE.body).font_medium().child(usd(d.topSession.usd))),
           h_flex().px(12).pt(2).gap(4).text_size(SIZE.meta).text_color(t.dim)
             .child(div().flex_none().child("Priciest today"))
-            .child(div().flex_1().min_w(0).truncate().child(`· ${d.topSession.project} · ${ago(d.topSession.at * 1000)}`)))] : []),
+            .child(div().flex_1().min_w(0).truncate().child(`· ${d.topSession.project} · ${agoWords(d.topSession.at)}`)))
+          .when(Boolean(this.recap && d.topSession.id), (el) => el.cursor_pointer().hover((s) => s.border_color(t.input)).tooltip("Open this session's recap: the files it read and wrote")
+            .on_click(() => openOverlay({ mod: "session-recap", kind: "dialog", frame: "none", width: 1040, height: 585, props: { session: d.topSession.id } })))] : []),
         // 7 days as columns: Claude $ on top, Codex tokens as a thin row under (when used); hover a column for its value
         section(t, "s-week", "Last 7 days", d.codex?.week ? `${usd(d.week)} · Codex ${usd(d.codex.usdWeek)}` : usd(d.week), { icon: "mods/cost/icons/calendar.svg" }),
         this.card(t, "c-week",
-          this.columns(t, "wk", d.days, 44, (v, last) => (last ? accent : t.muted), usd),
-          ...(d.codex?.week ? [div().h(4), this.columns(t, "cx", d.codex.usdDays, 12, () => agentColor(t, "codex"), (v) => `Codex ${usd(v)}`, Math.max(...d.days.map((x) => x[1])))] : []),
+          this.columns(t, "wk", d.days, 44, (v, last) => (v > DAILY_BUDGET ? t.blocked : last ? accent : t.muted), (v) => (v > DAILY_BUDGET ? `${usd(v)} · ${usd(v - DAILY_BUDGET)} over budget` : usd(v)), maxDay, DAILY_BUDGET),
+          ...(d.codex?.week ? [div().h(4), this.columns(t, "cx", d.codex.usdDays, 12, () => agentColor(t, "codex"), (v) => `Codex ${usd(v)}`, maxDay)] : []),
           h_flex().px(12).pt(4).gap(4).children(d.days.map(([day], i) => div().flex_1().text_center().text_size(SIZE.micro)
             .text_color(i === d.days.length - 1 ? t.foreground : t.dim).child(i === d.days.length - 1 ? "Today" : weekday(day))))),
         // models, then the subagents' share in one line (was its own section)
@@ -149,6 +186,10 @@ export default class Cost extends View {
                 .child(div().flex_none().text_right().text_size(SIZE.micro).text_color(d.codex.cached < 70 ? t.working : t.dim).child(`${d.codex.cached}%`))),
             d.codex.usdWeek / maxModel, t.muted, usd(d.codex.usdToday), usd(d.codex.usdWeek), 88)] : []),
           this.meter(t, "p-sub", h_flex().gap(6).items_center().child(div().size(6).flex_none()).child("Subagents"), splitTot ? d.split.sub[1] / splitTot : 0, t.muted, usd(d.split.sub[0]), usd(d.split.sub[1]), 88),
+          // a model the price table doesn't know is billed at Opus 5.5 rates: say which, so the total isn't taken as exact
+          ...(d.guessed?.length ? [div().id("c-guessed").px(12).pt(4).text_size(SIZE.micro).text_color(t.working).truncate()
+            .tooltip(`No price for ${d.guessed.join(", ")}: counted at Opus 5.5 rates. Update the mod for current prices.`)
+            .child(`${d.guessed.length === 1 ? d.guessed[0] : `${d.guessed.length} models`} priced as Opus 5.5 (unknown)`)] : []),
           d.subagents.length ? div().px(12).text_size(SIZE.micro).text_color(t.dim).truncate()
             .child(d.subagents.map(([a, n]) => `${a.replace(/^.*:/, "")} ${n}`).join(" · ")) : div()),
         section(t, "s-proj", "Top projects", "today · 7 days", { icon: "folder" }),
@@ -159,10 +200,10 @@ export default class Cost extends View {
 
     return panel(t, "cost", { keyboard: kb })
       .track_focus(this.kb)
-      .on_key_down((e, cx) => { navKey(e, cx, {}); })
+      .on_key_down((e, cx) => { navKey(e, cx, { keys: { "-": () => this.setBudget(-STEP, cx), "=": () => this.setBudget(STEP, cx), "+": () => this.setBudget(STEP, cx), r: () => { this.shown = Date.now(); this.refresh(cx); } } }); })
       .child(head)
       .when(Boolean(this.error && d), (el) => el.child(errorBand(t, this.error)))
       .child(body)
-      .when(kb, (el) => el.child(keyHints(t, "cost-keys", [["Esc", "terminal"]])));
+      .when(kb, (el) => el.child(keyHints(t, "cost-keys", [["− +", "budget"], ["r", "refresh"], ["Esc", "terminal"]])));
   }
 }

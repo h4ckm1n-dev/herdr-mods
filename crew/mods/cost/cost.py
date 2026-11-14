@@ -6,8 +6,9 @@ import glob, json, os, sys, time
 from datetime import datetime, date, timedelta
 
 HOME = os.path.expanduser("~")
-PROJECTS = os.path.join(HOME, ".claude", "projects")
-LEDGERS = os.path.join(HOME, ".claude", "logs")
+CLAUDE = os.environ.get("CLAUDE_CONFIG_DIR") or os.path.join(HOME, ".claude")  # where Claude Code keeps its files
+PROJECTS = os.path.join(CLAUDE, "projects")
+LEDGERS = os.path.join(CLAUDE, "logs")
 CACHE = os.path.join(HOME, ".cache", "herdr-cost", "usage.json")
 V = 4  # 2: 10-minute slots for the last hour; 3: the session title; 4: fast-mode turns priced apart
 WINDOW = 7
@@ -38,9 +39,12 @@ def family(model):
 
 FAST = "-fast"  # appended to the model of a fast-mode turn (usage.speed == "fast"): 2x the standard rates
 
+def known(model):
+    return any((model or "").startswith(p) for p in PRICES)
+
 def price(model):
     best = max((p for p in PRICES if (model or "").startswith(p)), key=len, default=None)
-    p = PRICES[best] if best else PRICES["claude-opus-5-5"]  # unknown model: assume the daily driver
+    p = PRICES[best] if best else PRICES["claude-opus-5-5"]  # unknown model: Opus 5.5 rates, and report() names it
     return tuple(x * 2 for x in p) if (model or "").endswith(FAST) else p
 
 def cost(model, t):
@@ -116,14 +120,14 @@ def report(files, cache, today, now=None):
     daily = {n: 0.0 for n in names}
     now = time.time() if now is None else now
     hour_from, day_start = now // SLOT - 5, datetime.combine(date.fromisoformat(today), datetime.min.time()).timestamp()
-    first_today, last_hour, cache_in, sessions = None, 0.0, {}, {}
+    first_today, last_hour, cache_in, sessions, guessed = None, 0.0, {}, {}, set()
     out = {"today": 0.0, "week": 0.0, "models": {}, "split": {"main": [0.0, 0.0], "sub": [0.0, 0.0]}, "projects": {}}
     for path, proj, sub in files:
         c = scan(path, cache)
         name = os.path.basename((c["cwd"] or proj).rstrip("/")) or proj
         # a subagent's spend belongs to the session that ran it: <project>/<session>/subagents/<agent>.jsonl
         sid = os.path.basename(os.path.dirname(os.path.dirname(path))) if sub else os.path.basename(path)[:-6]
-        ses = sessions.setdefault(sid, {"usd": 0.0, "title": None, "project": name, "at": 0})
+        ses = sessions.setdefault(sid, {"id": sid, "usd": 0.0, "title": None, "project": name, "at": 0})
         if not sub: ses["title"], ses["project"] = (c.get("title") or "").lstrip("!") or None, name
         ses["at"] = max(ses["at"], os.path.getmtime(path))
         for slot, models in c.get("slots", {}).items():
@@ -135,6 +139,7 @@ def report(files, cache, today, now=None):
             if day < first or day > today: continue
             for model, t in models.items():
                 usd = cost(model, t)
+                if usd and not known(model): guessed.add(model[:-len(FAST)] if model.endswith(FAST) else model)
                 daily[day] += usd
                 out["week"] += usd
                 fam = out["models"].setdefault(family(model), [0.0, 0.0])
@@ -153,6 +158,7 @@ def report(files, cache, today, now=None):
     out["projects"] = sorted(([k, *r(v)] for k, v in out["projects"].items()), key=lambda p: (-p[1], -p[2]))[:8]
     out["today"], out["week"] = round(out["today"], 4), round(out["week"], 4)
     out["subagents"] = ledger(today)
+    out["guessed"] = sorted(guessed)  # models missing from PRICES, billed at Opus 5.5 rates: the panel says so
     # pace: the last hour (six 10-minute slots, the current one partial) and today's average per active hour
     out["lastHour"] = round(last_hour, 4)
     top = max(sessions.values(), key=lambda x: x["usd"], default=None)
