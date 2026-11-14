@@ -2,6 +2,14 @@
 import { View, div } from "gpui-kit";
 import { v_flex, h_flex, InputState, Input } from "gpui-base";
 import { run, props, closeOverlay, theme } from "herdr";
+// "↵ run": a key cap and what it does, as the Crew kit's kbdHint draws it (a mod can't import another's files).
+const hint = (t, k, what) => h_flex().flex_none().gap(4).items_center()
+  .child(div().flex_none().min_w(18).px(5).h(18).flex().items_center().justify_center().rounded(4).border_1().border_color(t.input).bg(t.surface).text_size(10.5).font_medium().text_color(t.foreground).child(k))
+  .child(div().text_size(11).text_color(t.muted).child(what));
+// The dialog's last line: a hairline, the keys on the left, then whatever goes right.
+const footer = (t, keys, right) => h_flex().flex_none().pt(12).gap(16).items_center().border_t(1).border_color(t.border)
+  .children(keys.map(([k, what]) => hint(t, k, what))).child(div().flex_1()).children(right);
+
 
 export default class Prompt extends View {
   init(_props, cx) {
@@ -38,13 +46,14 @@ export default class Prompt extends View {
       .hover(s => s.opacity(0.88)).on_click(action).child(text);
     return v_flex().id("prompt").track_focus(this.handle).on_key_down((e, cx) => this.key(e, cx))
       .size_full().min_h(0).rounded(8).border_1().border_color(t.accent).p(18).bg(t.popover).text_color(t.foreground)
-      .child(h_flex().items_center().child(div().flex_1().text_size(15).font_semibold().child((p.title ?? "").replace(/^./, (c) => c.toUpperCase())))
-        .child(div().text_size(11).text_color(t.dim).child("Esc")))
+      .child(div().text_size(15).font_semibold().child((p.title ?? "").replace(/^./, (c) => c.toUpperCase())))
       .child(label("Name"))
       .child(Input.new(this.input).h(36).px(10).rounded(9).border_1().border_color(this.inputFocused ? t.accent : t.input).bg(t.background).text_size(12.8).text_color(t.foreground))
       .when(Boolean(p.hint), el => el.child(div().pt(6).text_size(11.5).text_color(t.dim).child(p.hint)))
-      .child(h_flex().pt(20).gap(8).justify_end()
-        .child(button("pm-cancel", "Cancel", false, () => closeOverlay(p.overlay)))
-        .child(button("pm-save", "Save", true, () => this.submit())));
+      .child(div().flex_1())
+      .child(footer(t, [["↵", "save"], ["Esc", "cancel"]], [
+        button("pm-cancel", "Cancel", false, () => closeOverlay(p.overlay)),
+        button("pm-save", "Save", true, () => this.submit()),
+      ]).gap(8));
   }
 }

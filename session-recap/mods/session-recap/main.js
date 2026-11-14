@@ -6,7 +6,7 @@
 
 import { View, div, svg } from "gpui-kit";
 import { v_flex, h_flex, InputState, Input, v_virtual_list, VirtualListScrollHandle, Scrollbar } from "gpui-base";
-import { dialog, field, kbd, kbdHint, tag, ago, ICON, SIZE } from "./kit.js";
+import { dialog, field, kbd, kbdHint, tag, agoWords, ICON, SIZE } from "./kit.js";
 import { theme, exec, appHome, props, closeOverlay } from "herdr";
 
 // ponytail: fixed widths (dialog 1040 - padding 32); a virtual list takes its width from a row.
@@ -21,6 +21,7 @@ export default class SessionRecap extends View {
     this.recap = null;
     this.at = 0;
     this.filter = "";
+    this.writesOnly = false; // Tab: only the files the session changed
     this.status = "Reading sessions…";
     this.want = null; // the session whose recap is wanted: a slower, older answer is dropped
     this.script = `${appHome()}/mods/session-recap/recap.py`;
@@ -91,7 +92,7 @@ export default class SessionRecap extends View {
       .when(sel, (el) => el.bg(c.selected ?? c.hover))
       .child(div().truncate().text_size(SIZE.body).text_color(sel ? c.foreground : c.muted).child(s.title))
       .child(h_flex().gap(6).text_size(SIZE.meta).text_color(c.dim)
-        .child(div().min_w(0).truncate().child(s.project)).child(div().flex_none().child(`· ${ago(s.updated)} ago`)));
+        .child(div().min_w(0).truncate().child(s.project)).child(div().flex_none().child(`· ${agoWords(s.updated)}`)));
   }
 
   // One folder heading, or one file: its name, its ticks along the session, how often it was read and written.
@@ -125,7 +126,16 @@ export default class SessionRecap extends View {
     const sessions = this.shown();
     this.at = Math.max(0, Math.min(this.at, sessions.length - 1));
     const r = this.recap;
-    const rows = r ? [...(r.shell?.count ? [{ shell: r.shell, key: "shell" }] : []), ...r.groups.flatMap((g) => [{ dir: g.dir, key: `d:${g.dir}` }, ...g.files.map((f) => ({ ...f, key: f.path }))])] : [];
+    const wo = this.writesOnly;
+    const groups = r ? r.groups.map((g) => ({ ...g, files: g.files.filter((f) => !wo || f.writes > 0) })).filter((g) => g.files.length) : [];
+    const rows = r ? [...(r.shell?.count ? [{ shell: r.shell, key: "shell" }] : []), ...groups.flatMap((g) => [{ dir: g.dir, key: `d:${g.dir}` }, ...g.files.map((f) => ({ ...f, key: f.path }))])] : [];
+    const paths = groups.flatMap((g) => g.files.map((f) => f.path));
+    const copy = (list, cx) => {
+      if (!list.length) return;
+      cx.write_to_clipboard(list.join("\n"));
+      this.status = list.length === 1 ? `Copied ${list[0]}` : `Copied ${list.length} paths`;
+      cx.notify();
+    };
     // "14 Nov 00:49 → 01:17", the day again only when the session ends on another one
     const at = (ts, withDay = true) => {
       const d = new Date(ts * 1000), two = (n) => String(n).padStart(2, "0");
@@ -150,6 +160,8 @@ export default class SessionRecap extends View {
         else if (k === "up") this.step(-1, cx);
         else if (k === "pagedown") this.step(8, cx);
         else if (k === "pageup") this.step(-8, cx);
+        else if (k === "tab") { this.writesOnly = !this.writesOnly; this.rowsScroll.scroll_to_item(0); cx.notify(); }
+        else if (k === "enter") copy(paths, cx);
         else return;
         cx.stop_propagation();
       })
@@ -192,16 +204,18 @@ export default class SessionRecap extends View {
             .child(v_flex().relative().w(RIGHT).flex_1().min_h(0)
               .child(v_virtual_list("sr-files", rows.length, FROW, (i) => rows[i].key,
                 (range) => rows.slice(range.start, range.end).map((x) => this.row(x)))
-                .track_scroll(this.rowsScroll).size_full())
+                // a click on a file copies its path (rows of a virtual list can't hold handlers; the list does clicks)
+                .track_scroll(this.rowsScroll).size_full().on_item_click((key, cx) => { if (key !== "shell" && !key.startsWith("d:")) copy([key], cx); }))
               .child(Scrollbar.vertical("sr-files").absolute().inset_0())))
-          .when(Boolean(r) && !rows.length, (el) => el.child(div().p(12).text_color(c.dim).child("This session read and wrote no file with Claude's own tools")))
+          .when(Boolean(r) && !rows.length, (el) => el.child(div().p(12).text_color(c.dim).child(wo ? "This session changed no file with Claude's own tools" : "This session read and wrote no file with Claude's own tools")))
           .when(!r && Boolean(this.want) && !this.status, (el) => el.child(div().p(12).text_color(c.dim).child("Reading the transcript…")))))
       .when(Boolean(this.status), (el) => el.child(div().px(16).pt(8).text_size(SIZE.meta)
         .text_color(/^Couldn't/.test(this.status) ? c.blocked : c.muted).child(this.status)))
       .child(h_flex().mt(8).px(16).py(12).gap(16).items_center().border_t(1).border_color(c.border)
+        .child(kbdHint(c, "↵", wo ? "copy changed paths" : "copy paths"))
         .child(kbdHint(c, "↑↓", "session"))
+        .child(kbdHint(c, "Tab", wo ? "all files" : "changed only"))
         .child(kbdHint(c, "Esc", "close"))
-        .child(div().flex_1())
-        .child(div().text_size(SIZE.meta).text_color(c.dim).child("From the transcript. A shell command can change files too: it shows when it ran, not what it touched")));
+        .child(div().flex_1().min_w(0).truncate().text_right().text_size(SIZE.meta).text_color(c.dim).child("From the transcript. Shell commands show when they ran, not what they touched")));
   }
 }

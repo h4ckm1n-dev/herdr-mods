@@ -7,7 +7,7 @@
 
 import { View, div, svg } from "gpui-kit";
 import { v_flex, h_flex, InputState, Input, v_virtual_list, VirtualListScrollHandle, Scrollbar } from "gpui-base";
-import { header, field, kbd, button, SIZE, chip as kitChip } from "./kit.js";
+import { header, field, kbd, kbdHint, button, SIZE, chip as kitChip } from "./kit.js";
 import { theme, themes, settings, run, exec, appHome, readTextFile, writeTextFile, props, closeOverlay, nextCommand, notify } from "herdr";
 
 const ROW = 28;
@@ -278,6 +278,13 @@ export default class ThemeGallery extends View {
           .when(!!sel, (el) => el.child(this.card(sel)))
           .when(!sel, (el) => el.child(v_flex().w(300).items_center().gap(8).pt(48)
             .child(div().text_size(SIZE.title).text_color(c.muted).child("No theme matches"))
-            .child(div().text_size(SIZE.meta).text_color(c.dim).child("Try another word, or switch to All"))))));
+            .child(div().text_size(SIZE.meta).text_color(c.dim).child("Try another word, or switch to All"))))))
+      .child(h_flex().flex_none().px(16).py(12).gap(16).items_center().border_t(1).border_color(c.border)
+        .child(kbdHint(c, "↵", "use"))
+        .child(kbdHint(c, "↑↓", "preview"))
+        .child(kbdHint(c, "Tab", "all · dark · light"))
+        .child(kbdHint(c, "Esc", "put the old one back"))
+        .child(div().flex_1())
+        .child(div().text_size(SIZE.meta).text_color(c.dim).child(`${this.list.length} themes`)));
   }
 }

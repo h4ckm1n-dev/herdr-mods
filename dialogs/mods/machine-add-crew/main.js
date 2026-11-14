@@ -9,6 +9,14 @@
 import { View, div, svg } from "gpui-kit";
 import { v_flex, h_flex, InputState, Input } from "gpui-base";
 import { hc, exec, home, readTextFile, theme, props, closeOverlay, openOverlay } from "herdr";
+// "↵ run": a key cap and what it does, as the Crew kit's kbdHint draws it (a mod can't import another's files).
+const hint = (t, k, what) => h_flex().flex_none().gap(4).items_center()
+  .child(div().flex_none().min_w(18).px(5).h(18).flex().items_center().justify_center().rounded(4).border_1().border_color(t.input).bg(t.surface).text_size(10.5).font_medium().text_color(t.foreground).child(k))
+  .child(div().text_size(11).text_color(t.muted).child(what));
+// The dialog's last line: a hairline, the keys on the left, then whatever goes right.
+const footer = (t, keys, right) => h_flex().flex_none().pt(12).gap(16).items_center().border_t(1).border_color(t.border)
+  .children(keys.map(([k, what]) => hint(t, k, what))).child(div().flex_1()).children(right);
+
 
 const I = (name) => `mods/workspace-chrome/${name}.svg`;
 
@@ -57,8 +65,10 @@ export default class MachineAdd extends View {
     this.state = {}; // target -> "adding" | "terminal" | error text
     this.typed = "";
     this.input = InputState.new({ placeholder: "user@host" });
-    this.input.on("change", (_e, cx) => { this.typed = this.input.value(); cx.notify(); });
-    this.input.on("submit", (_e, cx) => this.add(this.typed, cx));
+    this.hat = -1; // the keyboard's host in the list (↑↓); -1 = what you typed
+    this.input.on("change", (_e, cx) => { this.typed = this.input.value(); this.hat = -1; cx.notify(); });
+    // ↵ adds the host the arrows stand on, else what you typed
+    this.input.on("submit", (_e, cx) => this.add(this.shownHosts()[this.hat]?.alias ?? this.typed, cx));
     this.inputFocused = true;
     this.input.on("focus", (_e, cx) => { this.inputFocused = true; cx.notify(); });
     this.input.on("blur", (_e, cx) => { this.inputFocused = false; cx.notify(); });
@@ -222,8 +232,19 @@ export default class MachineAdd extends View {
     closeOverlay(props().overlay);
   }
 
+  /** The ssh config hosts, narrowed by what is typed (alias, user, hostname). */
+  shownHosts() {
+    const f = this.typed.trim().toLowerCase();
+    return (this.hosts ?? []).filter((h) => !f || [h.alias, h.user, h.hostname, ...(h.aliases ?? [])].filter(Boolean).join(" ").toLowerCase().includes(f));
+  }
+
   key(e, cx) {
-    if (e.key === "escape") { this.close(); cx.stop_propagation(); }
+    if (e.key === "escape") { this.close(); cx.stop_propagation(); return; }
+    const n = this.shownHosts().length;
+    if ((e.key === "down" || e.key === "up") && n) {
+      this.hat = e.key === "down" ? Math.min(n - 1, this.hat + 1) : Math.max(-1, this.hat - 1);
+      cx.stop_propagation(); cx.notify();
+    }
   }
 
   // The terminal window's title bar.
@@ -257,7 +278,7 @@ export default class MachineAdd extends View {
       );
   }
 
-  row(t, target, label, sub) {
+  row(t, target, label, sub, here = false) {
     const st = this.state[target];
     const done = this.isAdded(target);
     const right = done
@@ -293,7 +314,8 @@ export default class MachineAdd extends View {
           .gap(10)
           .items_center()
           .rounded(8)
-          .hover((s) => s.bg(t.hover))
+          .when(here, (el) => el.bg(t.selected))
+          .hover((s) => s.bg(here ? t.selected : t.hover))
           .when(idle, (el) => el.cursor_pointer().on_click((_e, cx) => this.add(target, cx)))
           .child(svg(I("server")).size(15).text_color(t.muted))
           .child(div().flex_none().text_size(13).text_color(t.foreground).child(label))
@@ -307,7 +329,8 @@ export default class MachineAdd extends View {
   render() {
     const t = theme();
     if (props()?.part === "bar") return this.bar(t);
-    const hosts = this.hosts ?? [];
+    const hosts = this.shownHosts(), any = (this.hosts ?? []).length > 0;
+    this.hat = Math.min(this.hat, hosts.length - 1);
     return v_flex()
       .id("machine-add")
       .track_focus(this.handle)
@@ -318,7 +341,7 @@ export default class MachineAdd extends View {
       .p(18)
       .bg(t.popover)
       .text_color(t.foreground)
-      .child(h_flex().items_center().child(div().flex_1().text_size(15).font_semibold().child("Add a machine")).child(div().text_size(11).text_color(t.dim).child("Esc")))
+      .child(div().text_size(15).font_semibold().child("Add a machine"))
       .child(
         div()
           .pt(6)
@@ -327,7 +350,7 @@ export default class MachineAdd extends View {
           .text_color(t.muted)
           .child("A VPS, a Mac mini, a box at home: Herdr reaches it over ssh, and agents there keep running while your laptop sleeps."),
       )
-      .child(div().pt(16).pb(6).text_size(11.5).font_medium().text_color(t.dim).child(hosts.length ? "From your ssh config" : "Your ssh config lists no hosts"))
+      .child(div().pt(16).pb(6).text_size(11.5).font_medium().text_color(t.dim).child(hosts.length ? "From your ssh config" : any ? "No host in your ssh config matches" : "Your ssh config lists no hosts"))
       .child(
         v_flex()
           .id("ma-hosts")
@@ -338,7 +361,7 @@ export default class MachineAdd extends View {
           .children(
             this.hosts === null
               ? [div().px(10).py(8).text_size(12.5).text_color(t.dim).child("Reading ~/.ssh/config…")]
-              : hosts.map((h) => this.row(t, h.alias, h.alias, [h.user, h.hostname].filter(Boolean).join("@") || (h.aliases.length ? `also ${h.aliases.join(", ")}` : ""))),
+              : hosts.map((h, i) => this.row(t, h.alias, h.alias, [h.user, h.hostname].filter(Boolean).join("@") || (h.aliases.length ? `also ${h.aliases.join(", ")}` : ""), i === this.hat)),
           ),
       )
       .child(div().pt(14).pb(6).text_size(11.5).font_medium().text_color(t.dim).child("Or type how ssh reaches it"))
@@ -377,6 +400,9 @@ export default class MachineAdd extends View {
               .child("Add"),
           ),
       )
-      .when(Boolean(this.typed.trim() && this.state[this.typed.trim()]), (el) => el.child(div().pt(6).text_size(12).text_color(t.blocked).child(String(this.state[this.typed.trim()]))));
+      .when(Boolean(this.typed.trim() && this.state[this.typed.trim()]), (el) => el.child(div().pt(6).text_size(12).text_color(t.blocked).child(String(this.state[this.typed.trim()]))))
+      .child(div().flex_1())
+      .child(footer(t, [["↵", this.hat >= 0 ? `add ${hosts[this.hat].alias}` : "add what you typed"], ["↑↓", "pick a host"], ["Esc", "close"]],
+        [div().text_size(11).text_color(t.dim).child("Typing narrows the list")]));
   }
 }

@@ -103,10 +103,7 @@ const tones = (t) => ({ purple: t.ansi5, orange: t.ansi3, green: t.ansi2, teal: 
 const gitColor = (t, s) => (!s ? null : s === "D" || s === "U" ? t.ansi1 : s === "?" || s === "A" || s === "C" ? t.ansi2 : s === "R" ? t.ansi4 : t.ansi11 ?? t.ansi3);
 const KIND = { purple: "read", orange: "write", green: "commit" };
 const VIEWS = [["tree", "Tree", "folder"], ["recent", "Recent", "clock"]];
-function ago(ms) {
-  const s = Math.max(0, Math.round((Date.now() - ms) / 1000));
-  return s < 10 ? "now" : s < 60 ? `${s}s` : s < 3600 ? `${Math.floor(s / 60)}m` : s < 86400 ? `${Math.floor(s / 3600)}h` : `${Math.floor(s / 86400)}d`;
-}
+const ago = (ms) => K.ago(ms); // the kit's one "how long ago"
 // File and folder icons: Material Icon Theme, from the file-icons mod (icons.js copied here,
 // the SVGs read from its icons/ folder), matched the way VS Code does. Names are compared in lower case; a
 // path rule (".github/workflows") beats a name, a name beats an extension, the longest
@@ -813,6 +810,8 @@ export default class FileTree extends View {
     else if (k === "enter") { if (this.hits) this.jump(cx); else if (cur.e.dir) this.toggle(cur.rel, cx); else this.show(cur.rel, cx); }
     else if (k === "space") { if (cur.e.dir) this.toggle(cur.rel, cx); else this.show(cur.rel, cx); }
     else if (k === "p" && !cur.e.dir) this.show(cur.rel, cx);
+    else if (k === "e" && !cur.e.dir) this.openFile(cur.rel, cx); // what a click does: the file in this project's Neovim
+    else if (k === "m") this.openMenu(cur.rel, cur.e.dir);
     else if (k === "y") copy(cx, shift ? join(this.root, cur.rel) : cur.rel);
     else if (k === "a") sendToAgent(cx, join(this.root, cur.rel));
     else return;
@@ -841,7 +840,7 @@ export default class FileTree extends View {
       .child(div().flex_none().max_w(Math.max(80, this.width * 0.5)).truncate().text_color(lit ?? t.foreground).when(Boolean(fl?.bright), pulse).child(e.name))
       .child(div().flex_1().min_w(0).truncate().text_size(11).text_color(t.dim).child(dirOf(rel)))
       .child(div().flex_none().text_size(11).text_color(color).child(h.kind === "read" ? "read" : h.kind === "commit" ? "committed" : "wrote"))
-      .child(div().flex_none().w(26).text_size(11).text_color(t.dim).text_right().child(ago(h.at)));
+      .child(div().flex_none().w(40).text_size(11).text_color(t.dim).text_right().child(ago(h.at)));
   }
 
   row(r, t, R, now) {
@@ -1023,6 +1022,8 @@ export default class FileTree extends View {
         .when(Boolean(note), (el) => el.child(div().absolute().top(4).left(0).right(0).px(10).text_size(12).text_color(t.dim).child(note))))
       .when(this.limited, (el) => el.child(div().px(10).py(3).text_size(11).text_color(t.dim).child(`Folders show their first ${PER_FOLDER} entries`)))
       .when(Boolean(this.hits?.length >= FIND_LIMIT), (el) => el.child(div().px(10).py(3).text_size(11).text_color(t.dim).child(`First ${FIND_LIMIT} matches · Enter jumps to the selected one`)))
-      .when(Boolean(this.cursor || this.chip), (el) => el.child(this.footer(t)));
+      .when(Boolean(this.cursor || this.chip), (el) => el.child(this.footer(t)))
+      .when(this.handle.is_focused() && !this.file, (el) => el.child(K.keyHints(t, "ft-keys",
+        [["↑↓", "move"], ["↵", "preview"], ["e", "nvim"], ["y", "copy path"], ["a", "to agent"], ["m", "menu"], ["/", "filter"], ["Esc", "clear"]])));
   }
 }

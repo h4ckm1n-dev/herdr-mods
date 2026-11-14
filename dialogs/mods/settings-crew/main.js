@@ -25,6 +25,7 @@ const APPEARANCES = [
 // What the app uses when settings.json names no font (settings.rs).
 const DEFAULT_FONT = "JetBrains Mono";
 const DEFAULT_UI_FONT = "Geist";
+const MIN_OPACITY = 0.2; // below this the window is too faint to find the stepper that brings it back
 
 export default class Settings extends View {
   init(_props, cx) {
@@ -468,10 +469,10 @@ export default class Settings extends View {
     const p = this.person;
     const own = (key, composed, def) => (p[key] ?? def) !== composed;
     const size = (key, value, d, cx) => this.change((q) => (q[key] = Math.max(8, Math.min(32, (q[key] ?? value) + d))), cx);
-    const opacity = Math.max(0, Math.min(1, p.window_opacity ?? 1));
+    const opacity = Math.max(MIN_OPACITY, Math.min(1, p.window_opacity ?? 1));
     const blur = p.window_blur === true;
     // Rounded to whole percents so 5% steps don't drift into 0.7999….
-    const step = (d, cx) => this.change((q) => (q.window_opacity = Math.round(Math.max(0, Math.min(1, (q.window_opacity ?? 1) + d)) * 100) / 100), cx);
+    const step = (d, cx) => this.change((q) => (q.window_opacity = Math.round(Math.max(MIN_OPACITY, Math.min(1, (q.window_opacity ?? 1) + d)) * 100) / 100), cx);
     const fontRow = (which, sizeKey, title, family, def, sizeNow) =>
       v_flex()
         .w_full()

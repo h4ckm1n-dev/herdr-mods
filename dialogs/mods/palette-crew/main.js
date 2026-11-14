@@ -8,6 +8,14 @@
 import { View, div, svg } from "gpui-kit";
 import { v_flex, h_flex, InputState, Input } from "gpui-base";
 import { commands, layouts, keys, settings, run, theme, props, closeOverlay, openOverlay, shared, window as win } from "herdr";
+// "↵ run": a key cap and what it does, as the Crew kit's kbdHint draws it (a mod can't import another's files).
+const hint = (t, k, what) => h_flex().flex_none().gap(4).items_center()
+  .child(div().flex_none().min_w(18).px(5).h(18).flex().items_center().justify_center().rounded(4).border_1().border_color(t.input).bg(t.surface).text_size(10.5).font_medium().text_color(t.foreground).child(k))
+  .child(div().text_size(11).text_color(t.muted).child(what));
+// The dialog's last line: a hairline, the keys on the left, then whatever goes right.
+const footer = (t, keys, right) => h_flex().flex_none().pt(12).gap(16).items_center().border_t(1).border_color(t.border)
+  .children(keys.map(([k, what]) => hint(t, k, what))).child(div().flex_1()).children(right);
+
 
 // The list keeps one height while you move: rows and group titles have fixed
 // heights, and the window shows as many as fit in LIST_H.
@@ -253,7 +261,7 @@ export default class Palette extends View {
     }
     this.scroll = Math.max(0, Math.min(this.scroll, this.maxScroll));
     const key = (k) =>
-      h_flex().gap(3).children(keyParts(k).map((p) => div().px(5).rounded(4).border_1().border_color(t.border).bg(t.raised).text_size(11).text_color(t.dim).child(p)));
+      h_flex().gap(3).children(keyParts(k).map((p) => div().px(5).rounded(4).border_1().border_color(t.input).bg(t.surface).text_size(11).font_medium().text_color(t.foreground).child(p)));
     // In a scrolling list each item is placed at its edges from the model
     // above, not stacked: GPUI rounds every height to whole pixels, and a
     // stack of rounded heights drifts away from the model (19 px at zoom 1.3
@@ -321,8 +329,7 @@ export default class Palette extends View {
           .border_color(t.accent)
           .bg(t.background)
           .child(svg(win()?.platform === "macos" ? "mods/palette-crew/command.svg" : "mods/workspace-chrome/search.svg").size(16).text_color(t.dim))
-          .child(Input.new(this.input).flex_1().h_full().text_size(12.8).text_color(t.foreground))
-          .child(div().text_size(11).text_color(t.dim).child("Esc")),
+          .child(Input.new(this.input).flex_1().h_full().text_size(12.8).text_color(t.foreground)),
       )
       .child(
         rows.length
@@ -347,7 +354,9 @@ export default class Palette extends View {
                 cx.notify();
               })
               .children(fixed ? list : [v_flex().children(list)])
-          : div().px(16).py(14).text_size(13).text_color(t.dim).child(`Nothing matches "${this.query}". Places are in the picker.`),
-      );
+          : div().flex_1().px(16).py(14).text_size(13).text_color(t.dim).child(`Nothing matches "${this.query}". Places are in the picker.`),
+      )
+      .child(footer(t, [["↵", "run"], ["↑↓", "select"], ["Esc", "close"]],
+        [div().text_size(11).text_color(t.dim).child(`${rows.length} commands`)]));
   }
 }
