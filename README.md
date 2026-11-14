@@ -191,7 +191,7 @@ The three buttons at the right of the tab bar open one side panel each. The pane
 <h4>Files <kbd>⌘E</kbd></h4>
 </td>
 <td width="33%" valign="top" align="center">
-<img src="docs/git.png" alt="Git panel: commit box, two changed files, and the commit graph with main and feat/checkout">
+<img src="docs/git.png" alt="Git panel: commit box, three changed files, and the commit graph with main and feat/checkout">
 <h4>Git <kbd>⌘G</kbd></h4>
 </td>
 <td width="33%" valign="top" align="center">
@@ -249,7 +249,7 @@ What your sessions would cost at API prices.
 
 ### Go to anything <kbd>⌘P</kbd>
 
-<img src="docs/picker.png" width="100%" alt="The Go to picker over the window: a search field, then tabs grouped by space, with the deps tab marked Needs you first.">
+<img src="docs/picker.png" width="100%" alt="The Go to picker over the window: a search field, then tabs grouped by space, with the button tab marked Done and the deps tab marked Needs you.">
 
 Type to jump to any tab, space or agent. Spaces that need you come first.
 
@@ -288,7 +288,7 @@ for light. See **[theme-gallery/](theme-gallery/)**.
 
 ### Keybinds <kbd>⌘/</kbd>
 
-<img src="docs/keybinds.png" width="100%" alt="Keybinds: every shortcut grouped by Spaces, Agents and Terminal, drawn as keycaps, with a filter field.">
+<img src="docs/keybinds.png" width="100%" alt="Keybinds: a filter field, then one line per action grouped by Spaces and Tabs, each with its keys drawn as keycaps.">
 
 Every Herdr shortcut on one sheet, one line per action, drawn as keycaps. Type to filter,
 <kbd>↑</kbd><kbd>↓</kbd> to move, <kbd>↵</kbd> or a click to run the action.
