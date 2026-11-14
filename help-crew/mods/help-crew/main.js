@@ -1,85 +1,109 @@
-// Keybinds, Crew style: every binding from keys.json, grouped, filterable, keys drawn as keycaps.
+// Keybinds, Crew style: every binding from keys.json as one line per action, grouped, filterable,
+// its keys drawn as keycaps. ↑↓ move, ↵ (or a click) runs the action (never one that closes, quits or resets), Esc closes.
 import { View, div, svg } from "gpui-kit";
-import { v_flex, h_flex, InputState, Input } from "gpui-base";
-import { keys, props, closeOverlay, theme, window } from "herdr";
-import { SIZE, ICON, dialog, field, keyLabel } from "./kit.js";
+import { v_flex, h_flex, InputState, Input, v_virtual_list, VirtualListScrollHandle, Scrollbar } from "gpui-base";
+import { keys, commands, run, props, closeOverlay, theme, window } from "herdr";
+import { SIZE, ICON, dialog, field, keyLabel, kbdHint } from "./kit.js";
+import { entries, runnable } from "./binds.js";
 
-const GROUPS = [["Spaces", /^space\./], ["Tabs", /^tab\./], ["Panes", /^pane\./], ["Agents", /^agent\./],
-  ["Terminal", /^terminal\.|^send:/], ["Layout", /^layout\./], ["Mods", /^mod\./], ["App", /./]];
-
-// readline sequences the terminal keybinds send, by what they do
-const SEND = { "\u0017": "Delete word", "\u0015": "Delete line", "\u0001": "Line start", "\u0005": "Line end",
-  "\u001bb": "Word left", "\u001bf": "Word right", "\u001b\u007f": "Delete word" };
-// "space.select:1" -> "Select space 1"-ish: verb first, sentence case
-function label(action) {
-  if (action.startsWith("send:")) {
-    const seq = action.slice(5);
-    return SEND[seq] ?? `Type ${JSON.stringify(seq)}`;
-  }
-  const [name, arg] = action.split(":");
-  const [noun, ...rest] = name.split(".");
-  const words = [...rest.join(" ").split("_"), noun === "app" ? "" : noun].filter(Boolean).join(" ").replace(/_/g, " ");
-  const s = arg ? `${words} ${arg}` : words;
-  return s[0].toUpperCase() + s.slice(1);
-}
+const ROW = 32, LIST_W = 1008;
 // a stroke "⌥⌘[" -> one cap per symbol, the key last
 const caps = (text) => text.match(/[⌃⌥⇧⌘]|[^⌃⌥⇧⌘]+/g) ?? [];
 
 export default class HelpCrew extends View {
   init(_props, cx) {
     this.filter = "";
+    this.at = 1; // row 0 is the first group's heading
+    this.scroll = VirtualListScrollHandle.new();
     this.input = InputState.new({ placeholder: "Filter keybinds" });
-    this.input.on("change", (_e, cx) => { this.filter = this.input.value().toLowerCase(); cx.notify(); });
+    this.input.on("change", (_e, cx) => { this.filter = this.input.value().toLowerCase(); this.at = 1; this.scroll.scroll_to_item(0); cx.notify(); });
+    this.input.on("submit", () => this.go(this.rows?.[this.at]));
     this.input.focus();
     cx.timer.after(600, () => this.input.focus());
     this.handle = cx.focus_handle();
   }
 
+  /** Runs a row's action, the dialog closed first so the action lands on what was under it. */
+  go(row) {
+    const call = row && !row.head ? runnable(row, commands()) : null;
+    if (!call) return;
+    closeOverlay(props().overlay);
+    run(call);
+  }
+
   keycap(t, text) {
-    return div().flex_none().min_w(20).h(20).px(5).flex().items_center().justify_center().rounded(4)
-      .border_1().border_color(t.border).bg(t.surface).text_size(SIZE.micro).text_color(t.muted).child(text);
+    return div().flex_none().min_w(22).h(22).px(6).flex().items_center().justify_center().rounded(5)
+      .border_1().border_color(t.input).bg(t.surface).text_size(SIZE.meta).font_medium().text_color(t.foreground).child(text);
   }
 
-  row(t, k, i, mac) {
-    const strokes = keyLabel(k.keys, mac).split(" ");
-    return h_flex().id(`k-${i}`).h(32).px(8).gap(12).items_center().rounded(6).hover((s) => s.bg(t.hover))
-      .child(div().flex_1().min_w(0).truncate().text_size(SIZE.body).text_color(t.foreground).child(label(k.action)))
-      .when(k.section !== "global", (el) => el.child(div().flex_none().text_size(SIZE.micro).text_color(t.dim).child(k.section)))
-      .child(h_flex().flex_none().gap(4).items_center()
-        .children(strokes.flatMap((st, j) => [
-          ...(j ? [div().text_size(SIZE.micro).text_color(t.dim).child("then")] : []),
-          ...(mac ? caps(st) : [st]).map((c) => this.keycap(t, c)),
-        ])));
-  }
-
-  // groups in two columns, split where the row counts balance (16:9 dialog, so wide not tall)
-  columns(groups) {
-    const total = groups.reduce((n, [, r]) => n + r.length + 1, 0);
-    let n = 0, cut = groups.findIndex(([, r]) => (n += r.length + 1) >= total / 2) + 1;
-    return [groups.slice(0, cut), groups.slice(cut)];
+  // No handlers in here: a virtual list's rows can't hold any (the list's on_item_click does clicks).
+  row(t, r, sel, mac) {
+    if (r.head) return h_flex().w(LIST_W - 8).h(ROW).px(8).pt(8).gap(8).items_center()
+      .child(div().text_size(SIZE.meta).font_medium().text_color(t.muted).child(r.head))
+      .child(div().text_size(SIZE.micro).text_color(t.muted).child(String(r.count)));
+    const can = Boolean(runnable(r, commands()));
+    return h_flex().w(LIST_W - 8).h(ROW).px(8).gap(12).items_center().rounded(8)
+      .when(sel, (el) => el.bg(t.selected ?? t.hover)).when(can, (el) => el.cursor_pointer())
+      .accessibility_label(`${r.label}: ${r.keys.map((k) => keyLabel(k, mac)).join(" or ")}`)
+      .child(div().w(380).flex_none().truncate().text_size(SIZE.body).text_color(t.foreground).child(r.label))
+      // every key of the action on its line: strokes of a chord joined by "then", alternatives by "or"
+      .child(h_flex().flex_none().gap(4).items_center().children(r.keys.flatMap((spec, n) => [
+        ...(n ? [div().px(4).text_size(SIZE.meta).text_color(t.muted).child("or")] : []),
+        ...keyLabel(spec, mac).split(" ").flatMap((stroke, j) => [
+          ...(j ? [div().text_size(SIZE.meta).text_color(t.muted).child("then")] : []),
+          ...(mac ? caps(stroke) : [stroke]).map((c) => this.keycap(t, c)),
+        ]),
+      ])))
+      .child(div().flex_1().min_w(0))
+      .when(Boolean(r.where), (el) => el.child(div().flex_none().text_size(SIZE.meta).text_color(t.muted).child(r.where)));
   }
 
   render() {
     const t = theme(), mac = window()?.platform === "macos", f = this.filter;
-    const all = keys().filter((k) => !f || k.keys.includes(f) || label(k.action).toLowerCase().includes(f) || keyLabel(k.keys, mac).toLowerCase().includes(f));
-    const seen = new Set();
-    const groups = GROUPS.map(([name, re]) => [name, all.filter((k) => !seen.has(k) && re.test(k.action) && seen.add(k))])
-      .filter(([, rows]) => rows.length);
+    const all = entries(keys());
+    const shown = all.filter((e) => !f || [e.label, e.group, e.action, e.where, ...e.keys, ...e.keys.map((k) => keyLabel(k, mac))].join(" ").toLowerCase().includes(f));
+    const rows = this.rows = [...new Set(shown.map((e) => e.group))].flatMap((g) => {
+      const mine = shown.filter((e) => e.group === g);
+      return [{ head: g, count: mine.length, id: `head:${g}` }, ...mine];
+    });
+    this.at = Math.max(1, Math.min(rows.length - 1, this.at));
+    const move = (step) => {
+      let i = this.at;
+      for (let n = Math.abs(step); n > 0; n--) {
+        let j = i + Math.sign(step);
+        while (rows[j]?.head) j += Math.sign(step);
+        if (!rows[j]) break;
+        i = j;
+      }
+      this.at = i;
+      this.scroll.scroll_to_item(i <= 1 ? 0 : i); // the first entry brings its heading along
+    };
     const d = dialog(t, "help-crew", { title: "Keybinds" });
-    let i = 0;
     return d.root.size_full().track_focus(this.handle)
-      .on_key_down((e) => { if (e.key === "escape") closeOverlay(props().overlay); })
+      .on_key_down((e, cx) => {
+        if (e.key === "escape") return closeOverlay(props().overlay);
+        const step = { up: -1, down: 1, pageup: -10, pagedown: 10 }[e.key];
+        if (step === undefined) return;
+        move(step);
+        cx.stop_propagation();
+        cx.notify();
+      })
       .child(d.header)
       .child(d.body.pb(8).child(field(t, h_flex().gap(8).items_center()
         .child(svg(ICON("search")).size(13).flex_none().text_color(t.dim))
         .child(Input.new(this.input).flex_1().h_full().text_size(SIZE.body).text_color(t.foreground)), true)))
-      .child(h_flex().id("help-list").flex_1().min_h(0).overflow_y_scrollbar().items_start().px(8).pb(12).gap(16)
-        .when(!groups.length, (el) => el.child(div().px(8).py(16).text_size(SIZE.body).text_color(t.dim).child("No keybind matches")))
-        .children(this.columns(groups).filter((c) => c.length).map((col, ci) => v_flex().id(`col-${ci}`).flex_1().min_w(0).gap(12)
-          .children(col.map(([name, rows]) => v_flex().gap(2)
-            .child(h_flex().px(8).h(24).gap(8).items_center()
-              .child(div().text_size(SIZE.meta).font_medium().text_color(t.muted).child(name))
-              .child(div().text_size(SIZE.micro).text_color(t.dim).child(String(rows.length))))
-            .children(rows.map((k) => this.row(t, k, i++, mac))))))));
+      .child(v_flex().relative().w(LIST_W).mx(16).flex_1().min_h(0)
+        .when(rows.length > 0, (el) => el
+          .child(v_virtual_list("help-list", rows.length, ROW, (i) => rows[i].id, (range) =>
+            rows.slice(range.start, range.end).map((r, n) => this.row(t, r, range.start + n === this.at, mac)))
+            .track_scroll(this.scroll).size_full().on_item_click((id) => this.go(rows.find((r) => r.id === id))))
+          .child(Scrollbar.vertical("help-list").absolute().inset_0()))
+        .when(!rows.length, (el) => el.child(div().p(16).text_size(SIZE.body).text_color(t.dim).child(`No keybind matches "${this.filter}"`))))
+      .child(h_flex().flex_none().mt(8).px(16).py(12).gap(16).items_center().border_t(1).border_color(t.border)
+        .child(kbdHint(t, "↵", "run"))
+        .child(kbdHint(t, "↑↓", "select"))
+        .child(kbdHint(t, "Esc", "close"))
+        .child(div().flex_1())
+        .child(div().text_size(SIZE.meta).text_color(t.muted).child(`${all.length} keybinds · edit them in keys.json`)));
   }
 }
