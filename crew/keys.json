@@ -4,7 +4,8 @@
     "cmd-shift-s": "spaces-crew.focus",
     "cmd-g": "tabs-crew.graph",
     "cmd-e": "tabs-crew.files",
-    "cmd-shift-u": "tabs-crew.cost"
+    "cmd-shift-u": "tabs-crew.cost",
+    "cmd-shift-c": "tabs-crew.ci"
   },
   "global": {
     "cmd-j": "tabs-crew.next-blocked",

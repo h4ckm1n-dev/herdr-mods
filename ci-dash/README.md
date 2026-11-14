@@ -23,6 +23,8 @@ The Crew layout has a `ci` block in its `panel-body` stack, pointing to `ci-dash
 
 Runs shows the latest 30 runs with filters, jobs and steps. Dispatch retains workflow, branch, inputs and explicit review before starting a run. Artifacts downloads into `<repo>/.ci-dash/artifacts/`, which ignores itself in git (`.ci-dash/.gitignore`). A failed run shows the end of each failed step's log under its jobs, with **Copy** and **Send to agent**, which pastes the run, the step and that log into the agent of the shown tab. Rerun, Cancel and Dispatch change real GitHub runs only when clicked.
 
+**Keyboard.** In the Crew layout ⌘⇧C opens the panel and gives it the keyboard: ↑↓ move through the runs, ↵ opens one, `/` goes to the filter, `u` updates, `1` `2` `3` switch tabs. In a run: `r` reruns it, `c` cancels a live one, `o` opens it on GitHub, `s` sends a failed log to the agent, Esc goes back. Esc from the list returns to the terminal.
+
 GitHub calls use the existing `gh` login; no credentials are stored by the mod. The mod runs local programs and uses network access through `gh`. Large downloads may exceed its 30-second command timeout.
 
 UI polish follows unslop by Damir Sokolovsky (@heydamir), CC BY 4.0, adapted to the existing Crew design. See [RECIPE.md](RECIPE.md) for behavior and implementation details.

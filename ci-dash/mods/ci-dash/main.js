@@ -4,12 +4,13 @@ import { View, div, svg } from "gpui-kit";
 import { v_flex, h_flex, InputState } from "gpui-base";
 import { spaces, panes, focused, agents, run, exec, home, theme, notify, props } from "herdr";
 import { Gh, resolveRepo, errorHint, safeName } from "./gh.js";
-import { relTime, duration, bytes, stateOf, mapLimit, fileType, failedSteps, failureReport } from "./format.js";
+import { bytes, stateOf, mapLimit, fileType, failedSteps, failureReport } from "./format.js";
 import { Dispatch } from "./dispatch.js";
 import { icon, pill, section, searchBox, filterChip, busy } from "./ui.js";
 import * as K from "./kit.js";
 
 const POLL_MS = 5000;
+const IDLE_MS = 60000; // nothing running: still look for runs a push just started
 
 // Runs are grouped by what the person has to do about them.
 const RUN_GROUPS = [
@@ -93,6 +94,8 @@ export default class CiDash extends View {
     this.runFilter = this.makeFilter("Filter runs…");
     this.artFilter = this.makeFilter("Filter artifacts…");
     this.reset();
+    this.kb = cx.focus_handle(); // the panel's own keyboard focus (the filter boxes have theirs)
+    this.cur = null; // the cursor in the runs list, as a run id (follows the data)
     cx.timer.every(POLL_MS, (cx) => this.tick(cx));
   }
 
@@ -103,7 +106,7 @@ export default class CiDash extends View {
   }
 
   reset() {
-    this.runs = []; this.runsLoading = false; this.runsError = null; this.runsLoaded = false;
+    this.runs = []; this.runsLoading = false; this.runsError = null; this.runsLoaded = false; this.runsAt = 0;
     this.detail = null;
     this.art = { groups: [], failed: 0, loaded: false, loading: false, error: null };
     this.dl = {}; this.lastDir = ""; this.note = "";
@@ -192,7 +195,9 @@ export default class CiDash extends View {
       else cx.notify(); // keeps "3m ago" and running durations fresh
       return;
     }
-    if (this.tab === "runs" && this.runs.some((r) => !stateOf(r).done)) this.loadRuns(cx, true);
+    // idle polling only while the panel is on screen (render() stamps this.shown): hidden, it costs no gh call
+    const seen = Date.now() - (this.shown ?? 0) < 3 * IDLE_MS;
+    if (this.tab === "runs" && (this.runs.some((r) => !stateOf(r).done) || (seen && Date.now() - (this.runsTried ?? 0) > IDLE_MS))) this.loadRuns(cx, true);
   }
 
   // ---- runs --------------------------------------------------------------
@@ -201,6 +206,7 @@ export default class CiDash extends View {
     const gh = this.gh;
     if (!gh || this.runsLoading) return;
     this.runsLoading = true;
+    this.runsTried = Date.now(); // a failing gh is asked again a minute later, not on every tick
     if (!silent) this.runsError = null;
     cx.spawn(async (cx) => {
       try {
@@ -210,7 +216,7 @@ export default class CiDash extends View {
           const before = new Map(this.runs.map((r) => [r.id, stateOf(r).done]));
           for (const r of runs) if (before.get(r.id) === false && stateOf(r).done) this.announce(r);
         }
-        this.runs = runs; this.runsLoaded = true; this.runsError = null;
+        this.runs = runs; this.runsLoaded = true; this.runsError = null; this.runsAt = Date.now();
       } catch (e) {
         if (this.gh === gh && (!silent || !this.runs.length)) this.runsError = e;
       } finally {
@@ -225,7 +231,7 @@ export default class CiDash extends View {
     const st = stateOf(run);
     notify({
       title: `CI ${st.label}: ${run.name || "workflow"}`,
-      body: `#${run.run_number ?? "?"} · ${run.head_branch || ""} · ${duration(run.run_started_at || run.created_at, run.updated_at)}`,
+      body: `#${run.run_number ?? "?"} · ${run.head_branch || ""} · ${K.took(run.run_started_at || run.created_at, run.updated_at)}`,
       level: st.kind === "success" ? "success" : st.kind === "failure" ? "error" : "info",
     });
   }
@@ -455,7 +461,7 @@ export default class CiDash extends View {
           else if (this.tab === "dispatch") { this.dsp.loaded = false; this.dsp.reset(); this.dsp.load(cx); }
           else if (this.detail) { this.detail.artLoaded = false; this.pollDetail(cx); }
           else this.loadRuns(cx);
-        }, { tip: "Refresh CI runs" }).when(!this.gh, e => e.opacity(0.45))))
+        }, { tip: this.runsAt ? `Refresh CI runs · updated ${K.agoWords(new Date(this.runsAt).toISOString())}` : "Refresh CI runs" }).when(!this.gh, e => e.opacity(0.45))))
       .child(h_flex().h(32).flex_none().px(8).gap(2).items_center().border_b(1).border_color(t.border)
         .child(tab("runs", "Runs", this.runsLoaded ? this.runs.length : null))
         .child(tab("dispatch", "Dispatch", this.dsp.loaded ? this.dsp.workflows.length : null))
@@ -473,17 +479,18 @@ export default class CiDash extends View {
   }
 
   /** Title and #number on top, then pills: branch, status, duration, trigger. */
-  runRow(r, t) {
+  runRow(r, t, here = false) {
     const st = stateOf(r), now = Date.now();
-    const dur = duration(r.run_started_at || r.created_at, st.done ? r.updated_at : now);
+    const dur = K.took(r.run_started_at || r.created_at, st.done ? r.updated_at : now);
     const by = [r.name, r.actor?.login].filter(Boolean).join(" · ");
-    return v_flex().id(`run-${r.id}`).w_full().flex_none().px(16).py(8).gap(4).cursor_pointer().hover((s) => s.bg(t.hover))
+    return v_flex().id(`run-${r.id}`).w_full().flex_none().px(16).py(8).gap(4).cursor_pointer().hover((s) => s.bg(here ? t.selected : t.hover))
+      .when(here, (e) => e.bg(t.selected))
       .on_click((_e, cx) => this.openRun(r.id, cx))
       .child(h_flex().gap(8).items_center()
         .child(this.icon(st, t))
         .child(div().flex_1().min_w(0).truncate().text_size(K.SIZE.title).child(r.display_title || r.name || `Run ${r.id}`))
         .child(div().flex_none().text_size(K.SIZE.meta).text_color(t.dim).child(`#${r.run_number}`))
-        .child(div().flex_none().text_size(K.SIZE.meta).text_color(t.dim).child(relTime(r.created_at, now))))
+        .child(div().flex_none().text_size(K.SIZE.meta).text_color(t.dim).child(K.agoWords(r.created_at, now))))
       .child(h_flex().pl(24).flex_wrap().gap(4).items_center()
         .when(Boolean(r.head_branch), (e) => e.child(pill(t, { label: r.head_branch, symbol: "branch", code: true })))
         .child(this.statePill(st, t))
@@ -515,7 +522,10 @@ export default class CiDash extends View {
 
     // One list, newest first (the filter chips above narrow it by state).
     const when = (r) => Date.parse(r.run_started_at || r.created_at) || 0;
-    const rows = [...shown].sort((x, y) => when(y) - when(x) || (y.id ?? 0) - (x.id ?? 0)).map((r) => this.runRow(r, t));
+    const sorted = this.listed = [...shown].sort((x, y) => when(y) - when(x) || (y.id ?? 0) - (x.id ?? 0));
+    if (!sorted.some((r) => r.id === this.cur)) this.cur = sorted[0]?.id ?? null;
+    const kb = this.kb.is_focused();
+    const rows = sorted.map((r) => this.runRow(r, t, kb && r.id === this.cur));
 
     return v_flex().flex_1().min_h(0)
       .child(v_flex().flex_none().px(12).pt(8).pb(8).gap(8)
@@ -532,7 +542,7 @@ export default class CiDash extends View {
     return h_flex().h(22).flex_none().pl(32).pr(16).gap(8).items_center().text_size(K.SIZE.body).text_color(st.done ? t.muted : t.foreground)
       .child(this.icon(st, t))
       .child(div().flex_1().min_w(0).truncate().child(s.name))
-      .child(div().flex_none().text_size(K.SIZE.meta).text_color(t.dim).child(s.started_at && s.completed_at ? duration(s.started_at, s.completed_at) : ""));
+      .child(div().flex_none().text_size(K.SIZE.meta).text_color(t.dim).child(s.started_at && s.completed_at ? K.took(s.started_at, s.completed_at) : ""));
   }
 
   jobBlock(j, t) {
@@ -541,7 +551,7 @@ export default class CiDash extends View {
       .child(h_flex().h(28).flex_none().px(16).gap(8).items_center().font_semibold()
         .child(this.icon(st, t))
         .child(div().flex_1().min_w(0).truncate().child(j.name))
-        .child(div().flex_none().text_size(K.SIZE.meta).text_color(t.muted).child(j.started_at ? duration(j.started_at, j.completed_at ? Date.parse(j.completed_at) : now) : "")))
+        .child(div().flex_none().text_size(K.SIZE.meta).text_color(t.muted).child(j.started_at ? K.took(j.started_at, j.completed_at ? Date.parse(j.completed_at) : now) : "")))
       .children((j.steps || []).map((s) => this.stepRow(s, t)));
   }
 
@@ -564,7 +574,7 @@ export default class CiDash extends View {
       .child(h_flex().pl(24).flex_wrap().gap(4).items_center()
         .when(Boolean(fileType(a.name)), (e) => e.child(pill(t, { label: `.${fileType(a.name)}`, code: true })))
         .when(Number.isFinite(a.size_in_bytes), (e) => e.child(pill(t, { label: bytes(a.size_in_bytes) })))
-        .when(Boolean(a.created_at), (e) => e.child(pill(t, { label: relTime(a.created_at) })))
+        .when(Boolean(a.created_at), (e) => e.child(pill(t, { label: K.agoWords(a.created_at) })))
         .when(a.expired, (e) => e.child(pill(t, { label: "expired", color: t.ansi1 })))
         .when(dl?.state === "done", (e) => e.child(pill(t, { label: "downloaded", glyph: "✓", color: t.ansi2 })))
         .when(dl?.state === "error", (e) => e.child(pill(t, { label: "failed", glyph: "✕", color: t.ansi1 })))
@@ -577,7 +587,7 @@ export default class CiDash extends View {
     const d = this.detail, run = d.run;
     if (!run) return d.error ? this.errorView(t, d.error) : busy(t, "Loading run…");
     const st = stateOf(run), now = Date.now();
-    const dur = duration(run.run_started_at || run.created_at, st.done ? run.updated_at : now);
+    const dur = K.took(run.run_started_at || run.created_at, st.done ? run.updated_at : now);
     return v_flex().flex_1().min_h(0)
       .child(h_flex().flex_none().px(12).py(8).gap(8).items_center().border_b(1).border_color(t.border)
         .child(this.button("back", h_flex().gap(4).items_center().child(svg(icon("back")).size(12)).child("Runs"), (cx) => { this.detail = null; cx.notify(); }, t))
@@ -596,7 +606,7 @@ export default class CiDash extends View {
             .when(Boolean(run.head_branch), (e) => e.child(pill(t, { label: run.head_branch, symbol: "branch", code: true })))
             .when(Boolean(run.event), (e) => e.child(pill(t, { label: run.event.replace(/_/g, " ") })))
             .when((run.run_attempt ?? 1) > 1, (e) => e.child(pill(t, { label: `attempt ${run.run_attempt}` }))))
-          .child(div().pl(24).text_size(K.SIZE.meta).text_color(t.dim).child([run.name, run.actor?.login, relTime(run.created_at, now)].filter(Boolean).join(" · "))))
+          .child(div().pl(24).text_size(K.SIZE.meta).text_color(t.dim).child([run.name, run.actor?.login, K.agoWords(run.created_at, now)].filter(Boolean).join(" · "))))
         .when(d.error, (e) => e.child(div().px(12).pb(6).text_size(K.SIZE.meta).text_color(t.ansi1).child(`Update failed: ${d.error.message || d.error}`)))
         .children(d.jobs.map((j) => this.jobBlock(j, t)))
         .when(!d.jobs.length && !d.error, (e) => e.child(div().px(12).py(6).text_size(K.SIZE.body).text_color(t.dim).child("Waiting for jobs…")))
@@ -677,7 +687,46 @@ export default class CiDash extends View {
           .child(this.button("clear-art-filters", "Clear filters", (cx) => { this.artFilter.set_value(""); this.artStatus = "all"; this.artType = "all"; cx.notify(); }, t)))));
   }
 
+  // Keys, as in every Crew panel: only while the panel itself holds the keyboard, so typing in a filter stays typing.
+  key(e, cx) {
+    const m = e.modifiers ?? {};
+    if (m.platform || m.control || m.alt) return;
+    if (!this.kb.is_focused()) { // in a filter box: Esc hands the keyboard back to the list
+      if (e.key === "escape") { this.kb.focus(); cx.stop_propagation(); cx.notify(); }
+      return;
+    }
+    const tabs = { 1: "runs", 2: "dispatch", 3: "artifacts" };
+    const common = {
+      ...Object.fromEntries(Object.entries(tabs).map(([k, id]) => [k, () => { this.tab = id; this.note = ""; if (id === "runs") this.detail = null; this.enterTab(cx); }])),
+      u: () => { if (this.tab === "runs" && !this.detail) this.loadRuns(cx); else if (this.detail) { this.detail.artLoaded = false; this.pollDetail(cx); } },
+    };
+    const d = this.tab === "runs" ? this.detail : null;
+    if (d) {
+      if (e.key === "escape" || e.key === "backspace" || e.key === "left") { this.detail = null; cx.stop_propagation(); return cx.notify(); }
+      const done = d.run && stateOf(d.run).done;
+      return K.navKey(e, cx, { keys: { ...common, o: () => this.openWeb(cx), r: () => { if (done) this.rerun(cx); }, c: () => { if (d.run && !done) this.cancel(cx); },
+        s: () => { if (d.log?.length) this.sendLog(cx); } } });
+    }
+    const list = this.tab === "runs" ? this.listed ?? [] : [], i = Math.max(0, list.findIndex((r) => r.id === this.cur));
+    K.navKey(e, cx, { count: list.length, index: i, set: (n) => { this.cur = list[n]?.id ?? null; },
+      enter: () => { if (list[i]) this.openRun(list[i].id, cx); }, right: () => { if (list[i]) this.openRun(list[i].id, cx); },
+      keys: { ...common, ...(this.tab === "dispatch" ? {} : { "/": () => (this.tab === "artifacts" ? this.artFilter : this.runFilter).focus() }) } });
+  }
+
+  hints() {
+    const d = this.tab === "runs" ? this.detail : null, tabs = ["1 2 3", "tabs"];
+    if (d) {
+      const done = d.run && stateOf(d.run).done;
+      return [...(done ? [["r", "rerun"]] : d.run ? [["c", "cancel"]] : []), ["o", "open on GitHub"], ...(d.log?.length ? [["s", "send to agent"]] : []), ["Esc", "runs"]];
+    }
+    if (this.tab !== "runs") return [tabs, ...(this.tab === "artifacts" ? [["/", "filter"]] : []), ["Esc", "terminal"]];
+    return [["↑↓", "move"], ["↵", "open"], ["/", "filter"], ["u", "update"], tabs, ["Esc", "terminal"]];
+  }
+
   render(cx) {
+    if (K.panelFocusAsked(this, "ci-dash")) cx.timer.after(0, () => this.kb.focus()); // focus() can't run during render
+    K.trackTerminal();
+    this.shown = Date.now();
     this.ensureContext(cx);
     const t = theme();
     let body;
@@ -686,9 +735,11 @@ export default class CiDash extends View {
     else if (this.tab === "dispatch") body = this.dsp.view(t);
     else body = this.detail ? this.detailView(t) : this.runsView(t);
 
-    return K.panel(t, "ci-dash")
+    const kb = this.kb.is_focused();
+    return K.panel(t, "ci-dash", { keyboard: kb }).track_focus(this.kb).on_key_down((e, cx) => this.key(e, cx))
       .child(this.header(t, cx))
       .child(body)
-      .when(Boolean(this.note), (e) => e.child(div().flex_none().px(12).py(8).border_t(1).border_color(t.border).text_size(K.SIZE.meta).text_color(t.blocked).truncate().child(this.note)));
+      .when(Boolean(this.note), (e) => e.child(div().flex_none().px(12).py(8).border_t(1).border_color(t.border).text_size(K.SIZE.meta).text_color(/failed|Could not|expired/.test(this.note) ? t.blocked : t.muted).truncate().child(this.note)))
+      .when(kb, (e) => e.child(K.keyHints(t, "ci-keys", this.hints())));
   }
 }
