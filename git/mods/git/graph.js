@@ -64,15 +64,7 @@ const isOperationChange = (p) => /\/(MERGE_HEAD|rebase-merge|rebase-apply)(\/|$)
 const isIndexChange = (p) => /\/index$/.test(p);
 const inGitDir = (p) => p.includes("/.git/") || p.endsWith("/.git");
 
-function ago(seconds) {
-  const s = Date.now() / 1000 - seconds;
-  if (s < 60) return "now";
-  if (s < 3600) return `${Math.round(s / 60)}m`;
-  if (s < 86400) return `${Math.round(s / 3600)}h`;
-  if (s < 86400 * 30) return `${Math.round(s / 86400)}d`;
-  const d = new Date(seconds * 1000);
-  return d.getFullYear() === new Date().getFullYear() ? `${MONTHS[d.getMonth()]} ${d.getDate()}` : `${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
-}
+const ago = K.ago; // the kit's one "how long ago"
 
 function stamp(seconds) {
   const d = new Date(seconds * 1000);
@@ -189,6 +181,7 @@ export class Graph {
     // the open diff), each with a cursor kept by id so it follows the data ({ id, next, index }).
     this.region = null; this.keepRegion = false; this.cur = { changes: {}, graph: {} }; this.top = 0;
     this.scroll = VirtualListScrollHandle.new();
+    this.diffScroll = VirtualListScrollHandle.new(); this.hunkAt = 0; // the open diff's keyboard place: one hunk
     cx.spawn(async (cx) => {
       for (;;) {
         if (await nextCommand() === "focus") this.focusIn();
@@ -641,6 +634,7 @@ export class Graph {
 
   // group: "staged" shows the index against HEAD, "changes" the worktree against the index.
   openFile(file, group, cx) {
+    if (this.diffFile?.path !== file.path || this.diffFile?.group !== group) this.hunkAt = 0; // another file: its first hunk
     this.diffFile = { path: file.path, group };
     this.cur.changes = { id: `f:${group}:${file.path}`, index: this.cur.changes.index };
     this.fileDiff = null;
@@ -676,6 +670,7 @@ export class Graph {
       if (seq !== this.fileDiffSeq) return;
       let hunk = -1;
       for (const r of rows) if (r.kind === "@") r.hunk = ++hunk;
+      this.hunkAt = Math.max(0, Math.min(this.hunkAt, hunk)); // staging a hunk reloads the diff: stay near where it was
       this.fileDiff = { text, rows, hunks: file?.status === "M" && !file.untracked && text !== null && hunk >= 0,
         width: Math.max(300, ...rows.map((r) => r.text.length * 6.6 + 60 + (r.kind === "@" ? 2 * (HUNK_BUTTON.w + HUNK_BUTTON.gap) : 0))) };
       cx.notify();
@@ -803,11 +798,31 @@ export class Graph {
     });
   }
 
-  // The open diff: ↑↓ step through the files, as before.
+  // The hunk the keyboard is on: n / p move it (and scroll its @@ row into view).
+  hunkMove(step) {
+    const at = (this.fileDiff?.rows ?? []).map((r, i) => (r.kind === "@" ? i : -1)).filter((i) => i >= 0);
+    if (!at.length) return;
+    this.hunkAt = Math.max(0, Math.min(at.length - 1, this.hunkAt + step));
+    this.diffScroll.scroll_to_item(at[this.hunkAt]);
+  }
+
+  // s / d on that hunk: what its buttons do (stage, or unstage in a staged file; discard only when unstaged).
+  hunkKey(discard, cx) {
+    const fd = this.fileDiff, d = this.diffFile;
+    if (!fd?.hunks || !d || !this.ctx) return;
+    const type = d.group === "staged" ? (discard ? null : "unstageHunk") : discard ? "discardHunk" : "stageHunk";
+    if (!type) return;
+    let patch;
+    try { patch = patchFor(fd.text, this.hunkAt); } catch { return; }
+    this.changes.act({ type, path: d.path, patch }, cx);
+  }
+
+  // The open diff: ↑↓ step through the files, as before; n p s d work on its hunks.
   diffKey(e, cx) {
     const order = this.changes.order(), d = this.diffFile;
     const index = Math.max(0, order.findIndex((o) => o.file.path === d.path && o.group === d.group));
-    K.navKey(e, cx, { count: order.length, index, set: (i) => { if (i !== index) this.openFile(order[i].file, order[i].group, cx); } });
+    K.navKey(e, cx, { count: order.length, index, set: (i) => { if (i !== index) { this.hunkAt = 0; this.openFile(order[i].file, order[i].group, cx); } },
+      keys: this.fileDiff?.hunks ? { n: () => this.hunkMove(1), p: () => this.hunkMove(-1), s: () => this.hunkKey(false, cx), d: () => this.hunkKey(true, cx) } : {} });
   }
 
   // ---- the divider
@@ -1141,8 +1156,9 @@ export class Graph {
     const button = (label) => div().w(HUNK_BUTTON.w).h(16).flex_none().flex().items_center().justify_center().rounded(4).border_1()
       .border_color(label.startsWith("Discard") ? t.blocked + "66" : t.input).bg(label.startsWith("Discard") ? t.blocked + "22" : t.background)
       .text_size(K.SIZE.micro).font_medium().text_color(label.startsWith("Discard") ? t.blocked : t.foreground).child(label);
+    const here = (r) => this.kbView?.region === "diff" && r.hunk === this.hunkAt; // the hunk s / d act on
     const row = (r) => r.kind === "@" && labels.length
-      ? h_flex().w_full().h(DIFF_ROW).flex_none().pl(HUNK_BUTTON.x).gap(HUNK_BUTTON.gap).items_center().bg(t.raised)
+      ? h_flex().w_full().h(DIFF_ROW).flex_none().pl(HUNK_BUTTON.x).gap(HUNK_BUTTON.gap).items_center().bg(here(r) ? t.selected : t.raised)
         .children(labels.map(button)).child(div().flex_1().min_w(0).pl(8).truncate().text_color(t.dim).child(r.text))
       : this.diffRow(r, t);
     const slash = d.path.lastIndexOf("/");
@@ -1158,7 +1174,7 @@ export class Graph {
             .child(div().w_full().min_w(fd.width).h_full()
               .on_mouse_down("left", (ev) => { this.diffPress = { x: (ev.local_position?.x ?? 0) / this.unit() }; })
               .child(v_virtual_list(id, rows.length, DIFF_ROW, (i) => String(i), (range) => rows.slice(range.start, range.end).map(row))
-                .on_item_click((key, cx) => this.hunkClicked(key, cx)).size_full())))
+                .track_scroll(this.diffScroll).on_item_click((key, cx) => this.hunkClicked(key, cx)).size_full())))
           .child(Scrollbar.vertical(id).viewport_from_layout().absolute().inset_0())));
   }
 
@@ -1272,6 +1288,7 @@ export class Graph {
     const [, bottom] = this.regions();
     const inner = Boolean(this.picking || this.diffFile || this.diff || this.selected || this.opened);
     const other = region === "changes" ? bottom : region ? "changes" : null;
-    return { ...this.kbView, hints: hintsFor({ typing, region, item: region === "changes" ? items[this.cur.changes.index] : undefined, other, inner }) };
+    return { ...this.kbView, hints: hintsFor({ typing, region, item: region === "changes" ? items[this.cur.changes.index] : undefined, other, inner,
+      hunks: region === "diff" && this.fileDiff?.hunks ? (this.diffFile?.group === "staged" ? "unstage" : "stage") : null }) };
   }
 }

@@ -26,7 +26,8 @@ Stage files or single hunks, commit, pull and push, switch branches and stash, w
 - **Commit** with ⌘⏎ in the message box. With nothing staged, it stages everything first.
 - **Diffs with hunk buttons.** Click a file to see its diff in the bottom half, with
   Stage hunk / Discard hunk (or Unstage hunk) on each `@@` line. ↑/↓ step through files, Esc goes
-  back to the graph.
+  back to the graph. With the keyboard in the diff: `n` / `p` move between hunks, `s` stages (or
+  unstages) the one you are on, `d` discards it after asking, as the button does.
 - **Sync** in one button: fast-forward pull, then push. `↑2 ↓1` shows where you stand. With no
   upstream it becomes **Publish**. If the branch has diverged, it asks: rebase, merge or cancel.
 - **Branches:** click the branch chip to filter, check out, or create one. A remote branch becomes a

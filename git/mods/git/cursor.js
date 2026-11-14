@@ -63,14 +63,15 @@ export function changeKeys(item) {
  * region: "changes" | "graph" | "diff"; item: the changes cursor's; other: the region Tab goes to;
  * inner: Esc closes something before it gives the keyboard back.
  */
-export function hintsFor({ typing = false, region, item, other, inner = false }) {
-  if (typing) return [["⌘⏎", "commit"], ["Esc", "list"]];
+export function hintsFor({ typing = false, region, item, other, inner = false, hunks = null }) {
+  if (typing) return [["⌘↵", "commit"], ["Esc", "list"]];
   const esc = ["Esc", inner ? "close" : "terminal"], tab = other ? [["Tab", other]] : [];
   if (region === "changes") {
-    return [["↑↓", "move"], ...(item ? [["⏎", item.file ? "diff" : "fold"]] : []), ...changeKeys(item).map((k) => [k.key, k.label]),
+    return [["↑↓", "move"], ...(item ? [["↵", item.file ? "diff" : "fold"]] : []), ...changeKeys(item).map((k) => [k.key, k.label]),
       ...(item ? [["Space", "fold"]] : []), ["c", "message"], ["m", "menu"], ...tab, esc];
   }
-  if (region === "graph") return [["↑↓", "move"], ["⏎", "details"], ["m", "menu"], ...tab, esc];
-  if (region === "diff") return [["↑↓", "file"], ...tab, esc];
+  if (region === "graph") return [["↑↓", "move"], ["↵", "details"], ["m", "menu"], ...tab, esc];
+  // hunks: "stage" | "unstage" while the open diff has hunks to act on (discard only for unstaged ones)
+  if (region === "diff") return [["↑↓", "file"], ...(hunks ? [["n p", "hunk"], ["s", hunks], ...(hunks === "stage" ? [["d", "discard"]] : [])] : []), ...tab, esc];
   return [esc];
 }

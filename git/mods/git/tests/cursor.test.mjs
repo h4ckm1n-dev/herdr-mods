@@ -49,10 +49,12 @@ console.log("change keys passed");
 
 // Hints list only what works now.
 const labels = (o) => hintsFor(o).map(([k]) => k);
-assert.deepEqual(labels({ typing: true }), ["⌘⏎", "Esc"]);
-assert.deepEqual(labels({ region: "changes", item: items[1], other: "graph" }), ["↑↓", "⏎", "u", "Space", "c", "m", "Tab", "Esc"]);
+assert.deepEqual(labels({ typing: true }), ["⌘↵", "Esc"]);
+assert.deepEqual(labels({ region: "changes", item: items[1], other: "graph" }), ["↑↓", "↵", "u", "Space", "c", "m", "Tab", "Esc"]);
 assert.deepEqual(labels({ region: "changes" }), ["↑↓", "c", "m", "Esc"]);
 assert.deepEqual(hintsFor({ region: "graph", other: "changes", inner: true }).at(-1), ["Esc", "close"]);
 assert.deepEqual(hintsFor({ region: "diff", other: "changes" }).map(([k]) => k), ["↑↓", "Tab", "Esc"]);
+assert.deepEqual(hintsFor({ region: "diff", other: "changes", hunks: "stage" }).map(([k]) => k), ["↑↓", "n p", "s", "d", "Tab", "Esc"]);
+assert.deepEqual(hintsFor({ region: "diff", hunks: "unstage" }).map(([k, w]) => `${k} ${w}`), ["↑↓ file", "n p hunk", "s unstage", "Esc terminal"]);
 assert.deepEqual(hintsFor({}), [["Esc", "terminal"]]);
 console.log("hints passed");

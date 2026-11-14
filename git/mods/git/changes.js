@@ -22,7 +22,7 @@ export class Changes {
 
   init(cx) {
     this.message = ""; this.typing = false; this.hover = null; this.collapsed = { staged: false, changes: false };
-    this.input = InputState.new({ placeholder: "Message (⌘⏎)" });
+    this.input = InputState.new({ placeholder: "Message (⌘↵)" });
     this.input.on("change", (_e, cx) => { this.message = this.input.value(); cx.notify(); });
     this.input.on("submit", (_e, cx) => this.commit(cx));
     this.input.on("focus", (_e, cx) => { this.typing = true; cx.notify(); });
@@ -186,7 +186,7 @@ export class Changes {
           .hover((s) => s.opacity(0.88)).on_click((_e, cx) => this.commit(cx)))
         .when(!ready, (e) => e.border_color(t.border).text_color(this.committing ? t.muted : t.dim))
         .on_mouse_down("left", (_e, cx) => cx.stop_propagation())
-        .tooltip(values?.all ? "Stage everything and commit (⌘⏎)" : values ? "Commit the staged changes (⌘⏎)" : this.message.trim() ? "Nothing to commit" : "Write a message to commit")
+        .tooltip(values?.all ? "Stage everything and commit (⌘↵)" : values ? "Commit the staged changes (⌘↵)" : this.message.trim() ? "Nothing to commit" : "Write a message to commit")
         .child(this.committing ? "Committing…" : values?.all ? "Commit all" : "Commit"));
   }
 
