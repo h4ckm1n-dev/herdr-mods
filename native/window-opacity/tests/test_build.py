@@ -44,7 +44,7 @@ elif tool == 'git':
         print('https://github.com/herdrdev/herdr-app.git')
     elif args[0] == 'rev-parse':
         if not (source / 'Cargo.toml').exists(): sys.exit(1)
-        print('a547b16ccb5e8811b2dd8b3b901d31df8f05e55a')
+        print('b67715e8985e6097f83f8120fc9b9e52e6596f50')
     elif args[0] == 'checkout':
         for name, content in {
             'Cargo.toml': '[package]\nversion = "0.1.15"\n',

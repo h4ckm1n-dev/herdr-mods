@@ -611,7 +611,7 @@ one copy, then copy it to the others.
 
 Bookmark this one. A ⭐ also helps other Herdr users find it.
 
-<sub>MIT © 2026 <a href="https://github.com/h4ckm1n-dev">h4ckm1n-dev</a>, except <code>dialogs/</code> and <code>native/</code> (Apache-2.0, derived from Herdr) · the Git module builds on <a href="https://github.com/rabeeh-ta/herdr-git-graph">herdr-git-graph</a> by Rabeeh T A · file icons from <a href="https://github.com/cybertron288/herdr-mods">cybertron288/herdr-mods</a> and Material Icon Theme · line icons from Lucide · window opacity from cunderw's <a href="https://github.com/herdrdev/herdr-app/pull/191">herdr-app #191</a> · screenshots use demo projects · not affiliated with Herdr</sub>
+<sub>MIT © 2026 <a href="https://github.com/h4ckm1n-dev">h4ckm1n-dev</a>, except <code>dialogs/</code> and <code>native/</code> (Apache-2.0, derived from Herdr) · the Git module builds on <a href="https://github.com/rabeeh-ta/herdr-git-graph">herdr-git-graph</a> by Rabeeh T A · file icons from <a href="https://github.com/cybertron288/herdr-mods">cybertron288/herdr-mods</a> and Material Icon Theme · line icons from Lucide · window opacity from <a href="https://github.com/herdrdev/herdr-app/pull/1007">herdr-app #1007</a>, built on cunderw's <a href="https://github.com/herdrdev/herdr-app/pull/191">#191</a> · screenshots use demo projects · not affiliated with Herdr</sub>
 
 </div>
 

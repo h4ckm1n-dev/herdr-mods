@@ -23,7 +23,7 @@ here=$(cd "$(dirname "$0")" && pwd)
 root=$(cd "$here/../.." && pwd)
 work="$root/.build/herdr-opacity"
 source="$work/source"
-base=a547b16ccb5e8811b2dd8b3b901d31df8f05e55a
+base=b67715e8985e6097f83f8120fc9b9e52e6596f50
 patch="$here/window-opacity.patch"
 mkdir -p "$work"
 if [[ ! -d "$source/.git" ]]; then

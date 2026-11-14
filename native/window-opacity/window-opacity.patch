@@ -1,17 +1,19 @@
 diff --git a/defaults/AGENTS.md b/defaults/AGENTS.md
-index 9cd5799..64e37e8 100644
+index 45a3494..8cd6f62 100644
 --- a/defaults/AGENTS.md
 +++ b/defaults/AGENTS.md
-@@ -734,6 +734,22 @@ What's about the user, never a look:
-   background; this is a threshold, not a guaranteed resulting ratio.
-   Box/block, Powerline and sprite glyph colors are never adjusted.
-   Changes apply immediately, including text already on screen.
+@@ -364,6 +364,24 @@ layout's look and a block can differ:
+   terminal columns do not change. Hidden in alternate-screen programs.
+ - `terminal_opacity` (0..1): below 1, the background behind a terminal
+   (a pane frame's, the layout's gradient) shows through its text.
 +- `window_opacity` (0..1): below 1 the desktop shows through the window, at
 +  that opacity. Terminals, cards and bars become see-through together, and
 +  `terminal_opacity` stops applying. On macOS dialogs and menus (`popover`)
 +  show the desktop at that opacity but hide the window's content under them;
-+  elsewhere they stay solid. Cells a
-+  program colors stay solid too. A default background a program sets (OSC 11)
++  elsewhere they stay solid. Nothing dims the window behind a dialog, so
++  dialogs, windows and popups hung from the top (the palette) take an
++  `accent` border instead; menus at the pointer, toasts and `frame: "none"`
++  overlays keep theirs. Cells a program colors stay solid too. A default background a program sets (OSC 11)
 +  shows at `window_opacity` instead of the window's; over a solid surface it
 +  sits on top of that surface. Literal colors in a layout or mod stay as
 +  written. The theme's `background`, `surface`, `canvas` and `chrome` stop
@@ -19,17 +21,17 @@ index 9cd5799..64e37e8 100644
 +  at the window root, so a layout or theme that tells them apart loses that
 +  difference. `raised` paints as a white (dark theme) or black (light theme)
 +  tint of the same color, like `hover`, so raised areas stay as see-through
-+  as what they sit on. 1 (default) is an ordinary window.
-+- `window_blur`: `true` blurs what shows through, on systems that can (macOS,
-+  Windows, some Linux compositors); it needs `window_opacity` below 1.
- - `clipboard_write`: `false` blocks terminal programs from writing the local
-   clipboard (default `true`, including remote terminals attached in this window).
-   OSC 52 accepts base64 UTF-8 text up to 1 MiB: `c` writes the system clipboard,
++  as what they sit on. 1 (default) is an ordinary window. Add the root's
++  `window_blur` to blur what shows through:
++  `{ "id": "root", "window_blur": true, "window_opacity": 0.85, ... }`.
+ - Switching layouts switches the look. The theme menu changes the shown
+   layout's root `theme`.
+ - Today only the root's look applies; a block's own look is coming.
 diff --git a/defaults/frame/settings/main.js b/defaults/frame/settings/main.js
-index 0627a99..0c59fe9 100644
+index 083fdfd..0900e87 100644
 --- a/defaults/frame/settings/main.js
 +++ b/defaults/frame/settings/main.js
-@@ -208,7 +208,7 @@ export default class Settings extends View {
+@@ -230,7 +230,7 @@ export default class Settings extends View {
        .rounded(10)
        .p(2)
        .cursor_pointer()
@@ -38,49 +40,25 @@ index 0627a99..0c59fe9 100644
        .flex()
        .when(on, (el) => el.justify_end())
        .on_click(onClick)
-@@ -472,6 +472,10 @@ export default class Settings extends View {
-     const p = this.person;
-     const own = (key, composed, def) => (p[key] ?? def) !== composed;
-     const size = (key, value, d, cx) => this.change((q) => (q[key] = Math.max(8, Math.min(32, (q[key] ?? value) + d))), cx);
-+    const opacity = Math.max(0, Math.min(1, p.window_opacity ?? 1));
-+    const blur = p.window_blur === true;
-+    // Rounded to whole percents so 5% steps don't drift into 0.7999….
-+    const step = (d, cx) => this.change((q) => (q.window_opacity = Math.round(Math.max(0, Math.min(1, (q.window_opacity ?? 1) + d)) * 100) / 100), cx);
-     const fontRow = (which, sizeKey, title, family, def, sizeNow) =>
-       v_flex()
-         .w_full()
-@@ -515,7 +519,25 @@ export default class Settings extends View {
-         ),
-       )
-       .child(fontRow("font", "font_size", "Terminal font", s.font_family, DEFAULT_FONT, s.font_size))
--      .child(fontRow("ui_font", null, "Interface font", s.ui_font_family, DEFAULT_UI_FONT));
-+      .child(fontRow("ui_font", null, "Interface font", s.ui_font_family, DEFAULT_UI_FONT))
-+      .child(div().h(18))
-+      .child(this.heading(t, "Window"))
-+      .child(
-+        this.row(
-+          t,
-+          "Opacity",
-+          "Below 100% the desktop shows through.",
-+          this.stepper(t, "st-window-opacity", `${Math.round(opacity * 100)}%`, (_e, cx) => step(-0.05, cx), (_e, cx) => step(0.05, cx)),
-+        ),
-+      )
-+      .child(
-+        this.row(
-+          t,
-+          "Blur",
-+          "Blurs what shows through. Only while opacity is below 100%.",
-+          this.toggle(t, "st-window-blur", blur, (_e, cx) => this.change((q) => (q.window_blur = !blur), cx)),
-+        ),
-+      );
-   }
+diff --git a/src/layout.rs b/src/layout.rs
+index ebe141a..bb26679 100644
+--- a/src/layout.rs
++++ b/src/layout.rs
+@@ -183,6 +183,9 @@ pub struct Look {
+     /// 0..1: below 1, what's behind a terminal shows through its background.
+     #[serde(default, skip_serializing_if = "Option::is_none")]
+     pub terminal_opacity: Option<f32>,
++    /// 0..1: below 1, the desktop shows through the window.
++    #[serde(default, skip_serializing_if = "Option::is_none")]
++    pub window_opacity: Option<f32>,
+ }
  
-   keyboard(t) {
+ /// A layout's theme: one name, or a pair the system's appearance (or the
 diff --git a/src/mods.rs b/src/mods.rs
-index bb74a3f..0b17a75 100644
+index a76fe9a..656b54f 100644
 --- a/src/mods.rs
 +++ b/src/mods.rs
-@@ -1116,18 +1116,7 @@ pub fn init(cx: &mut App) {
+@@ -1161,18 +1161,7 @@ pub fn init(cx: &mut App) {
  /// Maps the theme onto the tokens mods read through `cx.theme().colors`.
  pub fn apply_theme(cx: &mut App) {
      let t = crate::settings::theme();
@@ -100,7 +78,7 @@ index bb74a3f..0b17a75 100644
      match serde_json::from_value::<gpui_base::ColorTokens>(palette) {
          Ok(colors) => {
              let theme = gpui_base::Theme::global_mut(cx);
-@@ -1138,6 +1127,27 @@ pub fn apply_theme(cx: &mut App) {
+@@ -1183,6 +1172,27 @@ pub fn apply_theme(cx: &mut App) {
      }
  }
  
@@ -128,9 +106,9 @@ index bb74a3f..0b17a75 100644
  fn capabilities() -> Capabilities {
      Capabilities::new()
          .read_roots([home()])
-@@ -1201,6 +1211,23 @@ pub fn prepare_load(inst: &Instance) -> u64 {
- mod tests {
-     use super::*;
+@@ -1257,6 +1267,23 @@ mod tests {
+         assert_eq!(style.selection, tokens.colors.selection);
+     }
  
 +    #[test]
 +    fn the_kits_boxes_take_popover_and_danger_text_stays_solid_in_a_see_through_window() {
@@ -153,74 +131,38 @@ index bb74a3f..0b17a75 100644
      fn exec_timeout_defaults_caps_and_rejects_invalid_values() {
          assert_eq!(exec_limit(None).unwrap(), EXEC_LIMIT);
 diff --git a/src/settings.rs b/src/settings.rs
-index 05fe16a..7287ef6 100644
+index 7e7ac80..a4f9698 100644
 --- a/src/settings.rs
 +++ b/src/settings.rs
-@@ -394,6 +394,12 @@ pub struct Person {
-     pub pane_scrollbars: bool,
-     /// Minimum terminal text contrast ratio; 1 leaves program colors unchanged.
-     pub minimum_contrast: f32,
-+    /// 0..1: below 1, the desktop shows through the window.
-+    #[serde(skip_serializing_if = "is_one")]
-+    pub window_opacity: f32,
-+    /// Blur what shows through the window (where the system can).
-+    #[serde(skip_serializing_if = "std::ops::Not::not")]
-+    pub window_blur: bool,
-     /// macOS Option sends Alt shortcuts, or follows the keyboard layout.
-     #[serde(skip_serializing_if = "OptionAsAlt::is_auto")]
-     pub option_as_alt: OptionAsAlt,
-@@ -438,6 +444,10 @@ impl OptionAsAlt {
-     }
- }
- 
-+fn is_one(v: &f32) -> bool {
-+    *v == 1.0
-+}
-+
- fn is_true(b: &bool) -> bool {
-     *b
- }
-@@ -456,6 +466,8 @@ impl Default for Person {
-             clipboard_write: true,
-             pane_scrollbars: true,
-             minimum_contrast: 1.0,
-+            window_opacity: 1.0,
-+            window_blur: false,
-             option_as_alt: OptionAsAlt::Auto,
-             appearance: Appearance::System,
-             theme: None,
-@@ -491,6 +503,9 @@ pub struct Settings {
+@@ -516,6 +516,8 @@ pub struct Settings {
      pub terminal_padding: [f32; 2],
      /// 0..1: below 1, what's behind a terminal shows through.
      pub terminal_opacity: f32,
 +    /// 0..1: below 1, the desktop shows through the window.
 +    pub window_opacity: f32,
-+    pub window_blur: bool,
      pub clipboard_write: bool,
+     pub copy_on_select: bool,
      pub minimum_contrast: f32,
-     pub option_as_alt: OptionAsAlt,
-@@ -533,6 +548,8 @@ impl Default for Settings {
+@@ -563,6 +565,7 @@ impl Default for Settings {
              pane_scrollbars: true,
              terminal_padding: [10.0, 6.0],
              terminal_opacity: 1.0,
 +            window_opacity: 1.0,
-+            window_blur: false,
              clipboard_write: true,
+             copy_on_select: true,
              minimum_contrast: 1.0,
-             option_as_alt: OptionAsAlt::Auto,
-@@ -570,7 +587,10 @@ impl Settings {
+@@ -605,7 +608,9 @@ impl Settings {
              colors,
              pane_scrollbars: person.pane_scrollbars,
              terminal_padding: look.terminal_padding.unwrap_or(d.terminal_padding),
 -            terminal_opacity: look.terminal_opacity.unwrap_or(1.0).clamp(0.0, 1.0),
 +            // A see-through window is painted once, at its root (see_through).
-+            terminal_opacity: if person.window_opacity < 1.0 { 0.0 } else { look.terminal_opacity.unwrap_or(1.0).clamp(0.0, 1.0) },
-+            window_opacity: person.window_opacity,
-+            window_blur: person.window_blur,
++            terminal_opacity: if look.window_opacity.is_some_and(|o| o < 1.0) { 0.0 } else { look.terminal_opacity.unwrap_or(1.0).clamp(0.0, 1.0) },
++            window_opacity: look.window_opacity.unwrap_or(1.0),
              sounds: person.sounds.clone(),
              clipboard_write: person.clipboard_write,
-             minimum_contrast: person.minimum_contrast,
-@@ -579,14 +599,19 @@ impl Settings {
+             copy_on_select: person.copy_on_select,
+@@ -615,14 +620,19 @@ impl Settings {
      }
  }
  
@@ -246,7 +188,7 @@ index 05fe16a..7287ef6 100644
      Some(
          Rgba {
              r: ((rgb >> 16) & 255) as f32 / 255.0,
-@@ -598,9 +623,14 @@ pub fn parse_hex(s: &str) -> Option<Hsla> {
+@@ -634,9 +644,14 @@ pub fn parse_hex(s: &str) -> Option<Hsla> {
      )
  }
  
@@ -262,15 +204,17 @@ index 05fe16a..7287ef6 100644
      Rgb((v >> 16) as u8, (v >> 8) as u8, v as u8)
  }
  
-@@ -622,11 +652,20 @@ impl Settings {
+@@ -658,6 +673,9 @@ impl Settings {
          if !(1.0..=21.0).contains(&self.minimum_contrast) {
              out.push(format!("minimum_contrast {} is outside 1..21", self.minimum_contrast));
          }
 +        if !(0.0..=1.0).contains(&self.window_opacity) {
 +            out.push(format!("window_opacity {} is outside 0..1", self.window_opacity));
 +        }
-         if !(6.0..=72.0).contains(&self.font_size) {
-             out.push(format!("font_size {} is outside 6..72", self.font_size));
+         if !(100..=900).contains(&self.font_weight) {
+             out.push(format!("font_weight {} is outside 100..900", self.font_weight));
+         }
+@@ -666,6 +684,12 @@ impl Settings {
          }
          out
      }
@@ -283,7 +227,7 @@ index 05fe16a..7287ef6 100644
  }
  
  pub fn path() -> std::path::PathBuf {
-@@ -655,6 +694,11 @@ pub fn color(name: &str) -> Hsla {
+@@ -694,6 +718,11 @@ pub fn color(name: &str) -> Hsla {
      theme().get(name).and_then(|v| parse_hex(v)).unwrap_or(gpui::hsla(0.83, 1.0, 0.5, 1.0))
  }
  
@@ -295,8 +239,8 @@ index 05fe16a..7287ef6 100644
  /// A theme color name, or a literal `#rrggbb[aa]`.
  pub fn color_or_literal(v: &str) -> Hsla {
      parse_hex(v).unwrap_or_else(|| color(v))
-@@ -690,6 +734,55 @@ pub fn write_person(person: &Person) -> std::io::Result<()> {
-     crate::persist::write_atomic(&path(), serde_json::to_string_pretty(person).unwrap_or_default() + "\n")
+@@ -750,6 +779,55 @@ fn person_text(person: &Person, previous: &str) -> std::io::Result<String> {
+     Ok(serde_json::to_string_pretty(&raw)? + "\n")
  }
  
 +/// The window's root paints the one background of a see-through window: these
@@ -351,7 +295,7 @@ index 05fe16a..7287ef6 100644
  /// Installs new settings; returns whether anything changed.
  pub fn set(s: Settings) -> bool {
      #[cfg(target_os = "macos")]
-@@ -705,10 +798,15 @@ pub fn set(s: Settings) -> bool {
+@@ -765,10 +843,15 @@ pub fn set(s: Settings) -> bool {
          // have new colors under the same name.
          let (p, mut colors) = palette(&s.theme).unwrap_or_else(|_| (GRAPHITE.clone(), BTreeMap::new()));
          colors.extend(s.colors.clone());
@@ -368,14 +312,15 @@ index 05fe16a..7287ef6 100644
          gpui_shell::set_pixel_scale(s.zoom);
          *c.borrow_mut() = (Rc::new(s), Rc::new(theme));
          true
-@@ -937,11 +1035,86 @@ mod tests {
+@@ -1076,6 +1159,82 @@ mod tests {
          assert_eq!(Settings::compose(&person, &win98.look, true).theme, "ink");
      }
  
 +    #[test]
 +    fn a_window_opacity_out_of_range_is_reported_then_applied_at_its_nearest_end() {
 +        for (asked, applied) in [(-0.5, 0.0), (1.5, 1.0), (0.4, 0.4)] {
-+            let s = Settings::compose(&Person { window_opacity: asked, ..Person::default() }, &crate::layout::Look::default(), true);
++            let look = crate::layout::Look { window_opacity: Some(asked), ..Default::default() };
++            let s = Settings::compose(&Person::default(), &look, true);
 +            assert_eq!(s.problems().iter().any(|p| p.starts_with("window_opacity")), asked != applied, "{asked}");
 +            assert_eq!(s.in_range().window_opacity, applied);
 +        }
@@ -383,8 +328,8 @@ index 05fe16a..7287ef6 100644
 +
 +    #[test]
 +    fn a_see_through_window_paints_its_background_once() {
-+        let person = Person { window_opacity: 0.8, ..Person::default() };
-+        let s = Settings::compose(&person, &crate::layout::Look::default(), true);
++        let look = crate::layout::Look { window_opacity: Some(0.8), ..Default::default() };
++        let s = Settings::compose(&Person::default(), &look, true);
 +        assert_eq!(s.terminal_opacity, 0.0);
 +        let opaque = resolve(&GRAPHITE, &BTreeMap::new());
 +        let mut theme = opaque.clone();
@@ -428,8 +373,8 @@ index 05fe16a..7287ef6 100644
 +
 +    #[test]
 +    fn setting_the_same_see_through_settings_again_changes_nothing() {
-+        let (before, person) = (get(), Person { window_opacity: 0.8, ..Person::default() });
-+        let s = Settings::compose(&person, &crate::layout::Look::default(), true);
++        let (before, look) = (get(), crate::layout::Look { window_opacity: Some(0.8), ..Default::default() });
++        let s = Settings::compose(&Person::default(), &look, true);
 +        set(s.clone());
 +        let again = set(s);
 +        set((*before).clone());
@@ -450,17 +395,11 @@ index 05fe16a..7287ef6 100644
      /// The guide agents read (written to the home folder) explains every
      /// settings.json key.
      #[test]
-     fn the_guide_explains_every_setting() {
--        let all = Person { core: Some(String::new()), font: Some(String::new()), font_size: Some(1.0), ui_font: Some(String::new()), telemetry: false, clipboard_write: false, appearance: Appearance::Light, theme: Some(crate::layout::ThemeChoice::One(String::new())), colors: [("text".into(), String::new())].into(), ..Person::default() };
-+        let all = Person { core: Some(String::new()), font: Some(String::new()), font_size: Some(1.0), ui_font: Some(String::new()), telemetry: false, clipboard_write: false, window_opacity: 0.5, window_blur: true, appearance: Appearance::Light, theme: Some(crate::layout::ThemeChoice::One(String::new())), colors: [("text".into(), String::new())].into(), ..Person::default() };
-         let keys: Vec<String> = serde_json::to_value(&all).unwrap().as_object().unwrap().keys().cloned().collect();
-         let guide = include_str!("../defaults/AGENTS.md");
-         let section = guide.split("## The person").nth(1).and_then(|s| s.split("\n## ").next()).unwrap_or_default();
 diff --git a/src/terminal.rs b/src/terminal.rs
-index b707ea2..f442b28 100644
+index de5970c..d85f6eb 100644
 --- a/src/terminal.rs
 +++ b/src/terminal.rs
-@@ -59,6 +59,52 @@ pub fn hsla(c: Rgb) -> Hsla {
+@@ -61,6 +61,52 @@ pub fn hsla(c: Rgb) -> Hsla {
      Rgba { r: c.0 as f32 / 255.0, g: c.1 as f32 / 255.0, b: c.2 as f32 / 255.0, a: 1.0 }.into()
  }
  
@@ -513,7 +452,7 @@ index b707ea2..f442b28 100644
  #[derive(Clone, Debug, PartialEq)]
  enum LinkTarget {
      External(links::Target),
-@@ -89,6 +135,12 @@ struct Grid {
+@@ -94,6 +140,12 @@ struct Grid {
      vt_cell: (u32, u32),
      /// The colors and device-pixel cell size the core was last told.
      told_display: Option<DisplayFacts>,
@@ -526,7 +465,7 @@ index b707ea2..f442b28 100644
      /// Top-left of the cell grid in window coordinates, from the last paint.
      origin: Point<Pixels>,
      buttons_down: Vec<MouseButton>,
-@@ -280,6 +332,8 @@ impl TerminalView {
+@@ -287,6 +339,8 @@ impl TerminalView {
                  scale: 1.0,
                  vt_cell: (9, 18),
                  told_display: None,
@@ -535,7 +474,7 @@ index b707ea2..f442b28 100644
                  origin: Point::default(),
                  buttons_down: Vec::new(),
                  images: HashMap::new(),
-@@ -607,6 +661,12 @@ impl TerminalView {
+@@ -617,6 +671,12 @@ impl TerminalView {
          self.shown_in.set(FRAME.load(Ordering::Relaxed));
      }
  
@@ -548,7 +487,7 @@ index b707ea2..f442b28 100644
      /// A hidden pane cannot render its focus loss.
      pub fn blur(&mut self) {
          if self.was_focused {
-@@ -1850,7 +1910,9 @@ fn paint_grid(bounds: Bounds<Pixels>, grid: &Rc<RefCell<Grid>>, focused: bool, w
+@@ -2044,7 +2104,9 @@ fn paint_grid(bounds: Bounds<Pixels>, grid: &Rc<RefCell<Grid>>, focused: bool, w
      let marked = g.marked.clone();
      drop(g);
  
@@ -559,7 +498,7 @@ index b707ea2..f442b28 100644
      let at = |x: usize, y: usize| origin + point(cell.width * x as f32, cell.height * y as f32);
      // Edges round to device pixels, so cells side by side meet without seams.
      let snap_box = |b: Bounds<Pixels>| {
-@@ -2256,7 +2318,10 @@ impl Render for TerminalView {
+@@ -2497,7 +2559,10 @@ impl Render for TerminalView {
                  canvas(
                      move |bounds, window, _cx| {
                          let (cols, rows) = grid_size(bounds.size, cell);
@@ -571,7 +510,7 @@ index b707ea2..f442b28 100644
                      },
                      move |bounds, _, window, cx| {
                          paint_grid(bounds, &grid_paint, focused, window, cx);
-@@ -3035,6 +3100,48 @@ mod tests {
+@@ -3465,6 +3530,48 @@ mod tests {
          assert!(cx.debug_bounds("find-bar").is_some());
      }
  
@@ -621,10 +560,10 @@ index b707ea2..f442b28 100644
      fn mouse_buttons_only_follow_the_pane_that_took_each_press() {
          use super::*;
 diff --git a/src/vt.rs b/src/vt.rs
-index 30c68c9..f188888 100644
+index d04388a..ebe59ea 100644
 --- a/src/vt.rs
 +++ b/src/vt.rs
-@@ -746,6 +746,15 @@ impl Vt {
+@@ -770,6 +770,15 @@ impl Vt {
          }
      }
  
@@ -641,25 +580,74 @@ index 30c68c9..f188888 100644
      pub fn set_theme(&mut self, theme: Theme) {
          if self.theme != theme {
 diff --git a/src/window.rs b/src/window.rs
-index 08a4370..2ddb3ba 100644
+index 3ba9961..7eb86c7 100644
 --- a/src/window.rs
 +++ b/src/window.rs
-@@ -858,7 +858,14 @@ impl AppWindow {
+@@ -352,6 +352,19 @@ struct Overlay {
+     frame: bool,
+ }
+ 
++impl Overlay {
++    /// Takes the accent outline in a see-through window: dialogs, windows and
++    /// popups hung from the top (the palette, the picker). Menus at the pointer
++    /// and toasts keep their border; a `frame: "none"` mod draws its own.
++    fn outlined(&self) -> bool {
++        !self.bare && match self.kind {
++            OverlayKind::Dialog | OverlayKind::Window => true,
++            OverlayKind::Popup => self.top.is_some(),
++            OverlayKind::Toast => false,
++        }
++    }
++}
++
+ struct Drag {
+     container: String,
+     index: usize,
+@@ -453,7 +466,7 @@ pub struct AppWindow {
+     /// Where a press on a `window_drag` node started, until it moves the window.
+     drag_from: Option<Point<Pixels>>,
+     titlebar_applied: Option<(crate::layout::Titlebar, Option<[f32; 2]>)>,
+-    blur_applied: bool,
++    blur_applied: gpui::WindowBackgroundAppearance,
+     focused_pane: Option<String>,
+     /// The mod block holding the keyboard for directional navigation.
+     focused_block: Option<String>,
+@@ -563,7 +576,7 @@ impl AppWindow {
+             drag_from: None,
+             titlebar_applied: None,
+             // Windows open opaque: leave the platform alone until a layout asks for blur.
+-            blur_applied: false,
++            blur_applied: gpui::WindowBackgroundAppearance::Opaque,
+             focused_pane: None,
+             focused_block: None,
+             synced_model_pane: None,
+@@ -898,6 +911,7 @@ impl AppWindow {
          if !problems.is_empty() {
              self.report_layout(&problems.join("; "));
          }
 +        let s = s.in_range();
-+        let background = match (s.window_opacity < 1.0, s.window_blur) {
-+            (false, _) => WindowBackgroundAppearance::Opaque,
-+            (true, false) => WindowBackgroundAppearance::Transparent,
-+            (true, true) => WindowBackgroundAppearance::Blurred,
-+        };
          if settings::set(s) {
-+            window.set_background_appearance(background);
              for term in self.terms.values() {
                  term.view.read(cx).refresh_theme();
-             }
-@@ -4373,7 +4380,9 @@ impl AppWindow {
+@@ -4595,6 +4609,7 @@ impl AppWindow {
+                 Some(l) => self.render_node(l, &HashSet::new(), None, cx),
+                 None => self.render_slot(&o.slot, cx),
+             };
++            let outlined = settings::get().window_opacity < 1.0 && o.outlined();
+             let body = div()
+                 .id(SharedString::from(format!("ov-{}", o.id)))
+                 .track_focus(&o.focus)
+@@ -4602,7 +4617,8 @@ impl AppWindow {
+                 .when(o.layout.is_none() && o.kind.modal_keys(), |d| d.key_context("Overlay"))
+                 .when(sized(o.size.width), |d| d.w(w))
+                 .when(sized(o.size.height), |d| if o.fit { d.max_h(h) } else { d.h(h) })
+-                .when(!o.bare, |d| d.bg(c("popover")).border_1().border_color(c("border")).rounded(settings::z(8.0)).shadow_lg())
++                // Nothing dims a see-through window behind an overlay, so its outline marks it instead.
++                .when(!o.bare, |d| d.bg(c("popover")).border_1().border_color(c(if outlined { "accent" } else { "border" })).rounded(settings::z(8.0)).shadow_lg())
+                 .overflow_hidden()
+                 .flex()
+                 // Scroll, hover and cursor stop here, not on the pane behind.
+@@ -4615,7 +4631,9 @@ impl AppWindow {
                      div()
                          .absolute()
                          .inset_0()
@@ -670,7 +658,7 @@ index 08a4370..2ddb3ba 100644
                          .occlude()
                          .flex()
                          .items_center()
-@@ -4921,6 +4930,8 @@ impl Render for AppWindow {
+@@ -5172,6 +5190,8 @@ impl Render for AppWindow {
          let tracker = self.float_tracker(cx);
          let win_tracker = self.window_tracker(cx);
          let pane_drag = self.pane_drag_layer(cx);
@@ -679,7 +667,7 @@ index 08a4370..2ddb3ba 100644
          div()
              .id("herdr")
              .track_focus(&self.focus)
-@@ -4928,7 +4939,8 @@ impl Render for AppWindow {
+@@ -5179,7 +5199,8 @@ impl Render for AppWindow {
              .key_context(format!("Herdr layout = {}", self.layout_name).as_str())
              .size_full()
              .relative()
@@ -689,6 +677,42 @@ index 08a4370..2ddb3ba 100644
              .text_color(c("foreground"))
              .font_family(settings::get().ui_font_family.clone())
              .on_action(cx.listener(|this, a: &ShellAction, w, cx| {
+@@ -6401,6 +6422,35 @@ mod tests {
+         assert!(pane_focused(cx));
+     }
+ 
++    #[test]
++    fn a_see_through_window_outlines_dialogs_windows_and_top_popups_only() {
++        in_own_process("outlined_overlays");
++    }
++
++    #[gpui::test]
++    fn outlined_overlays(cx: &mut gpui::TestAppContext) {
++        use serde_json::json;
++        if !running_alone("outlined_overlays") {
++            return;
++        }
++        let (view, cx) = open_window(cx, "unused", "", json!({ "id": "root", "type": "block" }));
++        cx.update(|window, cx| view.update(cx, |this, cx| {
++            let cases = [
++                ("dialog", json!({"kind": "dialog"}), true),
++                ("window", json!({"kind": "window"}), true),
++                ("palette", json!({"kind": "popup", "at": "top", "offset": 60}), true),
++                ("menu", json!({"kind": "popup"}), false),
++                ("toast", json!({"kind": "toast"}), false),
++                ("bare", json!({"kind": "dialog", "frame": "none"}), false),
++            ];
++            for (id, spec, want) in cases {
++                this.open_overlay(id.into(), spec, window, cx);
++                let o = this.overlays.iter().find(|o| o.id == id).unwrap();
++                assert_eq!(o.outlined(), want, "{id}");
++            }
++        }));
++    }
++
+     #[test]
+     fn close_keys_dismiss_the_top_dialog_without_closing_the_tab() {
+         in_own_process("close_keys_dismiss_dialog");
 diff --git a/src/window/pane_drag.rs b/src/window/pane_drag.rs
 index 23584b7..d1a82d1 100644
 --- a/src/window/pane_drag.rs
@@ -702,6 +726,31 @@ index 23584b7..d1a82d1 100644
              .hover(|s| s.bg(c("hover")))
              .flex().flex_col().items_center().justify_center().gap(settings::z(3.)).occlude()
              .group("pane-grip")
+diff --git a/src/window/titlebar.rs b/src/window/titlebar.rs
+index 2459d9a..24fa388 100644
+--- a/src/window/titlebar.rs
++++ b/src/window/titlebar.rs
+@@ -62,14 +62,17 @@ impl AppWindow {
+         });
+     }
+ 
+-    /// The root's `window_blur`: frosted glass behind the window, else opaque.
++    /// The window's backing from the root: `window_blur` frosts it, a `window_opacity`
++    /// below 1 makes it see-through, else opaque.
+     pub(super) fn apply_blur(&mut self, window: &mut Window) {
+-        let want = self.chrome.window_blur;
++        use gpui::WindowBackgroundAppearance::*;
++        let s = crate::settings::get();
++        let want = if self.chrome.window_blur { Blurred } else if s.window_opacity < 1.0 { Transparent } else { Opaque };
+         if self.blur_applied == want {
+             return;
+         }
+         self.blur_applied = want;
+-        window.set_background_appearance(if want { gpui::WindowBackgroundAppearance::Blurred } else { gpui::WindowBackgroundAppearance::Opaque });
++        window.set_background_appearance(want);
+     }
+ 
+     /// What mods know about the window: `window()`.
 diff --git a/vendor/gpui-pre-apple/src/metal_renderer.rs b/vendor/gpui-pre-apple/src/metal_renderer.rs
 index 842d7b1..90d7e69 100644
 --- a/vendor/gpui-pre-apple/src/metal_renderer.rs
@@ -869,39 +918,6 @@ index 2b52bb9..94d0803 100644
    float4 background_color = fill_color(quad.background, input.position.xy, quad.bounds,
      input.background_solid, input.background_color0, input.background_color1);
  
-diff --git a/vendor/gpui-pre-macos/src/window.rs b/vendor/gpui-pre-macos/src/window.rs
-index add7a27..bdd5149 100644
---- a/vendor/gpui-pre-macos/src/window.rs
-+++ b/vendor/gpui-pre-macos/src/window.rs
-@@ -88,6 +88,15 @@ static mut WINDOW_CLASS: *const Class = ptr::null();
- static mut PANEL_CLASS: *const Class = ptr::null();
- static mut VIEW_CLASS: *const Class = ptr::null();
- static mut BLURRED_VIEW_CLASS: *const Class = ptr::null();
-+
-+// HERDR: what a blurred window's background uses (points).
-+const BLUR_RADIUS: i32 = 30;
-+
-+#[link(name = "CoreGraphics", kind = "framework")]
-+unsafe extern "C" {
-+    fn CGSMainConnectionID() -> u32;
-+    fn CGSSetWindowBackgroundBlurRadius(connection: u32, window: NSInteger, radius: i32) -> i32;
-+}
- static mut WINDOW_STATE_ARCHIVER_DELEGATE_CLASS: *const Class = ptr::null();
- static mut WINDOW_STATE_UNARCHIVER_CLASS: *const Class = ptr::null();
- 
-@@ -1885,6 +1894,12 @@ impl PlatformWindow for MacWindow {
-             };
-             this.native_window.setBackgroundColor_(background_color);
- 
-+            // HERDR: the window server's own blur. The effect view below alone
-+            // shows no blur on macOS 27.
-+            let radius = if background_appearance == WindowBackgroundAppearance::Blurred { BLUR_RADIUS } else { 0 };
-+            let number: NSInteger = msg_send![this.native_window, windowNumber];
-+            CGSSetWindowBackgroundBlurRadius(CGSMainConnectionID(), number, radius);
-+
-             if background_appearance != WindowBackgroundAppearance::Blurred {
-                 if let Some(blur_view) = this.blurred_view {
-                     NSView::removeFromSuperview(blur_view);
 diff --git a/vendor/gpui-pre/src/color.rs b/vendor/gpui-pre/src/color.rs
 index 3bd893f..d167303 100644
 --- a/vendor/gpui-pre/src/color.rs

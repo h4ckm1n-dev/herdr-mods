@@ -1,5 +1,6 @@
 {
   "id": "root",
+  "window_opacity": 0.65,
   "preview": "layouts/OhMyHerdr.png",
   "cloned_from": {
     "name": "main",

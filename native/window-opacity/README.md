@@ -4,14 +4,16 @@
 
 [![Maintained by Kai Finds](https://img.shields.io/badge/maintained%20by-Kai%20Finds-00E5FF?style=flat-square&labelColor=0B0F14)](https://github.com/Kai-Finds)
 
-The patch is based on cunderw's [herdr-app #191](https://github.com/herdrdev/herdr-app/pull/191)
-(`window_opacity` / `window_blur`), Apache-2.0 like Herdr; it changes Herdr's files.
+The patch is [herdr-app #1007](https://github.com/herdrdev/herdr-app/pull/1007),
+which builds on cunderw's [#191](https://github.com/herdrdev/herdr-app/pull/191).
+It adds a `window_opacity` key to the layout. It is Apache-2.0 like Herdr and
+changes Herdr's files.
 
 <a id="worth-it-or-skip-it"></a>
 <img src="https://raw.githubusercontent.com/Kai-Finds/OhMyHerdr/main/.github/kaifinds/worth-it.png" width="100%" alt="Worth it, or skip it?">
 
 **✅ Worth it if**
-- you want a translucent, blurred Herdr window and don't mind building it yourself
+- you want a see-through Herdr window (blur optional) and don't mind building it yourself
 
 **❌ Skip it if**
 - you want the official signed, notarized Herdr that updates itself
@@ -30,7 +32,7 @@ packages or ask for administrator access. The first build downloads source,
 submodules and Cargo dependencies and needs substantial disk space and time.
 
 The script fetches the official `https://github.com/herdrdev/herdr-app.git` at
-`a547b16ccb5e8811b2dd8b3b901d31df8f05e55a` (Herdr 0.1.15), applies the bundled
+`b67715e8985e6097f83f8120fc9b9e52e6596f50` (Herdr master after 0.1.15), applies the bundled
 patch, builds with the locked dependencies, and packages an ad hoc signed app:
 
 ```text
@@ -53,8 +55,12 @@ so your CLI symlink continues to work. This is a local custom build, without
 the official developer signature or notarization. To undo it, quit Herdr and
 restore your backed-up app.
 
-In the patched app, open **Settings > Appearance > Window** for Opacity and Blur.
-Opacity starts at 100%; blur takes effect below 100%.
+In the patched app, the layout sets the look. The OhMyHerdr layout ships with
+`"window_opacity": 0.65` at its root, so the desktop shows through the whole
+window and dialogs take an accent outline. Change that value to adjust it; 1
+is an ordinary opaque window. Add `"window_blur": true` next to it to frost what
+shows through (that key comes from Herdr itself, #702). An official Herdr
+ignores `window_opacity`, so the layout stays opaque there.
 
 Ordinary source builds do not enable Herdr's official app updater. Do not set
 `HERDR_RELEASES_URL` when launching this app: upstream uses that variable to
@@ -69,12 +75,11 @@ aside to start fresh; deleting it later removes only build output.
 
 ## Patch provenance
 
-`window-opacity.patch` is exactly the committed diff from official base
-`a547b16ccb5e8811b2dd8b3b901d31df8f05e55a` to
-`a2d61819f9659175a354b3f14df1aaf85d414b78` in the supplied
-`herdr-app-pr191` checkout. It includes the native renderer changes, settings,
-Settings controls, guide updates and regression tests. Uncommitted edits in
-that checkout are excluded. Herdr and this patch use Apache-2.0; see [LICENSE](LICENSE).
+`window-opacity.patch` is exactly the diff from official base
+`b67715e8985e6097f83f8120fc9b9e52e6596f50` to
+`149796f48e005cdd21e7b3d07f74c5c353998a9a`, the head of herdr-app #1007. It
+includes the native renderer changes, the layout key, guide updates and
+regression tests. Herdr and this patch use Apache-2.0; see [LICENSE](LICENSE).
 
 Builder smoke tests (mocked compilation and signing):
 

@@ -29,4 +29,4 @@ Reusing the upstream release packager would enable the official updater, which c
 ## Watch out
 HERDR_RELEASES_URL also opts source builds into updater checks at runtime. Leave it unset when launching the custom app. A new pinned base requires revalidating the patch and native behavior.
 
-In the code: native/window-opacity/build.sh unsets HERDR_APP_RELEASE during compilation. The supplied Herdr checkout's src/update.rs checks compile-time HERDR_APP_RELEASE or runtime HERDR_RELEASES_URL; scripts/package sets HERDR_APP_RELEASE=1. Base a547b16ccb5e8811b2dd8b3b901d31df8f05e55a and feature a2d61819f9659175a354b3f14df1aaf85d414b78.
+In the code: native/window-opacity/build.sh unsets HERDR_APP_RELEASE during compilation. The supplied Herdr checkout's src/update.rs checks compile-time HERDR_APP_RELEASE or runtime HERDR_RELEASES_URL; scripts/package sets HERDR_APP_RELEASE=1. Base b67715e8985e6097f83f8120fc9b9e52e6596f50 (Herdr master) and feature 149796f48e005cdd21e7b3d07f74c5c353998a9a (herdr-app #1007, opacity in the layout).
