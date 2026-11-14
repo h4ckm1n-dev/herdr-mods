@@ -15,26 +15,6 @@ export async function mapLimit(items, limit, mapper) {
   return out;
 }
 
-export function relTime(iso, now = Date.now()) {
-  const t = Date.parse(iso || "");
-  if (!Number.isFinite(t)) return "";
-  const s = Math.max(0, Math.round((now - t) / 1000));
-  if (s < 60) return "just now";
-  if (s < 3600) return `${Math.floor(s / 60)}m ago`;
-  if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
-  if (s < 86400 * 30) return `${Math.floor(s / 86400)}d ago`;
-  return new Date(t).toISOString().slice(0, 10);
-}
-
-export function duration(from, to = Date.now()) {
-  const a = Date.parse(from || ""), b = typeof to === "number" ? to : Date.parse(to || "");
-  if (!Number.isFinite(a) || !Number.isFinite(b) || b < a) return "";
-  const s = Math.round((b - a) / 1000);
-  if (s < 60) return `${s}s`;
-  if (s < 3600) return `${Math.floor(s / 60)}m ${String(s % 60).padStart(2, "0")}s`;
-  return `${Math.floor(s / 3600)}h ${String(Math.floor((s % 3600) / 60)).padStart(2, "0")}m`;
-}
-
 // Artifact names are free text ("Notepad++.gcc.x86_64.Release"), so only a
 // known extension counts as a file type; "Release" or "x86_64" do not.
 const KNOWN_TYPES = new Set([

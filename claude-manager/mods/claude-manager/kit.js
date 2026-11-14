@@ -253,14 +253,14 @@ export function keyLabel(spec, mac = true) {
   }).join(" ");
 }
 
-/** A keyboard hint: ⌘K, Esc, ⏎. */
-export const kbd = (t, label) => div().flex_none().px(5).h(18).flex().items_center().rounded(4).border_1().border_color(t.border)
-  .text_size(SIZE.micro).text_color(t.dim).child(label);
+/** A keyboard hint: ⌘K, Esc, ↵. A raised cap in the foreground color: a key is something to read, not decoration. */
+export const kbd = (t, label) => div().flex_none().min_w(18).px(5).h(18).flex().items_center().justify_center().rounded(4).border_1().border_color(t.input)
+  .bg(t.surface).text_size(SIZE.micro).font_medium().text_color(t.foreground).child(label);
 
 // ---- dialogs and menus ----------------------------------------------------------------------
-/** "⏎ add · ⇧⏎ keep going": a key cap and what it does. */
+/** "↵ add · ⇧↵ keep going": a key cap and what it does. */
 export const kbdHint = (t, key, label) => h_flex().flex_none().gap(4).items_center()
-  .child(kbd(t, key)).child(div().text_size(SIZE.meta).text_color(t.dim).child(label));
+  .child(kbd(t, key)).child(div().text_size(SIZE.meta).text_color(t.muted).child(label));
 
 /** An agent's color, as Crew paints it: Claude coral, Codex the theme cyan, others theme hues. */
 export const agentColor = (t, key) => ({ claude: CORAL, codex: t.ansi6, pi: t.ansi5, opencode: t.ansi4, gemini: t.ansi12, cursor: t.ansi13 })[key] ?? t.muted;
@@ -292,14 +292,29 @@ export const clock = (s) => {
   if (s < 3600) return `${Math.floor(s / 60)}m ${String(s % 60).padStart(2, "0")}s`;
   return `${Math.floor(s / 3600)}h ${String(Math.floor((s % 3600) / 60)).padStart(2, "0")}m`;
 };
-/** "8s", "12m", "3h05": how long ago (ms or ISO or unix seconds). */
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+/**
+ * How long ago, the one format every mod shows: "now" under a minute, then "12m", "3h", "5d",
+ * and past 30 days the date ("Nov 3", or "Nov 2025" for another year). when: ms, unix seconds or ISO.
+ */
 export function ago(when, now = Date.now()) {
   const ms = typeof when === "number" ? (when < 1e12 ? when * 1000 : when) : Date.parse(when ?? "");
   if (!ms) return "";
   const s = Math.max(0, Math.round((now - ms) / 1000));
-  if (s < 60) return `${s}s`;
-  const m = Math.floor(s / 60);
-  return m < 60 ? `${m}m` : m < 1440 ? `${Math.floor(m / 60)}h${String(m % 60).padStart(2, "0")}` : `${Math.floor(m / 1440)}d`;
+  if (s < 60) return "now";
+  if (s < 3600) return `${Math.floor(s / 60)}m`;
+  if (s < 86400) return `${Math.floor(s / 3600)}h`;
+  if (s < 86400 * 30) return `${Math.floor(s / 86400)}d`;
+  const d = new Date(ms);
+  return d.getFullYear() === new Date(now).getFullYear() ? `${MONTHS[d.getMonth()]} ${d.getDate()}` : `${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
+}
+/** ago() as words, for a sentence or a lone status: "just now", "12m ago", "Nov 3". */
+export const agoWords = (when, now) => { const a = ago(when, now); return a === "now" ? "just now" : /^\d/.test(a) ? `${a} ago` : a; };
+/** How long something took, between two times (ms, unix seconds or ISO; `to` defaults to now), as clock() says it. */
+export function took(from, to = Date.now()) {
+  const ms = (w) => (typeof w === "number" ? (w < 1e12 ? w * 1000 : w) : Date.parse(w ?? ""));
+  const a = ms(from), b = ms(to);
+  return a && b && b >= a ? clock((b - a) / 1000) : "";
 }
 export const plural = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
 

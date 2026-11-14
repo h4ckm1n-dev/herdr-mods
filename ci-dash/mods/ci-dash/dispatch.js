@@ -5,7 +5,7 @@ import { v_flex, h_flex, InputState, Input } from "gpui-base";
 import { settings } from "herdr";
 import { GhError } from "./gh.js";
 import { parseWorkflowInputs } from "./workflow-inputs.js";
-import { mapLimit, relTime, stateOf } from "./format.js";
+import { mapLimit, stateOf } from "./format.js";
 import { icon, pill, section, searchBox, busy, iconTile, segmented, stepper } from "./ui.js";
 import * as K from "./kit.js";
 
@@ -345,7 +345,7 @@ export class Dispatch {
               .child(svg(icon("chevron")).size(12).flex_none().text_color(t.dim)))
             .child(h_flex().pl(24).flex_wrap().gap(4).items_center()
               .child(pill(t, { label: w.inputCount ? `${w.inputCount} input${w.inputCount === 1 ? "" : "s"}` : "no inputs" }))
-              .when(Boolean(last), (e) => e.child(app.statePill(stateOf(last), t)).child(div().text_size(K.SIZE.meta).text_color(t.dim).child(`last run ${relTime(last.created_at, now)}`)))
+              .when(Boolean(last), (e) => e.child(app.statePill(stateOf(last), t)).child(div().text_size(K.SIZE.meta).text_color(t.dim).child(`last run ${K.agoWords(last.created_at, now)}`)))
               .when(!last, (e) => e.child(div().text_size(K.SIZE.meta).text_color(t.dim).child("no recent run"))));
         }))
         .when(!list.length, (e) => e.child(div().p(16).text_size(K.SIZE.body).text_color(t.dim).child("No workflow matches"))));
