@@ -290,7 +290,8 @@ for light. See **[theme-gallery/](theme-gallery/)**.
 
 <img src="docs/keybinds.png" width="100%" alt="Keybinds: every shortcut grouped by Spaces, Agents and Terminal, drawn as keycaps, with a filter field.">
 
-Every Herdr shortcut on one sheet, grouped and drawn as keycaps. Type to filter.
+Every Herdr shortcut on one sheet, one line per action, drawn as keycaps. Type to filter,
+<kbd>↑</kbd><kbd>↓</kbd> to move, <kbd>↵</kbd> or a click to run the action.
 See **[help-crew/](help-crew/)**.
 
 <br>
@@ -390,7 +391,7 @@ Codex needs nothing: its quotas come from its own session logs.
 | <kbd>⌘</kbd><kbd>⇧</kbd><kbd>H</kbd> | Session recap: the files a session read and wrote | everywhere |
 | <kbd>⌘</kbd><kbd>⇧</kbd><kbd>M</kbd> | OhMyHerdr Mods: switch mods on or off | everywhere |
 | <kbd>⌘</kbd><kbd>,</kbd> · <kbd>⌘</kbd><kbd>⇧</kbd><kbd>P</kbd> | Herdr's Settings · command palette, as centered dialogs | everywhere |
-| <kbd>⌘</kbd><kbd>E</kbd> · <kbd>⌘</kbd><kbd>G</kbd> · <kbd>⌘</kbd><kbd>⇧</kbd><kbd>U</kbd> | Files · Git · Cost panel (again: close) | Crew layout |
+| <kbd>⌘</kbd><kbd>E</kbd> · <kbd>⌘</kbd><kbd>G</kbd> · <kbd>⌘</kbd><kbd>⇧</kbd><kbd>C</kbd> · <kbd>⌘</kbd><kbd>⇧</kbd><kbd>U</kbd> | Files · Git · CI runs · Cost panel (again: close) | Crew layout |
 | <kbd>⌘</kbd><kbd>⇧</kbd><kbd>A</kbd> · <kbd>⌘</kbd><kbd>⇧</kbd><kbd>S</kbd> | Keyboard to Agents · Spaces | Crew layout |
 | Click a header | Fold or open Agents · Spaces | Crew layout |
 | <kbd>⌘</kbd><kbd>⇧</kbd><kbd>K</kbd> | Claude Manager | everywhere |
@@ -406,13 +407,14 @@ so they only apply while the Crew layout shows. Change any of them there.
 
 | What | Where | Default |
 |---|---|---|
-| Daily budget in the Cost panel | `DAILY_BUDGET` at the top of `mods/cost/main.js` | $150 |
+| Daily budget in the Cost panel | the **−** / **+** beside it in the panel ($10 steps), or <kbd>-</kbd> <kbd>+</kbd> with the panel focused. A toast warns at 80% and 100% | $150 |
 | Sidebar width | drag its edge, or the brand row's toggle for a 44 px rail | 268 px |
 | Side panel width | drag its edge | 368 px (280 to 900) |
 | Agents and Spaces split | drag the line between them; click a header to fold | half each |
 | Agent sort order | the clock button in the Agents header, or <kbd>s</kbd> | Priority |
 | Space colours | right-click a space | from its name |
 | Codex sessions folder | `CODEX_SESSIONS`, else `$CODEX_HOME/sessions` | `~/.codex/sessions` |
+| Claude Code's folder | `CLAUDE_CONFIG_DIR`. Herdr opened from the Dock doesn't see variables your shell exports: start it from a terminal (`herdr-app`) for these three to apply | `~/.claude` |
 | Colours | any Herdr theme: every piece uses theme colours only | your theme |
 
 A file you change inside `~/.config/herdr-app/mods/` is replaced by the next `./install.sh`, and the

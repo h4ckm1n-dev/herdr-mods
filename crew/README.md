@@ -123,7 +123,7 @@ Source Control and a commit graph in one panel. It's also a module of its own: [
 What your sessions would cost at API prices, from the same transcripts:
 
 - **Today** against a daily budget, with the last hour and your hourly pace. The budget is
-  `DAILY_BUDGET` at the top of `cost/main.js`, $150 by default.
+  $150 by default: the **−** / **+** beside it change it, and a toast warns at 80% and 100%.
 - **Priciest today:** the session, with its sub-agents, that cost the most.
 - **Last 7 days** as columns, Codex as a thin row under them.
 - **By model**, with the share of input read from cache. Low means full-price re-reads.
@@ -211,7 +211,7 @@ while the Crew layout shows. ⌘J and ⌘P are global.
 
 ## Customize
 
-- **Daily budget:** `DAILY_BUDGET` in `cost/main.js`.
+- **Daily budget:** the **−** / **+** beside it in the Cost panel.
 - **Colors:** Crew uses theme colors only. Change the theme (or try [Theme Gallery](../theme-gallery/README.md)) and every piece follows.
 - **The design kit:** `kit.js` is the same in every mod. Change one copy, then copy it to the others, or the looks drift.
 
