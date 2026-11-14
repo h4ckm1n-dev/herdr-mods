@@ -102,11 +102,13 @@
   },
   {
     "id": "machine-add-crew",
-    "desc": "Original Add a machine in a centered 16:9 dialog"
+    "desc": "Original Add a machine in a centered 16:9 dialog",
+    "fallback": "machine-add"
   },
   {
     "id": "prompt-crew",
-    "desc": "Original text prompt in a centered 16:9 dialog"
+    "desc": "Original text prompt in a centered 16:9 dialog",
+    "fallback": "prompt"
   },
   {
     "id": "fuzzy-files",
