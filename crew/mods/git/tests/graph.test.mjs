@@ -256,6 +256,14 @@ const rows = G.diffRows(git(repo, [...G.READ, ...G.diffArgs(mergeC, "f1.txt")]).
 assert.equal(rows[0].kind, "@"); assert.deepEqual(rows[1], { kind: "+", number: 1, text: "f1" });
 assert.ok(G.diffRows(git(repo, [...G.READ, ...G.diffArgs(root, "init.txt")]).stdout)[1].text === "init", "root commit diff");
 assert.equal(G.diffRows(""), null);
+{ // a non-ASCII name with glob characters: listed as is, and its diff found
+  const u = join(base, "unicode"); mkdirSync(u); git(u, ["init", "-q"]); git(u, ["config", "user.email", "t@t"]); git(u, ["config", "user.name", "t"]);
+  git(u, ["commit", "-q", "--allow-empty", "-m", "a"]); writeFileSync(join(u, "café [1].txt"), "x\n"); git(u, ["add", "-A"]); git(u, ["commit", "-q", "-m", "b"]);
+  const c = G.parseLog(git(u, [...G.READ, ...G.logArgs({ limit: 5 })]).stdout).find((x) => x.subject === "b"), a = G.fileArgs(c);
+  const [f] = G.joinFiles(git(u, [...G.READ, ...a.status]).stdout, git(u, [...G.READ, ...a.numstat]).stdout);
+  assert.deepEqual([f.path, f.add], ["café [1].txt", 1]);
+  assert.equal(G.diffRows(git(u, [...G.READ, ...G.diffArgs(c, f.path)]).stdout)[1].text, "x");
+}
 // Empty repo and current-only scope.
 const empty = join(base, "empty"); sh(base, "init", "-q", empty);
 assert.notEqual(git(empty, G.logArgs({ all: false, remotes: true, limit: 300 })).code, 0, "HEAD scope fails without commits (handled as empty)");

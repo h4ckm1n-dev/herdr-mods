@@ -4,7 +4,8 @@
 
 // Reads write nothing under .git (no index refresh or lock, no fsmonitor
 // cookie), so the folder watch never wakes for the panel's own reads.
-export const READ = ["--no-optional-locks", "-c", "core.fsmonitor=false", "-c", "diff.autoRefreshIndex=false"];
+// quotePath off: a name like café.txt comes back as is, not "caf\303\251.txt", so it can be passed back.
+export const READ = ["--no-optional-locks", "-c", "core.fsmonitor=false", "-c", "diff.autoRefreshIndex=false", "-c", "core.quotePath=false"];
 export const STATUS = ["status", "--porcelain=v1", "-z", "--no-renames", "--untracked-files=all"];
 export const UNCOMMITTED = "*";
 // Git's pretty fields are NUL-free strings; -z terminates each seven-field record.
@@ -517,10 +518,10 @@ export function joinFiles(statusText, numstatText) {
 
 export function diffArgs(commit, path) {
   if (!commit.uncommitted) checkCommit(commit);
-  const opts = ["--no-color", "--no-ext-diff", "--no-textconv"];
-  if (commit.uncommitted) return ["diff", ...opts, "HEAD", "--", path];
-  if (!commit.parents.length) return ["show", ...opts, "--format=", commit.hash, "--", path];
-  return ["diff", ...opts, commit.parents[0], commit.hash, "--", path];
+  const opts = ["--no-color", "--no-ext-diff", "--no-textconv"], lit = "--literal-pathspecs"; // a name with [ or * is a name
+  if (commit.uncommitted) return [lit, "diff", ...opts, "HEAD", "--", path];
+  if (!commit.parents.length) return [lit, "show", ...opts, "--format=", commit.hash, "--", path];
+  return [lit, "diff", ...opts, commit.parents[0], commit.hash, "--", path];
 }
 
 // Numbers each diff line once, so a frame only draws the rows on screen.
