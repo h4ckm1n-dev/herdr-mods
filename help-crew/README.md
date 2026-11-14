@@ -2,7 +2,7 @@
 
 <div align="center">
 
-<img src="hero.png" width="100%" alt="Every Herdr shortcut. One sheet. The Keybinds dialog: a filter field and every shortcut in two columns, drawn as keycaps.">
+<img src="hero.png" width="100%" alt="Every Herdr shortcut. One sheet. The Keybinds dialog: a filter field, then one line per action with its keys drawn as keycaps.">
 
 <br>
 

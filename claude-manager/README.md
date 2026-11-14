@@ -2,7 +2,7 @@
 
 <div align="center">
 
-<img src="hero.png" width="100%" alt="All of Claude Code. One switch each. The Claude Manager dialog: tabs for skills, commands, agents, MCP, hooks and plugins, a switch on every row, and per-kind counts in the footer.">
+<img src="hero.png" width="100%" alt="All of Claude Code. One switch each. The Claude Manager dialog: tabs for skills, commands, agents, MCP, hooks and plugins, a switch on every row, how many are on per kind, and profiles to save a set of switches.">
 
 <br>
 

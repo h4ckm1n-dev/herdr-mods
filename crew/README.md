@@ -2,7 +2,7 @@
 
 <div align="center">
 
-<img src="hero.png" width="100%" alt="Agents first. The whole window. The Herdr window in the Crew layout: agents grouped by what they need, spaces with branch and color, a Claude Code terminal, the Cost panel and the bottom bar.">
+<img src="hero.png" width="100%" alt="Agents first. The whole window. The Herdr window in the Crew layout: agents grouped by what they need, spaces with branch and uncommitted changes, a Claude Code terminal, the Cost panel and the bottom bar.">
 
 <br>
 
