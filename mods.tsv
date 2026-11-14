@@ -2,7 +2,7 @@
 agents-crew	layout	Agents sidebar: Claude and Codex sessions, sub-agents, progress
 spaces-crew	layout	Spaces sidebar: colored avatars, worktrees under their checkout
 workspace-chrome-crew	layout	Sidebar brand row and footer (Settings, Add machine)
-tabs-crew	layout	Tab bar with panel buttons (Files, Graph, Cost) and the waiting-agent key
+tabs-crew	layout	Tab bar with panel buttons (Files, Git, CI runs, Cost) and the waiting-agent key
 workspace-status-crew	layout	Bottom bar: machine, branch, working agents
 claude-usage	layout	Bottom bar: Codex and Claude Code 5h / 7d quotas, side by side
 pane-crew	layout	Pane header for the crew layout
@@ -15,7 +15,7 @@ new-menu-crew	-	New tab / agent menu
 worktree-crew	-	New / open / remove worktree dialogs
 picker-crew	-	Go-to-tab picker, cmd-P
 theme-gallery	-	Every Ghostty theme with live preview, cmd-shift-T
-help-crew	-	Keybinds dialog in two columns with keycaps, cmd-/
+help-crew	-	Keybinds sheet: one line per action with its keycaps, run it from there, cmd-/
 claude-manager	-	Claude Code skills, commands, agents, MCP servers, hooks and plugins on or off, cmd-shift-K
 mod-manager	-	OhMyHerdr mods on or off in a centered dialog, cmd-shift-M
 settings-crew	opt-in	Original Herdr Settings in a centered 16:9 dialog

@@ -16,7 +16,7 @@
   },
   {
     "id": "tabs-crew",
-    "desc": "Tab bar with panel buttons (Files, Graph, Cost) and the waiting-agent key",
+    "desc": "Tab bar with panel buttons (Files, Git, CI runs, Cost) and the waiting-agent key",
     "fallback": "tabs"
   },
   {
@@ -73,7 +73,7 @@
   },
   {
     "id": "help-crew",
-    "desc": "Keybinds dialog in two columns with keycaps, cmd-/",
+    "desc": "Keybinds sheet: one line per action with its keycaps, run it from there, cmd-/",
     "fallback": "help"
   },
   {
