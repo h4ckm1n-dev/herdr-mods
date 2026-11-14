@@ -38,7 +38,8 @@ def codex(now):
             try:
                 record = json.loads(line)
                 rl = (record.get("payload") or {}).get("rate_limits") or {}
-            except ValueError: continue
+                if not isinstance(rl, dict): continue
+            except (AttributeError, ValueError): continue
             if rl.get("limit_id") not in (None, "codex") or not (rl.get("primary") or rl.get("secondary")): continue
             # a window past its reset is empty again, whatever the last report said
             win = lambda w: {"utilization": w.get("used_percent") if (w.get("resets_at") or 0) > now else 0,
@@ -50,5 +51,9 @@ def codex(now):
             break
     return result
 
+def safe(f, *a):  # one provider's surprise must not blank the other's meters
+    try: return f(*a)
+    except Exception: return None
+
 if __name__ == "__main__":
-    print(json.dumps({"claude": claude(), "codex": codex(time.time())}))
+    print(json.dumps({"claude": safe(claude), "codex": safe(codex, time.time())}))
