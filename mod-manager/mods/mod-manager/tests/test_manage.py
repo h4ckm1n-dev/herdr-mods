@@ -104,14 +104,14 @@ class SwitchTests(unittest.TestCase):
         self.assertTrue(listed <= names)
         self.assertEqual(len(names), len(catalog))
 
-    def test_installer_refuses_to_replace_disabled_original(self):
+    def test_installer_skips_a_disabled_mod(self):
         root = Path(__file__).resolve().parents[4]
         manage.toggle(self.home, CAT, "cost", False)
         before = manage.digest(self.home / "mods/cost")
         result = subprocess.run([sys.executable, "-I", "install.py", str(self.home), "cost"],
                                 cwd=root, capture_output=True, text=True)
-        self.assertNotEqual(result.returncode, 0)
-        self.assertIn("Enable disabled mods", result.stderr)
+        self.assertEqual(result.returncode, 0, result.stderr)  # skipped with a word, the rest still installs
+        self.assertIn("skipped, disabled in OhMyHerdr Mods", result.stdout)
         self.assertEqual(manage.digest(self.home / "mods/cost"), before)
 
 

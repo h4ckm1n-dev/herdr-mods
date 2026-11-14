@@ -31,7 +31,7 @@ works. Enabling restores the original folder.
 The list covers the installer catalog plus Filetree and CI Dash; uninstalled
 mods are shown but cannot be switched. This dialog does not install mods.
 
-Do not reinstall/update a disabled mod before enabling it. If a replacement
+The installer skips a disabled mod and says so: enable it, then update. If a replacement
 has been edited or reinstalled, the manager refuses to overwrite it and keeps
 the original in `disabled-mods`. Resolve the two copies manually first.
 If a swap was interrupted with the target missing, enable it to recover.
