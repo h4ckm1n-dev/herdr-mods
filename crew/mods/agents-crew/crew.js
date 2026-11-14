@@ -44,7 +44,7 @@ export function startCrew(self, cx) {
     const pid = new Map(terminals().map((t) => [t.address, t.foreground?.pid ?? t.pid ?? ""]));
     const arg = (a) => `${a.address}|${pid.get(a.address) ?? ""}|${byPane.get(a.pane)?.cwd ?? ""}`;
     const list = agents(), claude = list.filter(isClaude).map(arg), codex = list.filter((a) => isCodex(a) && !isClaude(a)).map(arg);
-    if (!claude.length && !codex.length) return;
+    if (!claude.length && !codex.length) { if (self.crewError) { self.crewError = null; cx.notify(); } return; }
     self.crewBusy = true;
     cx.spawn(async (cx) => {
       try {
@@ -135,11 +135,15 @@ export function crewLines(self, t, a, now) {
       tasks.some((x) => x.state === "run") ? t.working : t.dim)))
     .when(Boolean(jRoute), (el) => el.child(div().id(`jm-${a.address}`).size(6).flex_none().rounded(1).bg(MC[familyOf(jRoute)] ?? t.muted)
       .tooltip(`Jev → ${modelShort(jRoute)} · ${jevWhy(j, u?.model)}`).when(jFresh, (m) => m.loop("opacity", { from: 0.35, to: 1, period: 900 }))))
-    .when(f != null, (el) => el.child(div().id(`cx-${a.address}`).flex_none().text_size(SIZE.micro).text_color(f >= 0.6 ? fillColor(t, f) : t.dim)
+    .when(f != null, (el) => el.child(h_flex().id(`cx-${a.address}`).flex_none().gap(4).items_center().text_size(SIZE.micro).text_color(f >= 0.6 ? fillColor(t, f) : t.dim)
       .tooltip(`Context ${tok(u.ctx)} / ${tok(u.window || windowOf(u.model))}${f >= COMPACT_AT ? " · click to type /compact" : ""}`)
       .when(f >= COMPACT_AT && a.status !== "blocked", (el2) => el2.cursor_pointer().on_click((_e, cx) => {
         cx.stop_propagation(); hc(["keys", a.address, ..."/compact"]).catch(() => {}); run("agent.focus", { terminal: a.address });
       }))
+      // how full the context is, read before the number: a 20px bar in the same color
+      .child(h_flex().w(20).h(3).flex_none().rounded(2).overflow_hidden().bg(t.border)
+        .child(div().h_full().flex_basis(0).flex_grow(Math.min(1, f)).bg(f >= 0.6 ? fillColor(t, f) : t.dim))
+        .child(div().h_full().flex_basis(0).flex_grow(1 - Math.min(1, f))))
       .child(`${Math.round(f * 100)}%`)));
   if (!open) return [summary];
 

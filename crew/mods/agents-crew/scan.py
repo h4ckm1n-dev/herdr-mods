@@ -6,6 +6,7 @@ import glob, json, os, re, subprocess, sys, time
 from datetime import datetime
 
 HOME = os.path.expanduser("~")
+CLAUDE = os.environ.get("CLAUDE_CONFIG_DIR") or os.path.join(HOME, ".claude")  # where Claude Code keeps its files
 TAIL = 512 * 1024      # ponytail: tail-only parse; counts cover the tail, fine for live view
 RECENT_S = 30 * 60     # finished subagents stay listed this long
 GAP_S = 120            # longer pauses between records don't count as work (resumed agents)
@@ -205,7 +206,7 @@ def hkey(m):
 def history(cache):
     """Median and p75 working time of finished subagents, per type. Each log is timed once."""
     seen = cache.setdefault("_hist", {})
-    for meta in glob.glob(os.path.join(HOME, ".claude", "projects", "*", "*", "subagents", "*.meta.json")):
+    for meta in glob.glob(os.path.join(CLAUDE, "projects", "*", "*", "subagents", "*.meta.json")):
         log = meta[:-10] + ".jsonl"
         if log in seen or not os.path.exists(log): continue
         try: m = json.load(open(meta))
@@ -230,7 +231,7 @@ def born(path):
 def by_pid():
     """Claude writes ~/.claude/sessions/<pid>.json (sessionId, cwd); it follows /clear and --resume."""
     out = {}
-    for f in glob.glob(os.path.join(HOME, ".claude", "sessions", "*.json")):
+    for f in glob.glob(os.path.join(CLAUDE, "sessions", "*.json")):
         try: d = json.load(open(f))
         except (OSError, ValueError): continue
         if d.get("sessionId"): out[int(d.get("pid") or base(f)[:-5])] = d
@@ -250,16 +251,16 @@ def transcript(pid, cwd, known, kids):
     d = known.get(pid) or known.get(kids.get(pid))  # pid may be the shell around claude
     if d:
         sid = d["sessionId"]
-        p = os.path.join(HOME, ".claude", "projects", slug(d.get("cwd") or cwd or ""), sid + ".jsonl")
+        p = os.path.join(CLAUDE, "projects", slug(d.get("cwd") or cwd or ""), sid + ".jsonl")
         if not os.path.exists(p):
-            p = next(iter(glob.glob(os.path.join(HOME, ".claude", "projects", "*", sid + ".jsonl"))), None)
+            p = next(iter(glob.glob(os.path.join(CLAUDE, "projects", "*", sid + ".jsonl"))), None)
         return p, True  # p may be None: a fresh Claude with no transcript yet, not someone else's
     if pid is not None or not cwd: return None, False  # a claude we can't place: show nothing, not a guess
     # ponytail: fallback guess; two Claudes in one cwd share the newest transcript
-    mains = glob.glob(os.path.join(HOME, ".claude", "projects", slug(cwd), "*.jsonl"))
+    mains = glob.glob(os.path.join(CLAUDE, "projects", slug(cwd), "*.jsonl"))
     return (max(mains, key=os.path.getmtime), False) if mains else (None, False)
 
-JEV_DIR = os.path.join(HOME, ".claude", "dev-mods")  # written by the jev-router Claude Code mod
+JEV_DIR = os.path.join(CLAUDE, "dev-mods")  # written by the jev-router Claude Code mod
 
 def jev(sid):
     """Last jev-router call of this session (written by the Claude Code mod), None when it never ran here."""

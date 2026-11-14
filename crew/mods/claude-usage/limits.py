@@ -21,7 +21,11 @@ def claude(now=None):
         try: past = datetime.fromisoformat(str(w.get("resets_at")).replace("Z", "+00:00")).timestamp() <= now
         except ValueError: past = False
         return {**w, "utilization": 0} if past else w
-    return {k: win(d[k]) for k in ("five_hour", "seven_day") if isinstance(d.get(k), dict)} or None
+    out = {k: win(d[k]) for k in ("five_hour", "seven_day") if isinstance(d.get(k), dict)}
+    if not out: return None
+    try: out["as_of"] = iso(os.path.getmtime(CLAUDE_CACHE))  # the statusline only writes while Claude Code runs
+    except OSError: pass
+    return out
 
 def iso(epoch): return datetime.fromtimestamp(epoch, timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ") if epoch else None
 

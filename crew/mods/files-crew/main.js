@@ -108,7 +108,10 @@ export default class Files extends View {
           const status = await exec("git", ["--no-optional-locks", "-c", "core.fsmonitor=false", "status", "--porcelain=v1", "-z", "--no-renames", "--untracked-files=all"], { cwd, on }).catch(() => null);
           if (status?.code === 0) for (const entry of status.stdout.split("\0").filter(Boolean).slice(0, TOTAL)) {
             const xy = entry.slice(0, 2);
-            marks[`${top.stdout.trim()}/${entry.slice(3)}`] = xy === "??" || xy.includes("A") ? "A" : xy.includes("U") ? "U" : xy.includes("D") ? "D" : "M";
+            const file = `${top.stdout.trim()}/${entry.slice(3)}`;
+            marks[file] = xy === "??" || xy.includes("A") ? "A" : xy.includes("U") ? "U" : xy.includes("D") ? "D" : "M";
+            // a folded folder still says it holds changes: a dot on every folder above the file
+            for (let d = file.slice(0, file.lastIndexOf("/")); d.length > top.stdout.trim().length && !marks[d]; d = d.slice(0, d.lastIndexOf("/"))) marks[d] = "•";
           }
         }
         if (!this.current(context)) return;
@@ -172,7 +175,9 @@ export default class Files extends View {
     }
     cx.spawn(async cx => {
       // --remote-expr fails (code 2) without a server; plain --remote would edit locally and hang
-      const r = await exec("nvim", ["--server", sock, "--remote-expr", `execute('drop ' .. fnameescape('${file.replace(/'/g, "''")}'))`], { on }).catch(() => null);
+      const r = await exec("nvim", ["--server", sock, "--remote-expr", `execute('drop ' .. fnameescape('${file.replace(/'/g, "''")}'))`], { on }).catch(() => "missing");
+      // no nvim to run: the read-only preview beats a tab that dies on "command not found"
+      if (r === "missing") { this.show(path, cx); cx.notify(); return; }
       if (r?.code === 0) {
         const t = terminals().find(t => t.argv?.includes(sock));
         if (t) run("pane.focus", { terminal: t.address });
@@ -213,6 +218,7 @@ export default class Files extends View {
     if (this.file) { // viewer: Esc / Backspace go back to the tree
       const m = e.modifiers ?? {};
       if ((e.key === "escape" || e.key === "backspace") && !m.platform && !m.control && !m.alt) { this.show(null); cx.stop_propagation(); cx.notify(); return; }
+      if (e.key === "enter" && !m.platform && !m.control && !m.alt) { const f = this.file; this.show(null); this.edit(f, cx); cx.stop_propagation(); cx.notify(); }
       return;
     }
     const flat = this.flat(), i = this.cursor(flat), r = flat[i];
@@ -233,14 +239,14 @@ export default class Files extends View {
     const dark = Boolean(settings().dark);
     return flat.map((r, n) => {
       const { path, dir, depth, name } = r, open = this.folders.has(path), mark = this.marks[`${this.root}/${path}`], here = n === cursor;
-      const markColor = mark === "A" ? t.ansi2 : mark === "D" || mark === "U" ? t.ansi1 : t.blocked;
+      const markColor = mark === "A" ? t.ansi2 : mark === "D" || mark === "U" ? t.ansi1 : t.working; // modified: amber, never the needs-you red
       // always a 1px border (transparent) so the keyboard cursor never shifts the layout
       return h_flex().id(`file-${path}`).h(28).flex_none().pl(8 + depth * 16).pr(8).gap(8).items_center().rounded(8).cursor_pointer().border_1().border_color(here ? t.accent : "#00000000")
         .when(here, el => el.bg(t.selected)).hover(s => s.bg(here ? t.selected : t.hover))
         .text_size(SIZE.body).on_click((_e, cx) => dir ? this.toggle(path, cx) : this.edit(path, cx))
         .child(dir ? svg(`mods/files-crew/chevron-${open ? "down" : "right"}.svg`).size(12).flex_none().text_color(t.dim) : div().w(12).flex_none())
         .child(image(fileIcon(path, dir, open, dark)).size(16).flex_none())
-        .child(div().flex_1().min_w(0).truncate().text_color(dir ? t.foreground : t.muted).child(name))
+        .child(div().flex_1().min_w(0).truncate().text_color(dir ? t.foreground : t.muted).child(name)).tooltip(path)
         .when(Boolean(mark), el => el.child(div().flex_none().w(16).flex().justify_center().text_size(SIZE.micro).font_semibold().text_color(markColor).child(mark)));
     });
   }
@@ -270,7 +276,7 @@ export default class Files extends View {
           : v_flex().id("files-tree").flex_1().min_h(0).overflow_y_scrollbar().p(8).children(rows)))
       .when(!this.file && this.limited, el => el.child(footer(t, "files-limit").child(div().text_size(SIZE.meta).text_color(t.dim).child("List limited to 500 entries per folder, 5,000 total"))))
       .when(Boolean(this.file), el => el.child(this.code ? Editor.new(this.code).flex_1().min_h(0) : empty(t, { title: this.fileError || "Loading file…" })))
-      .when(kb && !this.file, el => el.child(keyHints(t, "files-keys", [["↑↓", "move"], ["⏎", "nvim"], ["␣", "preview"], ["←→", "fold"], ["Esc", "terminal"]])))
-      .when(kb && Boolean(this.file), el => el.child(keyHints(t, "files-keys", [["Esc", "back"], ["⌫", "back"]])));
+      .when(kb && !this.file, el => el.child(keyHints(t, "files-keys", [["↑↓", "move"], ["↵", "nvim"], ["Space", "preview"], ["←→", "fold"], ["Esc", "terminal"]])))
+      .when(kb && Boolean(this.file), el => el.child(keyHints(t, "files-keys", [["↵", "nvim"], ["Esc", "back"]])));
   }
 }

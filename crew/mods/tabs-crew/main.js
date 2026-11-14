@@ -1,7 +1,7 @@
 import { View, div, svg, image } from "gpui-kit";
 import { h_flex } from "gpui-base";
-import { spaces, panes, run, openOverlay, theme, window, shared, layout, settings, nextCommand, agents, notify } from "herdr";
-import { SIZE, ICON, spinner, dot, tag, iconButton, askPanelFocus } from "./kit.js";
+import { spaces, panes, run, openOverlay, theme, window, shared, layout, settings, nextCommand, agents, notify, keys } from "herdr";
+import { SIZE, ICON, spinner, dot, tag, iconButton, askPanelFocus, keyLabel } from "./kit.js";
 
 function find(node, id) {
   if (node?.id === id) return node;
@@ -60,7 +60,7 @@ export default class Tabs extends View {
         .border_1().border_color(c.active ? t.border : t.chrome).bg(c.active ? t.background : t.chrome)
         .text_color(c.active ? t.foreground : t.muted).cursor_pointer()
         .hover(s => s.bg(c.active ? t.background : t.hover).text_color(t.foreground))
-        .accessibility_label(label)
+        .accessibility_label(label).tooltip(label)
         .on_mouse_down("left", (e, cx) => { cx.stop_propagation(); this.pressed = i; if (e.click_count === 2) run("tab.rename", { id: c.id }); })
         .on_mouse_up("left", () => {
           const from = this.pressed; this.pressed = null;
@@ -87,12 +87,14 @@ export default class Tabs extends View {
     const panel = find(root, "panel"), body = find(root, "panel-body");
     const enabled = [...(shared("workspace.panels") ?? ["files"]).filter((id) => id !== "changes"), "graph", "ops", "cost"];
     // ponytail: the side panel is one window-wide layout block, so it stays as it is across spaces (no per-space restore).
-    const panelButton = (id, icon, tip) => {
-      const on = Boolean(panel && !panel.hidden && body?.active === id);
+    // the key as keys.json has it now (yours if you rebound it), in this platform's glyphs
+    const keyOf = (id) => keyLabel(keys().find((b) => b.action === `tabs-crew.${id}`)?.keys, win?.platform === "macos");
+    const panelButton = (id, icon, name) => {
+      const on = Boolean(panel && !panel.hidden && body?.active === id), key = keyOf(id), tip = key ? `${name} ${key}` : name;
       return iconButton(t, `panel-${id}`, icon, () => {
         if (on) run("layout.hide", { id: "panel" });
         else { run("layout.select", { stack: "panel-body", child: id }); run("layout.show", { id: "panel" }); }
-      }, { tip, on }).accessibility_label(tip.replace(/ [⌘⇧]+\w$/, ""));
+      }, { tip, on }).accessibility_label(name);
     };
     const winBtn = (id, tip, icon, action) => iconButton(t, id, icon, action, { tip });
     return h_flex().size_full().min_w(0).px(10).pl(lightsPadding).gap(4).items_center().bg(t.chrome).border_b(1).border_color(t.border).text_size(SIZE.body)
@@ -102,12 +104,12 @@ export default class Tabs extends View {
       .child(iconButton(t, "tab-new", "plus", () => openOverlay({ mod: "new-menu-crew", kind: "popup", width: 250, height: 512 }), { tip: "New tab or agent" }))
       .child(div().w(1).h(14).flex_none().mx(4).bg(t.border))
       // code (Files, Git, CI) · cluster and spend (Ops, Cost)
-      .when(enabled.includes("files"), el => el.child(panelButton("files", "mods/files/file.svg", "Files ⌘E")))
-      .child(panelButton("graph", "mods/git/icons/graph.svg", "Git ⌘G"))
+      .when(enabled.includes("files"), el => el.child(panelButton("files", "mods/files/file.svg", "Files")))
+      .child(panelButton("graph", "mods/git/icons/graph.svg", "Git"))
       .when(Boolean(find(root, "ci")), el => el.child(panelButton("ci", "mods/ci-dash/ci.svg", "CI runs")))
       .child(div().w(1).h(14).flex_none().mx(4).bg(t.border))
       .when(Boolean(find(root, "ops")), el => el.child(panelButton("ops", "mods/ops/ops.svg", "Ops")))
-      .when(Boolean(find(root, "cost")), el => el.child(panelButton("cost", "mods/cost/cost.svg", "Cost ⌘⇧U")))
+      .when(Boolean(find(root, "cost")), el => el.child(panelButton("cost", "mods/cost/cost.svg", "Cost")))
       .when(w?.buttons, el => el.child(div().w(1).h(14).flex_none().mx(4).bg(t.border))
         .child(winBtn("minimize", "Minimize", w.platform === "windows" ? winIcon("win-min") : ICON("minus"), () => run("window.minimize")))
         .child(winBtn("maximize", w.maximized ? "Restore" : "Maximize", w.platform === "windows" ? winIcon(w.maximized ? "win-restore" : "win-max") : ICON("square"), () => run("window.maximize")))

@@ -3,10 +3,11 @@
 // One tool: its meters with time to reset. Both: each behind its icon, resets in the tooltip.
 import { View, div, svg } from "gpui-kit";
 import { h_flex } from "gpui-base";
-import { SIZE, agentColor } from "./kit.js";
-import { theme, exec, appHome, knownAgents } from "herdr";
+import { SIZE, agentColor, agoWords } from "./kit.js";
+import { theme, exec, appHome, knownAgents, notify, shared, setShared } from "herdr";
 
 const POLL_MS = 30_000;
+const WARN_AT = 90; // percent: the same line the meter turns red at
 const TOOLS = [["codex", "Codex"], ["claude", "Claude"]];
 const OWN = { claude: "mods/claude-usage/claude.svg", codex: "mods/claude-usage/codex.svg" };
 // resets_at is UTC; "2h05m" / "3d4h" left
@@ -35,18 +36,36 @@ export default class AgentUsage extends View {
       try {
         const r = await exec("python3", ["-I", this.script]);
         this.limits = r.code === 0 ? JSON.parse(r.stdout) : {};
+        this.warn();
       } catch { this.limits = {}; } // ponytail: no data yet = empty band, not an error
       cx.notify();
     });
   }
 
-  meter(t, key, label, w, showReset) {
+  // One toast per window each time it crosses 90%: the bar is easy to miss mid-task.
+  warn() {
+    // in shared state, so a mod reload doesn't toast the same window again
+    const warned = { ...(shared("usage.warned") ?? {}) }, before = JSON.stringify(warned);
+    for (const [k, name] of TOOLS) for (const [win, label] of [["five_hour", "5h"], ["seven_day", "7d"]]) {
+      const w = this.limits?.[k]?.[win], id = `${k}-${win}`;
+      if (!(w?.utilization >= WARN_AT)) { delete warned[id]; continue; }
+      if (warned[id] === w.resets_at) continue;
+      warned[id] = w.resets_at;
+      const reset = resetIn(w.resets_at);
+      notify({ title: `${name} ${label} quota at ${Math.round(w.utilization)}%`, body: reset ? `Resets in ${reset}.` : "", level: "warning" });
+    }
+    if (JSON.stringify(warned) !== before) setShared("usage.warned", warned);
+  }
+
+  meter(t, key, label, w, showReset, asOf) {
     if (w?.utilization == null) return null;
     const p = Math.max(0, Math.min(100, Math.round(w?.utilization ?? 0)));
     const color = p >= 90 ? t.blocked : p >= 50 ? t.working : t.muted; // color only when it means something
     const reset = resetIn(w?.resets_at);
-    return h_flex().id(`u-${key}`).flex_none().gap(4).items_center()
-      .when(!showReset && Boolean(reset), (el) => el.tooltip(`${label} window · ${p}% used · resets in ${reset}`))
+    // the Claude figure is only as fresh as the last statusline run: say so once it is over 10 minutes old
+    const old = asOf ? Date.now() - Date.parse(asOf) : 0, age = old > 600_000 ? agoWords(asOf) : "";
+    return h_flex().id(`u-${key}`).when(Boolean(age), (el) => el.opacity(0.6)).flex_none().gap(4).items_center()
+      .when(Boolean(reset) || Boolean(age), (el) => el.tooltip([`${label} window · ${p}% used`, reset && `resets in ${reset}`, age && `read ${age}`].filter(Boolean).join(" · ")))
       .child(div().text_size(SIZE.micro).text_color(t.dim).child(label))
       .child(h_flex().w(28).h(4).rounded(2).overflow_hidden().bg(t.border)
         .child(div().h_full().rounded(2).flex_basis(0).flex_grow(p / 100).bg(color))
@@ -78,8 +97,8 @@ export default class AgentUsage extends View {
         ...(i ? [sep()] : []),
         h_flex().id(`tool-${k}`).flex_none().gap(8).items_center()
           .when(both, (el) => el.child(this.mark(t, k, name)))
-          .child(this.meter(t, `${k}-5h`, "5h", l.five_hour, !both))
-          .child(this.meter(t, `${k}-7d`, "7d", l.seven_day, !both)),
+          .child(this.meter(t, `${k}-5h`, "5h", l.five_hour, !both, l.as_of))
+          .child(this.meter(t, `${k}-7d`, "7d", l.seven_day, !both, l.as_of)),
       ];
     }));
   }

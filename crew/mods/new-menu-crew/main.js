@@ -29,8 +29,10 @@ export default class NewMenu extends View {
   }
   row(id, icon, name, action, hint = "", enabled = true) {
     const t = theme();
+    // every enabled row, in the order drawn: what ↑↓ walks and ⏎ runs
+    const at = enabled ? this.items.push(action) - 1 : -1;
     return menuItem(t, id, {
-      icon, label: name, disabled: !enabled,
+      icon, label: name, disabled: !enabled, active: at >= 0 && at === this.at,
       // keys are caps (kit); words like "Not installed" stay plain dim text
       hint: hint ? (/^[1-9]$/.test(hint) || /[⌘⌃⌥⇧]|\+/.test(hint) ? hint : div().flex_none().text_size(SIZE.micro).text_color(t.dim).child(hint)) : undefined,
       onClick: () => { closeOverlay(props().overlay); action(); },
@@ -42,10 +44,17 @@ export default class NewMenu extends View {
     const installed = this.agents.filter(a => a.installed);
     const choices = [...installed, ...this.agents.filter(a => !a.installed).slice(0, 2)];
     const glyph = (name) => svg(ICON(name)).size(14).text_color(t.muted);
+    this.items = [];
     return v_flex().min_h(0).w_full().h(Math.min(491, 166 + Math.max(1, choices.length) * 30)).bg(t.popover).p(4).text_size(SIZE.body)
       .id("new-menu").track_focus(this.handle)
-      .on_key_down((e) => {
+      .on_key_down((e, cx) => {
         if (e.modifiers.control || e.modifiers.platform || e.modifiers.alt) return;
+        const n = this.items.length;
+        if ((e.key === "down" || e.key === "up") && n) {
+          this.at = this.at == null ? (e.key === "down" ? 0 : n - 1) : (this.at + (e.key === "down" ? 1 : n - 1)) % n;
+          cx.stop_propagation(); return cx.notify();
+        }
+        if (e.key === "enter" && this.items[this.at]) { closeOverlay(props().overlay); return this.items[this.at](); }
         const agent = /^[1-9]$/.test(e.key) ? installed[Number(e.key) - 1] : null;
         if (!agent) return;
         closeOverlay(props().overlay);

@@ -53,6 +53,8 @@ export default class Pane extends View {
       .text_size(SIZE.body)
       .on_hover((hovered, cx) => { this.hovered = hovered; cx.notify(); })
       .on_click(() => run("pane.focus", { pane }))
+      // double-click the header to zoom the pane, and again to bring the others back
+      .on_mouse_down("left", (e) => { if (e.click_count === 2) run("pane.zoom", { pane }); })
       .when(Boolean(st) && st !== "idle", (el) => el.child(gutter(t, st)))
       .when(Boolean(pic), (el) => el.child(pic))
       .child(div().flex_none().truncate().max_w(260).font_semibold().text_color(t.foreground).child(name))

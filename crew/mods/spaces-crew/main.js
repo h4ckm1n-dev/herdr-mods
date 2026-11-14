@@ -46,10 +46,16 @@ const MARK = { ansi6: "#22a99a", ansi3: "#e3814f", ansi4: "#5b8def", ansi5: "#8b
 const avatar = (fill, name) => h_flex().size(16).flex_none().rounded(4).bg(fill + "26").items_center().justify_center()
   .text_size(SIZE.micro).font_semibold().text_color(fill).child([...name][0]?.toUpperCase() ?? "?");
 
+// Next agent waiting for the person, any space; cycles from the shown one (what ⌘J does).
+const nextBlocked = () => {
+  const b = agents().filter((a) => a.status === "blocked");
+  if (b.length) run("agent.focus", { terminal: b[(b.findIndex((a) => a.focused) + 1) % b.length].address });
+};
+
 // Header right side, as the Agents header says it: spaces that need you, else spaces working.
 function spacesStatus(t) {
   const sp = spaces(), blocked = sp.filter((w) => w.status === "blocked").length, working = sp.filter((w) => w.status === "working").length;
-  if (blocked) return h_flex().flex_shrink(1).min_w(0).gap(6).items_center().id("sp-blocked").tooltip(`${blocked} space${blocked === 1 ? "" : "s"} need you`)
+  if (blocked) return h_flex().flex_shrink(1).min_w(0).gap(6).items_center().id("sp-blocked").cursor_pointer().on_mouse_down("left", (_e, cx) => cx.stop_propagation()).on_click(nextBlocked).tooltip(`${blocked} space${blocked === 1 ? "" : "s"} need you · click for the next agent`)
     .child(dot(t.blocked, 6)).child(div().text_size(SIZE.meta).text_color(t.blocked).child(String(blocked)));
   if (working) return h_flex().flex_shrink(1).min_w(0).gap(6).items_center().id("sp-working").tooltip(`${working} space${working === 1 ? "" : "s"} working`)
     .child(spinner(t.working, 11)).child(div().text_size(SIZE.meta).text_color(t.working).child(String(working)));
@@ -242,7 +248,7 @@ export default class Spaces extends View {
       const common = await exec("git", ["rev-parse", "--path-format=absolute", "--git-common-dir"], { cwd, on });
       const repo = common.stdout.trim();
       const name = repo.endsWith("/.git") ? base(repo.slice(0, -5)) : base(repo).replace(/\.git$/, "");
-      const info = { name, branch: null, ahead: 0, behind: 0, repo: JSON.stringify([on, repo]), linked: repo !== `${top.stdout.trim()}/.git` };
+      const info = { name, branch: null, ahead: 0, behind: 0, dirty: 0, repo: JSON.stringify([on, repo]), linked: repo !== `${top.stdout.trim()}/.git` };
       for (const line of r.stdout.split("\n")) {
         if (line.startsWith("# branch.head ")) info.branch = line.slice(14);
         else if (line.startsWith("# branch.ab ")) {
@@ -250,6 +256,7 @@ export default class Spaces extends View {
           info.ahead = Math.abs(parseInt(a, 10)) || 0;
           info.behind = Math.abs(parseInt(b, 10)) || 0;
         }
+        else if (line && !line.startsWith("#")) info.dirty++; // every other line is one changed or untracked path
       }
       this.git[key] = info;
       if (!on) this.watch(repo, cx);
@@ -406,7 +413,7 @@ export default class Spaces extends View {
     const same = (a) => a.toLowerCase() === name.toLowerCase();
     const branch = same(raw) || raw === "master" || raw === "main" ? "" : raw;
     const repo = tree || same(g.name) ? "" : g.name;
-    return repo || branch || g.ahead > 0 || g.behind > 0 ? { repo, branch, ahead: g.ahead, behind: g.behind } : null;
+    return repo || branch || g.ahead > 0 || g.behind > 0 ? { repo, branch, ahead: g.ahead, behind: g.behind, dirty: g.dirty } : null;
   }
 
   gitTail({ repo, branch, ...g }, t) {
@@ -421,6 +428,8 @@ export default class Spaces extends View {
       .when(Boolean(repo), (el) => el.child(div().min_w(0).flex_shrink(4).truncate().child(repo)))
       .when(Boolean(repo) && Boolean(branch), (el) => el.child(div().flex_none().child("·")))
       .when(Boolean(branch), (el) => el.child(div().flex_shrink(1).min_w(40).truncate().text_color(t.muted).child(branch)))
+      // uncommitted work, before a space is closed or a worktree removed: "±3" = three changed paths
+      .when(g.dirty > 0, (el) => el.child(div().flex_none().text_size(SIZE.micro).text_color(t.working).child(`\u00b1${g.dirty}`)))
       .when(g.ahead > 0, (el) => el.child(div().flex_none().text_size(SIZE.micro).text_color(t.ansi2).child(`\u2191${g.ahead}`)))
       .when(g.behind > 0, (el) => el.child(div().flex_none().text_size(SIZE.micro).text_color(t.ansi1).child(`\u2193${g.behind}`)));
   }
@@ -501,6 +510,8 @@ export default class Spaces extends View {
           .when(Boolean(tree), el => el.pl(24).child(h_flex().w(16).flex_none().justify_center().child(svg(ICON("branch")).size(12).text_color(t.dim))))
           .when(!tree, el => el.child(avatar(fill, w.name)))
           .child(div().flex_1().min_w(0).truncate().font_semibold().text_color(on ? t.foreground : tree ? t.muted : t.foreground).child(w.name))
+          // uncommitted paths ride on the name row when there is no git line under it: dirty alone never adds a line
+          .when(!meta && g?.dirty > 0, (el) => el.child(div().flex_none().text_size(SIZE.micro).text_color(t.working).child(`\u00b1${g.dirty}`)))
           .when(Boolean(mark), (el) => el.child(mark))
           // close: on hover (and on the shown space), in a slot kept so names never shift.
           // space.close without `confirmed` lets Herdr ask first when the space has running terminals.
@@ -590,6 +601,6 @@ export default class Spaces extends View {
       .child(v_flex().id("space-list").flex_1().min_h(0).px(collapsed ? 0 : 8).pb(8).gap(2).overflow_y_scrollbar().mode("always")
         .on_mouse_up("left", (_e, cx) => { this.pressed = null; cx.notify(); })
         .children(entries.map((e) => e.make(kb && e.id === curItem?.id))))
-      .when(kb && !collapsed, (el) => el.child(keyHints(t, "sp-keys", [["↑↓", "move"], ["⏎", "open"], ...(hasGroups ? [["Space", "fold"]] : []), ["n", "new"], ["m", "menu"], ["Esc", "terminal"]])));
+      .when(kb && !collapsed, (el) => el.child(keyHints(t, "sp-keys", [["↑↓", "move"], ["↵", "open"], ...(hasGroups ? [["Space", "fold"]] : []), ["n", "new"], ["m", "menu"], ["Esc", "terminal"]])));
   }
 }

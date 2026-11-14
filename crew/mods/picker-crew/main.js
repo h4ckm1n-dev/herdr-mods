@@ -89,6 +89,7 @@ export default class Picker extends View {
     const quiet = groups.filter((p) => !p.w.status && p.ctxs.length);
     busy.sort((a, b) => (b.w.status === "blocked") - (a.w.status === "blocked"));
     const out = [];
+    if (f && !groups.some((p) => p.ctxs.length)) out.push({ kind: "none" }); // say it: Enter does nothing here
     const add = (p) => {
       out.push({ kind: "head", w: p.w });
       for (const c of p.ctxs) out.push({ kind: "ctx", ...c });
@@ -124,7 +125,7 @@ export default class Picker extends View {
     // One continuous strip: each row (and the group title before it) at a fixed
     // y. Scrolling moves the strip only as far as it takes to keep the selected
     // row in view, so the arrows can't run the selection off the list.
-    const H = { head: 30, earlier: 34, new: 36, ctx: 32, space: 32 };
+    const H = { head: 30, earlier: 34, new: 36, ctx: 32, space: 32, none: 32 };
     const tops = [];
     let y = 0;
     rows.forEach((r) => { tops.push(y); y += H[r.kind] ?? 32; });
@@ -150,6 +151,7 @@ export default class Picker extends View {
           .child(h_flex().size(16).flex_none().rounded(4).bg(spaceColor(t, r.w) + "26").items_center().justify_center().text_size(SIZE.micro).font_semibold().text_color(spaceColor(t, r.w)).child([...r.w.name][0]?.toUpperCase() ?? "?")) // tinted, as in the spaces sidebar
           .child(div().min_w(0).truncate().child(r.w.name));
       }
+      if (r.kind === "none") return h_flex().h(H.none).px(20).items_center().text_size(SIZE.body).text_color(t.dim).child(`Nothing matches "${this.filter}"`);
       if (r.kind === "earlier") {
         return section(t, "pk-earlier", "Earlier", `${r.count} quiet ${r.count > 1 ? "spaces" : "space"}`, {
           open: this.showEarlier,
@@ -169,6 +171,8 @@ export default class Picker extends View {
           .child(label);
       }
       const who = r.mine.map((a) => a.program?.name ?? "agent").join(" · ");
+      // an unnamed tab ("tb3") reads as what runs in it, as the tab bar shows it
+      const name = /^tb\d+$/.test(r.ctx.name) ? r.mine[0]?.program?.name ?? "Terminal" : r.ctx.name;
       const here = r.w.active && r.ctx.active;
       return h_flex()
         .id(`pk-${r.ctx.id}`)
@@ -177,10 +181,10 @@ export default class Picker extends View {
         .hover((s) => s.bg(on ? t.selected : t.hover))
         .on_click(() => this.go(r))
         .child(gutter(t, r.ctx.status))
-        .child(div().flex_1().min_w(0).truncate().font_semibold().text_color(here ? t.foreground : t.muted).child(r.ctx.name))
+        .child(div().flex_1().min_w(0).truncate().font_semibold().text_color(here ? t.foreground : t.muted).child(name))
         .when(r.ctx.status === "blocked", (el) => el.child(tag(t, "Needs you", t.blocked)))
-        .when(r.ctx.status === "done", (el) => el.child(tag(t, "Finished", t.done)))
-        .child(div().flex_none().max_w(200).truncate().text_size(SIZE.meta).text_color(t.dim).child(who + (r.team ? `  +${r.team}` : "")));
+        .when(r.ctx.status === "done", (el) => el.child(tag(t, "Done", t.done)))
+        .child(div().flex_none().max_w(200).truncate().text_size(SIZE.meta).text_color(t.dim).child((who === name ? "" : who) + (r.team ? `  +${r.team}` : "")));
     };
 
     const d = dialog(t, "picker", { title: "Go to…", glyph: svg(ICON("search")).size(14).flex_none().text_color(t.muted) });
@@ -225,7 +229,7 @@ export default class Picker extends View {
             }))
           .children(rows.map((r, i) => (visible(i) ? place(row(r), i) : null)).filter(Boolean)),
       )
-      .child(footer(t, "pk-foot").child(h_flex().gap(12).items_center().children([["↑↓", "Move"], ["↵", "Go"], ["⌃D", "Close tab"]]
+      .child(footer(t, "pk-foot").child(h_flex().gap(12).items_center().children([["↵", "go"], ["↑↓", "move"], ["⌃D", "close tab"], ["Esc", "close"]]
         .map(([k, w]) => h_flex().gap(4).items_center().child(kbd(t, k)).child(div().text_size(SIZE.meta).text_color(t.dim).child(w))))));
   }
 }

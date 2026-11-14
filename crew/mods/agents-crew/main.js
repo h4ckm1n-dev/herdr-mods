@@ -3,8 +3,8 @@
 
 import { View, div, image, svg } from "gpui-kit";
 import { v_flex, h_flex } from "gpui-base";
-import { agents, terminals, panes, focused, spaces, run, theme, shared, setShared, setAgentOrder, openOverlay, closeOverlay, props, window, layout, nextCommand } from "herdr";
-import { ICON, SIZE, dot, empty, gutter, iconButton, menuItem, plural, section, spinner, statusColor, surfaceless, tag, header as panelHeader, foldOnClick, navKey, trackTerminal, keyHints } from "./kit.js";
+import { agents, terminals, panes, focused, spaces, run, theme, shared, setShared, setAgentOrder, openOverlay, closeOverlay, props, window, layout, nextCommand, readTextFile, appHome } from "herdr";
+import { ICON, SIZE, dot, empty, errorBand, gutter, iconButton, menuItem, plural, section, spinner, statusColor, surfaceless, tag, header as panelHeader, foldOnClick, navKey, trackTerminal, keyHints, ago } from "./kit.js";
 import { startCrew, crewLines, conflictBand, nextBlocked, hasTasks } from "./crew.js";
 
 function find(node, id) {
@@ -64,13 +64,6 @@ const SECTION_STATUS = { 4: "blocked", 3: "done", 2: "working", 1: "idle" };
 const SECTION_ICON = { done: "check", idle: "minus" };
 
 
-function duration(ms) {
-  const m = Math.floor(ms / 60000);
-  if (m < 1) return "<1m";
-  if (m < 60) return `${m}m`;
-  const h = Math.floor(m / 60);
-  return h < 24 ? `${h}h` : `${Math.floor(h / 24)}d`;
-}
 
 // The color of an agent's space (shared "space.colors": a theme color name or #rrggbb, as the
 // Spaces list draws it); the home space ("~") has none.
@@ -90,10 +83,19 @@ function icon(p, size, color) {
 
 export default class Agents extends View {
   init(_props, cx) {
-    if (props()?.sortMenu) return;
+    if (props()?.sortMenu) { // the sort popup: its own keyboard, starting on the order in use
+      this.kb = cx.focus_handle(); this.kb.focus();
+      this.sat = SORTS.indexOf(sortOf());
+      return;
+    }
     this.folded = new Set();
     this.kb = cx.focus_handle(); // keyboard focus (DESIGN.md "Keyboard")
     this.cur = null; // the cursor, as an item id (follows the data)
+    // Session recap is its own mod: its right-click and `r` only exist when it is installed and on
+    cx.spawn(async (cx) => {
+      this.recap = Boolean(await readTextFile(`${appHome()}/mods/session-recap/recap.py`).catch(() => null));
+      cx.notify();
+    });
     cx.spawn(async (cx) => {
       for (;;) {
         const c = await nextCommand();
@@ -164,18 +166,31 @@ export default class Agents extends View {
     return sawDone ? RANK.done : RANK[a.status] ?? 0;
   }
 
+  openRecap(a) {
+    if (this.recap && a) openOverlay({ mod: "session-recap", kind: "dialog", frame: "none", width: 1040, height: 585, props: { session: this.crew?.[a.address]?.id } });
+  }
+
   // The sort popup: a Crew menu (popover, p 4, 30px items, a dim 11px caption).
   sortMenu(t) {
     const on = sortOf().id;
-    return v_flex().w_full().p(4).bg(t.popover).text_color(t.foreground).text_size(SIZE.body)
+    const pick = (s) => { setShared("agents.sort", s.id); closeOverlay(props().overlay); };
+    return v_flex().id("ag-sort-menu").w_full().p(4).bg(t.popover).text_color(t.foreground).text_size(SIZE.body)
+      .track_focus(this.kb)
+      .on_key_down((e, cx) => {
+        const n = SORTS.length;
+        if (e.key === "down") this.sat = (this.sat + 1) % n;
+        else if (e.key === "up") this.sat = (this.sat + n - 1) % n;
+        else if (e.key === "enter") return pick(SORTS[this.sat]);
+        else if (e.key === "escape") return closeOverlay(props().overlay);
+        else return;
+        cx.stop_propagation(); cx.notify();
+      })
       .child(div().px(8).pt(4).pb(4).text_size(SIZE.meta).text_color(t.dim).child("Sort agents"))
-      .children(SORTS.map((s) => menuItem(t, `sort-${s.id}`, {
+      .children(SORTS.map((s, i) => menuItem(t, `sort-${s.id}`, {
         icon: s.icon,
         label: s.label,
-        onClick: () => {
-          setShared("agents.sort", s.id);
-          closeOverlay(props().overlay);
-        },
+        active: i === this.sat,
+        onClick: () => pick(s),
       }).when(s.id === on, (el) => el.child(svg(ICON("check")).size(14).flex_none().text_color(t.foreground)))));
   }
 
@@ -387,7 +402,7 @@ export default class Agents extends View {
         // right-click: the files this agent's session read and wrote (Session recap, when installed)
         .on_mouse_down("right", (_e, cx) => {
           cx.stop_propagation();
-          openOverlay({ mod: "session-recap", kind: "dialog", frame: "none", width: 1040, height: 585, props: { session: this.crew?.[a.address]?.id } });
+          this.openRecap(a);
         })
         .child(gutter(t, a.status))
         // The program's icon; with sub-agents it also folds them (as the chevron does).
@@ -404,7 +419,7 @@ export default class Agents extends View {
         .when(needsYou, el => el.child(tag(t, "Needs you", t.blocked)))
         .when(subs.length > 0 || hasTasks(this, a, now), el => el.child(fold(a, subs))) // one chevron: tasks + sub-terminals
         .when(this.hovered === a.address, el => el.child(pin))
-        .when(this.hovered !== a.address && Boolean(when), el => el.child(div().flex_none().text_size(SIZE.meta).text_color(t.dim).child(duration(now - when))));
+        .when(this.hovered !== a.address && Boolean(when), el => el.child(div().flex_none().text_size(SIZE.meta).text_color(t.dim).child(ago(when, now))));
       if (!lines.length) return top;
       return v_flex().id(`agb-${a.address}`).flex_none().pb(4).gap(2).rounded(8).cursor_pointer()
         .when(sel, (el) => el.bg(t.selected))
@@ -512,7 +527,9 @@ export default class Agents extends View {
         left: () => kbFold(false),
         keys: {
           p: () => curItem?.a && run("terminal.pin", { terminal: curItem.a.address, pinned: !curItem.a.pinned }),
-          s: () => openOverlay({ mod: "agents-crew", kind: "popup", width: 200, height: 140, props: { sortMenu: true } }),
+          // the key goes straight to the next order, no popup to walk
+          s: () => setShared("agents.sort", SORTS[(SORTS.indexOf(sortOf()) + 1) % SORTS.length].id),
+          r: () => this.openRecap(curItem?.a),
         },
       }))
       .when(!collapsed, (el) => el.child(panelHeader(t, { rule: false, dense: true, 
@@ -524,6 +541,8 @@ export default class Agents extends View {
         actions: [iconButton(t, "ag-sort", ICON(sort.icon), () => openOverlay({ mod: "agents-crew", kind: "popup", width: 200, height: 140, props: { sortMenu: true } }), { tip: `Sort agents: ${sort.label}` })],
       })))
       .when(!collapsed, (el) => el.child(conflictBand(this, t) ?? div()))
+      // the scanners feed activity, context and tasks: say so when they fail rather than show bare rows
+      .when(!collapsed && Boolean(this.crewError), (el) => el.child(errorBand(t, `Session details unavailable: ${this.crewError}`).id("ag-err").truncate().tooltip(this.crewError)))
       .child(list.length === 0 && !collapsed
         ? empty(t, {
           glyph: svg(ICON("terminal")).size(20).text_color(t.dim),
@@ -531,7 +550,7 @@ export default class Agents extends View {
           hint: "They show up here once they report their status. Older versions and agents inside tmux may not.",
         }).text_center()
         : v_flex().id("ag-list").flex_1().min_h(0).px(collapsed ? 0 : 8).pb(8).gap(2).overflow_y_scrollbar().mode("always").children(rows))
-      .when(kb && !collapsed, (el) => el.child(keyHints(t, "ag-keys", [["↑↓", "move"], ["⏎", "open"], ["Space", "fold"], ["p", "pin"], ["s", "sort"], ["Esc", "terminal"]])))
+      .when(kb && !collapsed, (el) => el.child(keyHints(t, "ag-keys", [["↑↓", "move"], ["↵", "open"], ["Space", "fold"], ["p", "pin"], ["s", "sort"], ...(this.recap ? [["r", "recap"]] : []), ["Esc", "terminal"]])))
       .when(collapsed, (el) =>
         el.child(h_flex().h(34).flex_none().items_center().justify_center()
           .child(iconButton(t, "collapse", ICON("sidebar"), toggleSidebar, { tip: "Expand sidebar" }))));

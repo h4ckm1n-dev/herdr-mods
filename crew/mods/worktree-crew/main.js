@@ -4,7 +4,7 @@
 import { View, div, svg } from "gpui-kit";
 import { v_flex, h_flex, InputState, Input, Scrollbar } from "gpui-base";
 import { run, props, closeOverlay, theme, spaces, panes, exec, home } from "herdr";
-import { SIZE, ICON, dialog, field, button, kbd, row as listRow, tag, footer, errorBand, liveStatus } from "./kit.js";
+import { SIZE, ICON, dialog, field, button, kbd, row as listRow, tag, footer, errorBand, liveStatus, ago } from "./kit.js";
 
 // Where a space is now: its first terminal's live folder, else where it was made.
 function place(s, all = panes()) {
@@ -21,10 +21,6 @@ const tilde = (path, userHome) => {
   return p.startsWith(h) ? `~${p.slice(h.length)}` : path;
 };
 const slug = (branch) => branch.replace(/[^A-Za-z0-9._-]+/g, "-").replace(/^-+|-+$/g, "");
-const ago = (s) => {
-  const d = Date.now() / 1000 - s;
-  return d < 3600 ? `${Math.max(1, Math.round(d / 60))}m` : d < 86400 ? `${Math.round(d / 3600)}h` : d < 86400 * 60 ? `${Math.round(d / 86400)}d` : `${Math.round(d / 86400 / 30)}mo`;
-};
 
 // Every checkout of a repo (`git worktree list`), the main one first, then
 // the most recently committed: { path, branch, main, at }.
@@ -226,7 +222,10 @@ export default class Worktree extends View {
     run("space.close", { id: s.id, confirmed: true });
     const force = this.dirty || mods.length > 0;
     const r = await git(this.repo.main, ["worktree", "remove", ...(force ? ["--force"] : []), this.repo.top], this.on);
-    return r.ok ? "" : r.err || "git worktree remove failed.";
+    if (r.ok) return "";
+    // git said no after the space closed: give the space back rather than leave the folder orphaned
+    run("space.new", { folder: this.repo.top, machine: this.on });
+    return `${r.err || "git worktree remove failed."} The space was reopened.`;
   }
 
   key(e, cx) {
@@ -296,7 +295,7 @@ export default class Worktree extends View {
                   .child(Scrollbar.vertical("wt-list").absolute().inset_0()),
               ),
           ))
-        .child(footer(t, "wt-foot").child(this.hints(t, [["↑↓", "Choose"], ["↵", "Open"]]))));
+        .child(footer(t, "wt-foot").child(this.hints(t, [["↵", "open"], ["↑↓", "choose"], ["Esc", "close"]]))));
   }
 
   render(cx) {
