@@ -127,7 +127,7 @@ exec("sh", ["-c", 'GH_TOKEN="$(gh auth token -h "$1" -u "$2")" || exit 4; shift 
 - `resolveRepo` first runs `gh repo view` as the active login. If the error matches `Could not resolve to a Repository`, `HTTP 404` or `Not Found`, it reads the logged-in accounts from `gh auth status` (lines `Logged in to <host> account <login>` and `Active account: true`). It tries each account that is not active, in order, and keeps the first that can see the repository as `repo.account`. Every later call for that repository uses it. If none can, it throws a 404 error with the first message.
 - The active login is never switched and no token is stored.
 
-Files written: only `<repo root>/.ci-dash/artifacts/<run id>/<artifact name>/`, created by `gh run download`. Nothing else is written.
+Files written: only `<repo root>/.ci-dash/artifacts/<run id>/<artifact name>/`, created by `gh run download`, and `<repo root>/.ci-dash/.gitignore` (`*`) on the first download so they stay out of `git status`. Nothing else is written.
 
 YAML: `yaml.js` is a minified browser bundle of the `yaml` package 2.8.1 that exports only `parse`. `workflow-inputs.js` imports it and reads `on.workflow_dispatch.inputs` (types `string`, `choice`, `boolean`, `number`, `environment`; an unknown type becomes `string`, with a warning). The `yaml` package is ISC licensed, copyright Eemeli Aro; the licence text is in `yaml.LICENSE` and must stay beside `yaml.js`.
 
@@ -135,7 +135,7 @@ YAML: `yaml.js` is a minified browser bundle of the `yaml` package 2.8.1 that ex
 
 - The failed log comes from `gh run view --log-failed`, once per attempt, with a 2 minute wait. Each step keeps the 40 lines up to its last `##[error]`: what follows is the runner cleaning up. GitHub drops logs after a while (`log not found`), and `gh` names a step `UNKNOWN STEP` when it can't tell: only the job shows then.
 
-- It reaches the network through `gh`. Every GitHub call is a `gh` call from your machine with your login. It runs programs (`gh`, `git`, `sh`, `test`, `open` or `xdg-open`). It writes files in the repository folder, under `.ci-dash/artifacts`. It stores no credentials. Add `.ci-dash/` to the repository's `.gitignore`, or the downloads show in `git status`.
+- It reaches the network through `gh`. Every GitHub call is a `gh` call from your machine with your login. It runs programs (`gh`, `git`, `sh`, `test`, `open` or `xdg-open`). It writes files in the repository folder, under `.ci-dash/artifacts`. It stores no credentials. The first download writes `.ci-dash/.gitignore`, so the downloads stay out of `git status`.
 - The panel runs `gh` against whichever folder is focused. Focusing a terminal in another repository switches the panel to that repository.
 - `Dispatch` and `Rerun` and `Cancel` change real runs on GitHub. They need a token that can write to Actions. Dispatch only starts after the final Dispatch click.
 - `exec` stops after 30 seconds unless given `timeout`; artifact downloads get its 10 minute maximum. One larger than that times out and shows `Retry`.

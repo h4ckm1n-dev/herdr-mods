@@ -381,6 +381,8 @@ export default class CiDash extends View {
     this.dl[key] = { state: "busy" };
     cx.spawn(async (cx) => {
       try {
+        // First, so even a partial or failed download stays out of git status and "Commit all".
+        await exec("sh", ["-c", 'mkdir -p "$1" && { [ -e "$1/.gitignore" ] || [ -L "$1/.gitignore" ] || printf "*\\n" > "$1/.gitignore"; }', "sh", join(this.root, ".ci-dash")], { cwd: this.root, on: gh.on }).catch(() => {});
         await gh.downloadArtifact(runId, artifact.name, dir);
         this.dl[key] = { state: "done", dir };
         this.lastDir = dir;
