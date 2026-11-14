@@ -96,6 +96,12 @@ if want_layout:
     extra = sorted(m for m in layout_mods(LAYOUT) if m in NAMES and m not in chosen)
     if extra: print(f"The {LAYOUT_NAME} layout also needs: {', '.join(extra)}"); chosen += extra
 
+# keys.json is read before anything is copied: a file that doesn't parse stops here, with nothing half-installed
+kpath = os.path.join(APP, "keys.json")
+try: keys = json.load(open(kpath)) if os.path.exists(kpath) else {}
+except ValueError as e: sys.exit(f"{kpath} is not valid JSON ({e}). Fix it or move it aside, then run again. Nothing was installed.")
+if not isinstance(keys, dict): sys.exit(f"{kpath} is not a JSON object. Fix it or move it aside, then run again. Nothing was installed.")
+
 # ---- copy mods ----------------------------------------------------------------------
 # A disabled mod's folder is a stand-in (the original waits in disabled-mods): leave both alone.
 disabled = [m for m in chosen if os.path.exists(os.path.join(APP, "disabled-mods", m))]
@@ -145,8 +151,6 @@ if want_layout:
     if not moved and not os.path.exists(old): print(f"  Pick {LAYOUT_NAME} in Settings > Layout")
 
 # ---- keys: merge each mod's bindings; never overwrite yours without asking --------------
-kpath = os.path.join(APP, "keys.json")
-keys = json.load(open(kpath)) if os.path.exists(kpath) else {}
 changed = False
 # layout:crew became layout:OhMyHerdr with the layout's name; your own keys come along, once the
 # crew layout itself is gone (its keys only apply while it shows)
@@ -161,7 +165,8 @@ def replaces(m):
         with open(os.path.join(SRC[m], "mod.json")) as f: name = json.load(f).get("cloned_from", {}).get("name")
     except (OSError, ValueError, AttributeError): return None
     return NATIVE.get(name, f"mod.open:{name}") if name else None
-before = {section: set(binds.values()) for section, binds in keys.items() if isinstance(binds, dict)}
+# (a binding can also be an object, {"command": ..., "args": ...}: yours, left alone, never matched by name)
+before = {section: {a for a in binds.values() if isinstance(a, str)} for section, binds in keys.items() if isinstance(binds, dict)}
 for m in chosen:
     for section, binds in KEYS.get(m, {}).items():
         sec = keys.setdefault(section, {})
@@ -205,7 +210,23 @@ if "claude-usage" in chosen and os.path.isdir(CLAUDE):
 if shutil.which("herdr-app"):
     bad = [m for m in chosen if subprocess.run(["herdr-app", "check", os.path.join(APP, "mods", m)], capture_output=True).returncode]
     print(f"\nherdr-app check: {'failed for ' + ', '.join(bad) if bad else 'all passed'}")
-else: bad = []
+else:
+    bad = []
+    print("\nherdr-app is not on your PATH: the mods were copied but not checked")
 if os.path.isdir(BACKUP): print(f"Replaced files saved in {BACKUP}")
 if bad: sys.exit(f"Installed, but herdr-app check failed for {', '.join(bad)}: run `herdr-app check <home>/mods/<mod>` to see why")
-print("Done. Herdr reloads mods live.")
+# ---- what you got: each mod's key as it ended up in keys.json (yours when you kept it) -----------------
+DESC = {name: desc for name, _, desc in CAT}
+bound = {}
+for binds in keys.values():
+    for k, action in (binds.items() if isinstance(binds, dict) else ()):
+        for m in chosen:
+            if isinstance(action, str) and (action == f"mod.open:{m}" or action.startswith(f"{m}.")): bound.setdefault(m, []).append(k)
+if bound:
+    print("\nKeys:")
+    for m in chosen:
+        if m in bound: print(f"  {' · '.join(bound[m]):<28} {DESC.get(m, m)}")
+try: active = json.load(open(os.path.join(APP, "shared.json"))).get("layout")
+except (OSError, ValueError, AttributeError): active = None
+print("\nDone. Herdr reloads mods live.")
+if want_layout and active != LAYOUT_NAME: print(f"Next: open Herdr and pick {LAYOUT_NAME} in Settings > Layout.")

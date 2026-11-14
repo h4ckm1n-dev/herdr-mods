@@ -51,6 +51,27 @@ class Migration(unittest.TestCase):
         self.assertEqual((self.home / "mods/picker-crew/main.js").read_text(), "stand-in")
         self.assertEqual(sorted(p.name for p in (self.home / "mods").iterdir()), ["help-crew", "picker-crew"])
 
+    def test_broken_keys_json_stops_before_anything_is_copied(self):
+        (self.home / "keys.json").write_text("{ not json")
+        r = subprocess.run(["sh", str(REPO / "install.sh"), "help-crew", "-y"], cwd=REPO, env=self.env,
+                           capture_output=True, text=True, timeout=120)
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn("Nothing was installed", r.stderr)
+        self.assertFalse((self.home / "mods").exists())
+
+    def test_object_bindings_of_yours_do_not_break_the_install(self):
+        (self.home / "keys.json").write_text(json.dumps({"global": {"cmd-y": {"command": "tab.new", "args": {"name": "x"}}}}))
+        out = self.install("help-crew")
+        self.assertIn("+ help-crew", out)
+        self.assertEqual(self.read("keys.json")["global"]["cmd-y"], {"command": "tab.new", "args": {"name": "x"}})
+
+    def test_ends_with_the_keys_and_the_layout_step(self):
+        out = self.install("files-crew")
+        self.assertIn("Keys:", out)
+        self.assertIn("cmd-e", out)
+        self.assertIn("pick OhMyHerdr in Settings > Layout", out)
+        self.assertIn("not on your PATH", out)
+
     def read(self, name):
         return json.loads((self.home / name).read_text())
 
