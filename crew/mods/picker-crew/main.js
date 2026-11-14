@@ -39,8 +39,13 @@ export default class Picker extends View {
   init(_props, cx) {
     this.filter = "";
     this.input = InputState.new({ placeholder: "Go to a tab, space or agent…" });
-    this.input.on("change", (_e, cx) => { this.filter = this.input.value(); this.at = 0; cx.notify(); });
-    this.input.on("submit", () => this.go(this.rows().filter(r => r.kind === "ctx" || r.kind === "new" || r.kind === "space")[this.at]));
+    this.input.on("change", (_e, cx) => { this.filter = this.input.value(); this.at = 0; this.chose = false; cx.notify(); });
+    this.input.on("submit", () => {
+      const pickable = this.rows().filter(r => r.kind === "ctx" || r.kind === "new" || r.kind === "space");
+      // A search that found no tab: Enter does nothing rather than open a new tab, unless you arrowed to a row.
+      if (this.filter && !this.chose && !pickable.some((r) => r.kind === "ctx")) return;
+      this.go(pickable[this.at]);
+    });
     this.input.focus();
     cx.timer.after(600, () => this.input.focus());
     this.at = null;
@@ -89,7 +94,8 @@ export default class Picker extends View {
       for (const c of p.ctxs) out.push({ kind: "ctx", ...c });
     };
     busy.forEach(add);
-    if (quiet.length) {
+    if (!busy.length) quiet.forEach(add); // nothing running: no point folding every space away
+    else if (quiet.length) {
       out.push({ kind: "earlier", count: quiet.length });
       if (this.showEarlier || f) quiet.forEach(add);
     }
@@ -183,8 +189,8 @@ export default class Picker extends View {
       .on_key_down((e, cx) => {
         const k = e.key;
         if (k === "escape") return this.close();
-        if (k === "down") this.at = (this.at + 1) % pickable.length;
-        else if (k === "up") this.at = (this.at + pickable.length - 1) % pickable.length;
+        if (k === "down") { this.at = (this.at + 1) % pickable.length; this.chose = true; }
+        else if (k === "up") { this.at = (this.at + pickable.length - 1) % pickable.length; this.chose = true; }
         else if (k === "d" && e.modifiers.control) {
           if (sel?.kind === "ctx") {
             this.close();
