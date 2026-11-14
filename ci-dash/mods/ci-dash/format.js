@@ -86,3 +86,31 @@ export function stateOf(item) {
 }
 
 export const GLYPH = { success: "✓", failure: "✕", warning: "!", neutral: "–", queued: "○", running: "●" };
+
+/**
+ * `gh run view --log-failed` as steps: its lines are "job<TAB>step<TAB>timestamp text". Each failed
+ * step keeps the `tail` lines up to its last ##[error] (what follows is the runner cleaning up),
+ * without timestamps or colour codes. gh names a step "UNKNOWN STEP" when it can't tell: shown as none.
+ */
+export function failedSteps(text, tail = 40, width = 300) {
+  const steps = [];
+  for (const raw of String(text || "").split("\n")) {
+    const [job, named, ...rest] = raw.split("\t");
+    if (!rest.length) continue;
+    const step = named === "UNKNOWN STEP" ? "" : named;
+    const line = rest.join("\t").replace(/\x1b\[[0-9;]*[A-Za-z]/g, "").replace(/^\uFEFF?\d{4}-\d\d-\d\dT[\d:.]+Z ?/, "").replace(/\s+$/, "");
+    let s = steps[steps.length - 1];
+    if (!s || s.job !== job || s.step !== step) steps.push(s = { job, step, lines: [] });
+    if (line && !/^##\[(group|endgroup)\]/.test(line)) s.lines.push(line.replace(/^##\[error\]/, "error: ").slice(0, width));
+  }
+  return steps.filter((s) => s.lines.length).map((s) => {
+    const end = s.lines.findLastIndex((l) => l.startsWith("error: ")) + 1 || s.lines.length;
+    return { ...s, cut: Math.max(0, end - tail), lines: s.lines.slice(Math.max(0, end - tail), end) };
+  });
+}
+
+/** What an agent gets about a failed run: which run, which step, and the end of its log. */
+export function failureReport(run, steps) {
+  const head = `CI run #${run.run_number} "${run.display_title || run.name}" failed on ${run.head_branch || "?"} (${run.name}): ${run.html_url || ""}`.trim();
+  return [head, ...steps.flatMap((s) => ["", `${s.step ? `${s.job} › ${s.step}` : s.job}${s.cut ? ` (last ${s.lines.length} lines)` : ""}:`, ...s.lines])].join("\n") + "\n";
+}

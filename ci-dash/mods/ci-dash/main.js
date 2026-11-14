@@ -2,9 +2,9 @@
 // focused repository. Port of the ci-dash TUI plugin.
 import { View, div, svg } from "gpui-kit";
 import { v_flex, h_flex, InputState } from "gpui-base";
-import { spaces, panes, focused, exec, home, theme, notify, props } from "herdr";
+import { spaces, panes, focused, agents, run, exec, home, theme, notify, props } from "herdr";
 import { Gh, resolveRepo, errorHint, safeName } from "./gh.js";
-import { relTime, duration, bytes, stateOf, mapLimit, fileType } from "./format.js";
+import { relTime, duration, bytes, stateOf, mapLimit, fileType, failedSteps, failureReport } from "./format.js";
 import { Dispatch } from "./dispatch.js";
 import { icon, pill, section, searchBox, filterChip, busy } from "./ui.js";
 import * as K from "./kit.js";
@@ -259,6 +259,11 @@ export default class CiDash extends View {
             d.artLoaded = true;
           }
           if (d.live) { d.live = false; this.announce(run); }
+          // a failed run: fetch what its failed steps said, once per attempt
+          if (st.kind === "failure" && d.logFor !== run.run_attempt) {
+            d.logFor = run.run_attempt; d.log = null; d.logError = null;
+            try { d.log = failedSteps(await gh.failedLog(d.id)); } catch (e) { d.logError = e; }
+          }
         }
       } catch (e) {
         if (this.detail === d) d.error = e;
@@ -291,6 +296,39 @@ export default class CiDash extends View {
       Object.assign(d, { artLoaded: false, artifacts: [], tick: 0, live: false, hold: Date.now() + 20000, attempt: d.run?.run_attempt ?? 0 });
       this.pollDetail(cx);
     }, cx);
+  }
+
+  // Pastes the failed steps' log into the agent of the shown tab (through the clipboard, put back after),
+  // and gives its pane the keyboard so the question can follow.
+  sendLog(cx) {
+    const d = this.detail;
+    if (!d?.run || !d.log?.length) return;
+    const f = focused(), inTab = agents().filter((a) => a.tab === f?.tab);
+    const address = (inTab.find((a) => a.focused) ?? inTab[0])?.address || agents().find((a) => a.focused)?.address;
+    if (!address) { notify({ title: "No agent in this tab", body: "Start one, then send the log again", level: "warning", timeout: 3000 }); return; }
+    const before = cx.read_from_clipboard();
+    cx.write_to_clipboard(failureReport(d.run, d.log));
+    run("pane.focus", { terminal: address });
+    run("terminal.paste");
+    cx.timer.after(600, (cx) => { if (before !== undefined) cx.write_to_clipboard(before); });
+  }
+
+  copyLog(cx) {
+    const d = this.detail;
+    if (!d?.run || !d.log?.length) return;
+    cx.write_to_clipboard(failureReport(d.run, d.log));
+    notify({ title: "Copied", body: "The failed steps' log", level: "info", timeout: 2000 });
+  }
+
+  // One failed step: "job › step", then the end of its log on a surface.
+  logBlock(s, t) {
+    return v_flex().flex_none().px(16).pb(8).gap(4)
+      .child(h_flex().gap(6).items_center().text_size(K.SIZE.meta).text_color(t.muted)
+        .child(div().min_w(0).truncate().child(s.step ? `${s.job} › ${s.step}` : s.job))
+        .when(s.cut > 0, (e) => e.child(div().flex_none().text_color(t.dim).child(`last ${s.lines.length} lines`))))
+      .child(v_flex().p(8).gap(2).rounded(8).bg(t.surface).border_1().border_color(t.border).overflow_hidden()
+        .children(s.lines.map((line) => div().truncate().text_size(K.SIZE.meta)
+          .text_color(/^error: |\bFAIL|\bError\b/.test(line) ? t.ansi1 : t.muted).child(line || " "))));
   }
 
   openWeb(cx) {
@@ -560,6 +598,16 @@ export default class CiDash extends View {
         .when(d.error, (e) => e.child(div().px(12).pb(6).text_size(K.SIZE.meta).text_color(t.ansi1).child(`Update failed: ${d.error.message || d.error}`)))
         .children(d.jobs.map((j) => this.jobBlock(j, t)))
         .when(!d.jobs.length && !d.error, (e) => e.child(div().px(12).py(6).text_size(K.SIZE.body).text_color(t.dim).child("Waiting for jobs…")))
+        .when(st.kind === "failure" && (Boolean(d.log) || Boolean(d.logError)), (e) => e
+          .child(h_flex().pr(12).items_center()
+            .child(div().flex_1().min_w(0).child(section(t, "Failed steps", d.log?.length ?? 0, t.ansi1)))
+            .when(Boolean(d.log?.length), (x) => x
+              .child(h_flex().flex_none().gap(8)
+                .child(this.button("log-copy", "Copy", (cx) => this.copyLog(cx), t))
+                .child(this.button("log-send", "Send to agent", (cx) => this.sendLog(cx), t, { primary: true })))))
+          .when(Boolean(d.logError), (x) => x.child(div().px(16).pb(8).text_size(K.SIZE.meta).text_color(t.ansi1).child(`Could not read the log: ${d.logError.message || d.logError}`)))
+          .when(Boolean(d.log) && !d.log.length, (x) => x.child(div().px(16).pb(8).text_size(K.SIZE.meta).text_color(t.dim).child("GitHub has no log for the failed steps (expired, or the job never started)")))
+          .children((d.log ?? []).map((s) => this.logBlock(s, t))))
         .when(st.done && (d.artifacts.length > 0 || d.artError), (e) => e
           .child(section(t, "Artifacts", d.artifacts.length, t.muted))
           .when(Boolean(d.artError), (x) => x.child(div().px(16).text_size(K.SIZE.meta).text_color(t.ansi1).child(`Could not list artifacts: ${d.artError.message}`)))

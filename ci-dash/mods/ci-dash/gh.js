@@ -167,6 +167,11 @@ export class Gh {
   async rerunRun(id) { await this.json(this.rp(`/actions/runs/${id}/rerun`), { method: "POST" }); }
   async openRunWeb(id) { await gh(["run", "view", String(id), "--web", "-R", `${this.repo.host}/${this.repo.slug}`], this.opts()); }
 
+  /** The log of the steps that failed, as text ("job<TAB>step<TAB>time line"); logs can be large, so two minutes. */
+  async failedLog(id) {
+    return gh(["run", "view", String(id), "--log-failed", "-R", `${this.repo.host}/${this.repo.slug}`], { ...this.opts(), timeout: 120000 });
+  }
+
   /** Downloads one artifact into `dir`. Given exec()'s longest wait (10 min): its 30 s default cuts a big one. */
   async downloadArtifact(runId, name, dir) {
     await gh(["run", "download", String(runId), "--name", name, "--dir", dir, "-R", `${this.repo.host}/${this.repo.slug}`], { ...this.opts(), timeout: 600000 });
